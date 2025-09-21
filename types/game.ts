@@ -42,6 +42,11 @@ export interface GameEvent {
   description: string
   homeScore: number
   awayScore: number
+  eventType: 'shot' | 'rebound' | 'assist' | 'steal' | 'block' | 'foul' | 'timeout' | 'substitution' | 'turnover'
+  playerId?: string
+  teamId?: string
+  shotClockRemaining?: number
+  gameTimeSeconds: number
 }
 
 export interface PlayerGameStats extends Player {
