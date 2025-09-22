@@ -91,8 +91,7 @@ export class GameEngine {
       new Map(),
       0, // starting home possessions
       0, // starting away possessions
-      homeTeam, // starting possession
-      1 // starting event ID
+      homeTeam // starting possession
     )
     
     console.log('🏁 First half complete - Home:', firstHalfResult.homeScore, 'Away:', firstHalfResult.awayScore)
@@ -111,8 +110,7 @@ export class GameEngine {
       firstHalfResult.awayPlayerStats,
       firstHalfResult.homePossessions,
       firstHalfResult.awayPossessions,
-      firstHalfResult.finalPossession,
-      firstHalfResult.eventId // Continue event ID sequence
+      firstHalfResult.finalPossession
     )
     
     console.log('🏁 Second half complete - Home:', secondHalfResult.homeScore, 'Away:', secondHalfResult.awayScore)
@@ -158,15 +156,14 @@ export class GameEngine {
     startingAwayPlayerStats: Map<string, any>,
     startingHomePossessions: number,
     startingAwayPossessions: number,
-    startingPossession: Team,
-    startingEventId: number
+    startingPossession: Team
   ): GameSegmentResult {
     console.log(`🎯 Simulating quarters ${startQuarter}-${endQuarter} with strategy:`, strategy)
     
     const events: GameEvent[] = []
     let homeScore = startingHomeScore
     let awayScore = startingAwayScore
-    let eventId = startingEventId // FIXED: Use starting event ID instead of hardcoded 1
+    let eventId = 1
     let currentPossession = startingPossession
     let homePossessions = startingHomePossessions
     let awayPossessions = startingAwayPossessions
@@ -174,10 +171,9 @@ export class GameEngine {
     const gameClock = new GameClock()
     
     // Set game clock to start of the segment
-    gameClock.setStartingQuarter(startQuarter)
-    
-    // Disable automatic quarter advancement - we'll handle it manually
-    gameClock.setAutoAdvanceQuarters(false)
+    if (startQuarter > 1) {
+      gameClock.advanceTime((startQuarter - 1) * 12 * 60) // Advance to start of target quarter
+    }
 
     // Initialize or copy player stats
     const playerStats = new Map<string, any>()
@@ -210,6 +206,8 @@ export class GameEngine {
         blocks: 0,
         fieldGoalsMade: 0,
         fieldGoalsAttempted: 0,
+        threePointersMade: 0,
+        threePointersAttempted: 0,
         turnovers: 0,
         fouls: 0,
       })
@@ -233,8 +231,8 @@ export class GameEngine {
       if (gameClock.getQuarterTimeRemaining() <= 0) {
         console.log(`⏰ Quarter ${currentTime.quarter} complete`)
         if (currentTime.quarter < endQuarter) {
-          // Move to next quarter manually
-          gameClock.advanceToNextQuarter()
+          // Move to next quarter
+          gameClock.advanceTime(1)
           continue
         } else {
           // End of segment
@@ -338,11 +336,7 @@ export class GameEngine {
     const baseDuration = 10 + Math.random() * 10
     const paceMultiplier = strategy.pace === 'slow' ? 1.3 : strategy.pace === 'fast' ? 0.7 : 1.0
     const possessionDuration = baseDuration * paceMultiplier
-    
-    // Cap possession duration to not exceed remaining quarter time
-    const quarterTimeRemaining = gameClock.getQuarterTimeRemaining()
-    const cappedDuration = Math.min(possessionDuration, quarterTimeRemaining)
-    gameClock.advanceTime(cappedDuration)
+    gameClock.advanceTime(possessionDuration)
 
     // Check for non-shot events first (turnovers, fouls)
     const eventRoll = Math.random()
@@ -629,8 +623,7 @@ export class GameEngine {
       startingAwayPlayerStats,
       startingHomePossessions,
       startingAwayPossessions,
-      startingPossession,
-      startingEventId // Continue event ID sequence
+      startingPossession
     )
   }
 

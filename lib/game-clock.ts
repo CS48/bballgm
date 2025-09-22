@@ -25,6 +25,7 @@ export class GameClock {
   private isShotClockActive: boolean = false
   private currentQuarter: number = 1
   private isOvertime: boolean = false
+  private autoAdvanceQuarters: boolean = true
 
   constructor() {
     this.currentTime = 0
@@ -85,8 +86,10 @@ export class GameClock {
       }
     }
 
-    // Check if quarter is over
-    this.checkQuarterEnd()
+    // Check if quarter is over (only if auto-advance is enabled)
+    if (this.autoAdvanceQuarters) {
+      this.checkQuarterEnd()
+    }
   }
 
   /**
@@ -184,5 +187,41 @@ export class GameClock {
    */
   getQuarterTimeRemaining(): number {
     return this.getQuarterTime()
+  }
+
+  /**
+   * Set the starting quarter and time for a game segment
+   */
+  setStartingQuarter(quarter: number): void {
+    this.currentQuarter = quarter
+    this.currentTime = (quarter - 1) * this.quarterLength
+  }
+
+  /**
+   * Enable or disable automatic quarter advancement
+   */
+  setAutoAdvanceQuarters(enabled: boolean): void {
+    this.autoAdvanceQuarters = enabled
+  }
+
+  /**
+   * Manually advance to the next quarter (used when auto-advance is disabled)
+   */
+  advanceToNextQuarter(): void {
+    if (this.currentQuarter < 4) {
+      this.currentQuarter++
+      // Reset to start of new quarter
+      this.currentTime = (this.currentQuarter - 1) * this.quarterLength
+    } else if (!this.isOvertime) {
+      // End of regulation - check if overtime needed
+      this.isOvertime = true
+      this.currentQuarter = 5
+      this.currentTime = 4 * this.quarterLength // Start of first overtime
+    } else {
+      // End of overtime period
+      this.currentQuarter++
+      const overtimePeriod = this.currentQuarter - 4
+      this.currentTime = 4 * this.quarterLength + (overtimePeriod - 1) * this.overtimeLength
+    }
   }
 }

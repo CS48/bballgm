@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,23 +17,6 @@ interface GameSimulationProps {
 }
 
 export function GameSimulation({ userTeam, opponent, onGameComplete, onBackToOpponentSelect }: GameSimulationProps) {
-  // Ref to prevent multiple simulations in React Strict Mode (development only)
-  const simulationRunRef = useRef(false)
-  // Ref to prevent multiple animations from starting
-  const animationStartedRef = useRef(false)
-  // Ref to prevent multiple callback executions
-  const callbackExecutedRef = useRef(false)
-  // Ref to track current gamePhase for callbacks (fixes stale closure issue)
-  const gamePhaseRef = useRef<'first-half' | 'halftime' | 'second-half' | 'complete'>('first-half')
-  
-  // Track component lifecycle
-  useEffect(() => {
-    console.log('🚀 GameSimulation component mounted')
-    return () => {
-      console.log('💀 GameSimulation component unmounting')
-    }
-  }, [])
-
   const [gameResult, setGameResult] = useState<GameResult | null>(null)
   const [currentEventIndex, setCurrentEventIndex] = useState(0)
   const [isSimulating, setIsSimulating] = useState(true)
@@ -50,89 +33,42 @@ export function GameSimulation({ userTeam, opponent, onGameComplete, onBackToOpp
     eventId: number
   } | null>(null)
 
-  // Update gamePhaseRef whenever gamePhase changes (fixes stale closure issue)
   useEffect(() => {
-    gamePhaseRef.current = gamePhase
-  }, [gamePhase])
-
-  // Run simulation once when teams are available
-  const simulationResult = useMemo(() => {
-    console.log('🔍 useMemo executing with dependencies:', {
-      userTeamId: userTeam?.id,
-      opponentId: opponent?.id,
-      userTeamName: userTeam?.name,
-      opponentName: opponent?.name
-    })
-    
-    if (!userTeam || !opponent) {
-      console.log('❌ Missing teams, returning null')
-      return null
-    }
-    
-    // React Strict Mode in development causes double execution
-    // This guard prevents multiple simulations
-    if (simulationRunRef.current) {
-      console.log('🚫 Simulation already run (React Strict Mode), skipping')
-      return null
-    }
-    
-    simulationRunRef.current = true
-    console.log('🎮 Running first half simulation for:', userTeam.name, 'vs', opponent.name)
-    
-    // Determine home/away teams (user team is always home for now)
-    const homeTeam = userTeam
-    const awayTeam = opponent
-    
-    // Start first half simulation
-    const result = GameEngine.simulateGameSegment(
-      homeTeam,
-      awayTeam,
-      { pace: 'normal', shotSelection: 'balanced', defense: 'normal' },
-      1, // start quarter
-      2, // end quarter
-      0, // starting home score
-      0, // starting away score
-      new Map(), // starting player stats
-      new Map(),
-      0, // starting home possessions
-      0, // starting away possessions
-      homeTeam, // starting possession
-      1 // starting event ID
-    )
-    
-    console.log('✅ First half simulation completed')
-    return {
-      homeScore: result.homeScore,
-      awayScore: result.awayScore,
-      events: result.events,
-      eventId: result.eventId
-    }
-  }, [userTeam?.id, opponent?.id])
-
-  // Start animation when simulation result is available
-  useEffect(() => {
-    console.log('🔄 useEffect running with:', {
-      hasSimulationResult: !!simulationResult,
-      gamePhase,
-      simulationResultEvents: simulationResult?.events?.length,
-      animationStarted: animationStartedRef.current
-    })
-    
-    if (simulationResult && gamePhase === 'first-half' && !animationStartedRef.current) {
-      animationStartedRef.current = true
-      console.log('🎬 Starting first half animation')
-      setFirstHalfResult(simulationResult)
-      startSimulation(simulationResult.events, 0, () => {
-        if (!callbackExecutedRef.current) {
-          callbackExecutedRef.current = true
-          console.log('🏁 First half animation complete')
-          setGamePhase('halftime')
-        } else {
-          console.log('🚫 Callback already executed, skipping')
-        }
+    if (gamePhase === 'first-half') {
+      console.log('🎮 Starting first half simulation in UI')
+      // Determine home/away teams (user team is always home for now)
+      const homeTeam = userTeam
+      const awayTeam = opponent
+      
+      // Start first half simulation
+      const firstHalfResult = GameEngine.simulateGameSegment(
+        homeTeam,
+        awayTeam,
+        { pace: 'normal', shotSelection: 'balanced', defense: 'normal' },
+        1, // start quarter
+        2, // end quarter
+        0, // starting home score
+        0, // starting away score
+        new Map(), // starting player stats
+        new Map(),
+        0, // starting home possessions
+        0, // starting away possessions
+        homeTeam, // starting possession
+        1 // starting event ID
+      )
+      
+      setFirstHalfResult({
+        homeScore: firstHalfResult.homeScore,
+        awayScore: firstHalfResult.awayScore,
+        events: firstHalfResult.events,
+        eventId: firstHalfResult.eventId
       })
-    } else if (simulationResult && gamePhase === 'first-half' && animationStartedRef.current) {
-      console.log('🚫 Animation already started, skipping')
+      
+      // Start the animation timer for first half
+      startSimulation(firstHalfResult.events, 0, () => {
+        console.log('🎮 First half animation complete, showing halftime')
+        setGamePhase('halftime')
+      })
     }
 
     return () => {
@@ -140,18 +76,10 @@ export function GameSimulation({ userTeam, opponent, onGameComplete, onBackToOpp
         clearInterval(intervalId)
       }
     }
-  }, [simulationResult, gamePhase])
+  }, [userTeam, opponent]) // FIXED: Removed gamePhase from dependencies
 
   const startSimulation = (events: GameEvent[], startIndex: number = 0, onComplete?: () => void) => {
-    console.log('🎬 startSimulation called with:', { 
-      eventsLength: events.length, 
-      startIndex, 
-      hasCallback: !!onComplete,
-      currentIntervalId: intervalId
-    })
-    
     if (intervalId) {
-      console.log('🔄 Clearing existing interval:', intervalId)
       clearInterval(intervalId)
     }
 
@@ -161,14 +89,10 @@ export function GameSimulation({ userTeam, opponent, onGameComplete, onBackToOpp
     const timer = setInterval(() => {
       setCurrentEventIndex((prev) => {
         if (prev >= events.length - 1) {
-          console.log('🏁 Animation complete, current gamePhase:', gamePhaseRef.current)
           setIsSimulating(false)
           clearInterval(timer)
-          if (onComplete && (gamePhaseRef.current === 'first-half' || gamePhaseRef.current === 'second-half')) {
-            console.log('✅ Executing callback')
+          if (onComplete) {
             onComplete()
-          } else if (onComplete) {
-            console.log('❌ Skipping callback - gamePhase is:', gamePhaseRef.current)
           }
           return prev
         }
@@ -177,7 +101,6 @@ export function GameSimulation({ userTeam, opponent, onGameComplete, onBackToOpp
     }, simulationSpeed)
 
     setIntervalId(timer)
-    console.log('⏰ New interval set with ID:', timer)
   }
 
   const changeSpeed = (newSpeed: number) => {
@@ -195,22 +118,15 @@ export function GameSimulation({ userTeam, opponent, onGameComplete, onBackToOpp
 
   const handleStartSecondHalf = (strategy: StrategicAdjustments) => {
     console.log('🎮 Starting second half with strategy:', strategy)
-    console.log('🔍 Current state before second half:', {
-      gamePhase,
-      intervalId,
-      firstHalfResult: !!firstHalfResult
-    })
     
-    // Clear any pending animations and reset state
+    // FIXED: Clear any pending animations and reset state
     if (intervalId) {
-      console.log('🔄 Clearing interval in handleStartSecondHalf:', intervalId)
       clearInterval(intervalId)
       setIntervalId(null)
     }
     setIsSimulating(false)
     setCurrentEventIndex(0)
     
-    console.log('🔄 Setting gamePhase to second-half')
     setGamePhase('second-half')
     
     // Simulate second half
@@ -235,15 +151,6 @@ export function GameSimulation({ userTeam, opponent, onGameComplete, onBackToOpp
     
     // Combine first and second half results
     const allEvents = [...firstHalfResult!.events, ...secondHalfResult.events]
-    
-    // Debug: Check event continuity
-    console.log('🔍 Event ID continuity check:')
-    console.log('First half events:', firstHalfResult!.events.length, 'Last event ID:', firstHalfResult!.eventId)
-    console.log('Second half events:', secondHalfResult.events.length, 'Last event ID:', secondHalfResult.eventId)
-    console.log('Combined events:', allEvents.length)
-    console.log('First few combined events:', allEvents.slice(0, 3).map(e => ({ id: e.id, quarter: e.quarter, description: e.description })))
-    console.log('Last few first half events:', firstHalfResult!.events.slice(-3).map(e => ({ id: e.id, quarter: e.quarter, description: e.description })))
-    console.log('First few second half events:', secondHalfResult.events.slice(0, 3).map(e => ({ id: e.id, quarter: e.quarter, description: e.description })))
     const finalResult: GameResult = {
       homeTeam,
       awayTeam,
@@ -287,18 +194,8 @@ export function GameSimulation({ userTeam, opponent, onGameComplete, onBackToOpp
     if (gamePhase === 'first-half' && firstHalfResult && currentEventIndex >= 0) {
       setDisplayedEvents(firstHalfResult.events.slice(0, currentEventIndex + 1))
     } else if (gamePhase === 'second-half' && gameResult && currentEventIndex >= 0) {
-      // Show all first half events immediately + new second half events as they animate
-      const firstHalfEvents = firstHalfResult!.events
-      const secondHalfEvents = gameResult.events.slice(firstHalfEvents.length, currentEventIndex + 1)
-      setDisplayedEvents([...firstHalfEvents, ...secondHalfEvents])
-      
-      // Debug: Track what's being displayed
-      console.log('📺 Second half display update:', {
-        currentEventIndex,
-        firstHalfEventsCount: firstHalfEvents.length,
-        secondHalfEventsCount: secondHalfEvents.length,
-        totalDisplayed: firstHalfEvents.length + secondHalfEvents.length
-      })
+      // Show all events (first half + second half) during second half animation
+      setDisplayedEvents(gameResult.events.slice(0, currentEventIndex + 1))
     }
   }, [currentEventIndex, gameResult, firstHalfResult, gamePhase])
 
@@ -369,11 +266,6 @@ export function GameSimulation({ userTeam, opponent, onGameComplete, onBackToOpp
     userIsHome = userTeam.id === userTeam.id // User team is always home
   } else if (gamePhase === 'second-half' && gameResult) {
     currentScore = displayedEvents.length > 0 ? displayedEvents[displayedEvents.length - 1] : gameResult.events[0]
-    isUserTeamWinning = currentScore.homeScore > currentScore.awayScore
-    userIsHome = userTeam.id === gameResult.homeTeam.id
-  } else if (gamePhase === 'complete' && gameResult) {
-    // Use final score from gameResult
-    currentScore = { homeScore: gameResult.homeScore, awayScore: gameResult.awayScore }
     isUserTeamWinning = currentScore.homeScore > currentScore.awayScore
     userIsHome = userTeam.id === gameResult.homeTeam.id
   } else {

@@ -61,6 +61,12 @@ export interface PlayerGameStats extends Player {
   threePointersAttempted: number
 }
 
+export interface StrategicAdjustments {
+  pace: 'slow' | 'normal' | 'fast' // Affects possession duration
+  shotSelection: 'conservative' | 'balanced' | 'aggressive' // Affects 3-point frequency
+  defense: 'soft' | 'normal' | 'intense' // Affects opponent shooting
+}
+
 export interface GameResult {
   homeTeam: Team
   awayTeam: Team
