@@ -7,6 +7,7 @@ import { OpponentSelection } from "./opponent-selection"
 import { GameSimulation } from "./game-simulation"
 import { GameResultComponent } from "./game-result"
 import { SettingsMenu } from "./settings-menu"
+import { HomeHub } from "./home-hub"
 import type { GM, League, Team, GameResult } from "@/types/game"
 
 interface MainMenuProps {
@@ -111,99 +112,13 @@ export function MainMenu({ gm, league, userTeam, onResetGame }: MainMenuProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-2">Basketball GM</h1>
-          <p className="text-xl text-muted-foreground">
-            GM {gm.firstName} {gm.lastName} • Managing {userTeam.name}
-          </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            League: {league.name} • Record: {userTeam.record.wins}-{userTeam.record.losses}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setCurrentView("roster")}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span>👥</span>
-                View Roster
-              </CardTitle>
-              <CardDescription>Manage your team's players and see detailed attributes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Team Overall:{" "}
-                <span className="font-semibold">
-                  {Math.round(userTeam.players.reduce((sum, p) => sum + p.overall, 0) / userTeam.players.length)}
-                </span>
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card
-            className="cursor-pointer hover:shadow-lg transition-shadow"
-            onClick={() => setCurrentView("game-select")}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span>🏀</span>
-                Play Game
-              </CardTitle>
-              <CardDescription>Select an opponent and simulate a basketball game</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">Choose from {league.teams.length - 1} opponents</p>
-            </CardContent>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span>📊</span>
-                League Standings
-              </CardTitle>
-              <CardDescription>View league standings and team records</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">See how your team stacks up</p>
-            </CardContent>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setCurrentView("settings")}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span>⚙️</span>
-                Settings
-              </CardTitle>
-              <CardDescription>Game preferences and reset options</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">Manage your game data</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Team Overview</CardTitle>
-            <CardDescription>Your {userTeam.name} at a glance</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {userTeam.players.map((player) => (
-                <div key={player.id} className="text-center p-3 bg-muted rounded-lg">
-                  <p className="font-medium text-sm">{player.name.split(" ")[1]}</p>
-                  <p className="text-xs text-muted-foreground">{player.position}</p>
-                  <p className="text-lg font-bold text-primary">{player.overall}</p>
-                  <p className="text-xs text-muted-foreground">{player.descriptor}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <HomeHub
+      gm={gm}
+      league={league}
+      userTeam={userTeam}
+      onNavigateToRoster={() => setCurrentView("roster")}
+      onNavigateToGameSelect={() => setCurrentView("game-select")}
+      onNavigateToSettings={() => setCurrentView("settings")}
+    />
   )
 }
