@@ -43,6 +43,7 @@ interface LeagueContextType {
   
   // Actions
   initializeLeague: (options: LeagueInitOptions) => Promise<void>;
+  deleteLeague: () => Promise<void>;
   simulateGame: (homeTeamId: number, awayTeamId: number) => Promise<void>;
   simulateMultipleGames: (games: Array<{ homeTeamId: number; awayTeamId: number }>) => Promise<void>;
   advanceToNextGameDay: () => Promise<void>;
@@ -193,6 +194,39 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to initialize league';
       setError(errorMessage);
       console.error('League initialization failed:', err);
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Delete all league data
+   */
+  const deleteLeague = async (): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      await leagueService.deleteLeague();
+      
+      // Clear local state
+      setTeams([]);
+      setPlayers([]);
+      setEasternStandings([]);
+      setWesternStandings([]);
+      setOverallStandings([]);
+      setCurrentGameDay(null);
+      setSeasonProgress(null);
+      setTeamProgress(null);
+      setLeagueState(null);
+      setCurrentSeason(null);
+      
+      console.log('✅ League deleted successfully');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete league';
+      setError(errorMessage);
+      console.error('Failed to delete league:', err);
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -429,6 +463,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     
     // Actions
     initializeLeague,
+    deleteLeague,
     simulateGame,
     simulateMultipleGames,
     advanceToNextGameDay,

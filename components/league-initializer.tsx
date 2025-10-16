@@ -7,7 +7,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLeague } from '../lib/context/league-context';
 import { LeagueInitOptions } from '../lib/types/league';
 import { Button } from './ui/button';
@@ -16,24 +16,54 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Checkbox } from './ui/checkbox';
-import { Alert, AlertDescription } from './ui/alert';
-import { Loader2, Users, Calendar, Trophy, Circle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Loader2, Users, Calendar, Trophy, Circle, AlertTriangle } from 'lucide-react';
 
 /**
  * League Initializer Component
  */
 export function LeagueInitializer() {
-  const { initializeLeague, isLoading, error, isInitialized } = useLeague();
+  const { initializeLeague, isLoading, error, isInitialized, teams, players } = useLeague();
   const [leagueName, setLeagueName] = useState('My Basketball League');
   const [startSeason, setStartSeason] = useState(new Date().getFullYear());
   const [generateRosters, setGenerateRosters] = useState(true);
   const [generateSchedule, setGenerateSchedule] = useState(true);
+  const [useV2Scheduler, setUseV2Scheduler] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [existingLeague, setExistingLeague] = useState<{
+    teams: number;
+    players: number;
+    games: number;
+  } | null>(null);
+
+  /**
+   * Check for existing league data
+   */
+  useEffect(() => {
+    const checkExistingLeague = () => {
+      if (teams.length > 0 && players.length > 0) {
+        setExistingLeague({
+          teams: teams.length,
+          players: players.length,
+          games: 0 // We'll need to get this from the database
+        });
+      }
+    };
+    
+    checkExistingLeague();
+  }, [teams, players]);
 
   /**
    * Handle league creation
    */
   const handleCreateLeague = async () => {
+    // Show confirmation if existing league detected
+    if (existingLeague) {
+      const confirmed = confirm(
+        `WARNING: This will permanently delete your existing league with ${existingLeague.teams} teams, ${existingLeague.players} players, and all game data. Are you sure you want to continue?`
+      );
+      if (!confirmed) return;
+    }
     try {
       setIsCreating(true);
       
@@ -53,6 +83,7 @@ export function LeagueInitializer() {
         },
         generate_rosters: generateRosters,
         generate_schedule: generateSchedule,
+        useV2Scheduler: useV2Scheduler,
         random_seed: Math.floor(Math.random() * 1000000)
       };
 
@@ -136,6 +167,17 @@ export function LeagueInitializer() {
         </CardHeader>
         
         <CardContent className="space-y-6">
+          {/* Existing League Warning */}
+          {existingLeague && (
+            <Alert className="mb-6 border-orange-200 bg-orange-50">
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <AlertTitle className="text-orange-800">Existing League Detected</AlertTitle>
+              <AlertDescription className="text-orange-700">
+                You have an existing league with {existingLeague.teams} teams, {existingLeague.players} players, and {existingLeague.games} games played.
+                Creating a new league will permanently delete all existing data.
+              </AlertDescription>
+            </Alert>
+          )}
           {/* League Configuration */}
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -235,6 +277,17 @@ export function LeagueInitializer() {
                     Generate 82-game season schedule
                   </Label>
                 </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="useV2Scheduler"
+                    checked={useV2Scheduler}
+                    onCheckedChange={(checked) => setUseV2Scheduler(checked as boolean)}
+                  />
+                  <Label htmlFor="useV2Scheduler" className="text-sm">
+                    Use balanced scheduler (prevents wide record variance)
+                  </Label>
+                </div>
               </div>
             </div>
           </div>
@@ -253,7 +306,8 @@ export function LeagueInitializer() {
           <div className="text-center text-sm text-muted-foreground">
             <p>
               This will create a complete basketball league with 30 teams, 450 players, 
-              and a full 82-game schedule. You can start playing immediately!
+              and a full 82-game schedule. The balanced scheduler ensures teams progress 
+              at similar rates, preventing wide variance in records. You can start playing immediately!
             </p>
           </div>
         </CardContent>

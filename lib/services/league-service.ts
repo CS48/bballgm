@@ -14,6 +14,7 @@ import { calendarService } from './calendar-service';
 import { playerGenerator } from '../generators/player-generator';
 import { teamGenerator } from '../generators/team-generator';
 import { scheduleBuilder } from '../utils/schedule-builder';
+import { scheduleBuilderV2 } from '../utils/schedule-builder-v2';
 import { Team, Player, Conference, LeagueState, SeasonInfo } from '../types/database';
 import { LeagueConfig, LeagueInitOptions } from '../types/league';
 
@@ -85,11 +86,15 @@ export class LeagueService {
       // Enhanced seed generation to ensure uniqueness even for rapid refreshes
       const scheduleSeed = Date.now() + Math.floor(Math.random() * 10000) + Math.floor(Math.random() * 1000);
       console.log(`🎲 Generated enhanced schedule seed: ${scheduleSeed}`);
-      const { teamSchedules, allGames, gameDaySchedule } = scheduleBuilder.generateScheduleWithCalendar(
-        allTeams,
-        currentYear,
-        scheduleSeed
-      );
+      
+      // Choose scheduler version (default to V2 for balanced schedules)
+      const useV2Scheduler = options.useV2Scheduler !== false; // Default to true
+      const schedulerName = useV2Scheduler ? 'V2 (Balanced)' : 'V1 (Original)';
+      console.log(`📅 Using ${schedulerName} scheduler`);
+      
+      const { teamSchedules, allGames, gameDaySchedule } = useV2Scheduler 
+        ? scheduleBuilderV2.generateScheduleWithCalendar(allTeams, currentYear, scheduleSeed)
+        : scheduleBuilder.generateScheduleWithCalendar(allTeams, currentYear, scheduleSeed);
 
       // Insert games into database with game day assignments
       console.log(`Inserting ${allGames.length} games into database...`);
@@ -509,6 +514,27 @@ export class LeagueService {
     } catch (error) {
       console.error('Failed to check league readiness:', error);
       return false;
+    }
+  }
+
+  /**
+   * Delete all league data from database
+   * @returns Promise that resolves when deletion is complete
+   */
+  public async deleteLeague(): Promise<void> {
+    try {
+      console.log('🗑️ Deleting league data...');
+      
+      // Delete in reverse order of foreign key dependencies
+      await dbService.run('DELETE FROM games');
+      await dbService.run('DELETE FROM season_calendar');
+      await dbService.run('DELETE FROM players');
+      await dbService.run('DELETE FROM teams');
+      
+      console.log('✅ League data deleted successfully');
+    } catch (error) {
+      console.error('❌ Failed to delete league:', error);
+      throw new Error('Failed to delete league');
     }
   }
 

@@ -34,7 +34,7 @@ export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSele
   }, [currentGameDay])
   
   // Pagination settings
-  const matchupsPerPage = 6 // Show 6 matchups per page
+  const matchupsPerPage = 8 // Show 8 matchups per page (better for 15 games per day)
 
   // Generate matchups from today's games or fallback to sample matchups
   const matchups = useMemo(() => {
@@ -226,24 +226,38 @@ export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSele
 
   const handleSimulateAllGames = async () => {
     try {
-      const games = matchups.map(matchup => ({
-        homeTeamId: matchup.homeTeamId,
-        awayTeamId: matchup.awayTeamId
-      }))
-      await simulateMultipleGames(games)
-      
-      // Generate random scores for all games
-      const newResults: {[key: string]: {homeScore: number, awayScore: number}} = {}
-      matchups.forEach(matchup => {
-        const homeScore = Math.floor(Math.random() * 30) + 85
-        const awayScore = Math.floor(Math.random() * 30) + 85
+      // Filter out games that are already completed
+      const uncompletedGames = matchups.filter(matchup => {
         const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
-        newResults[gameKey] = { homeScore, awayScore }
+        return !gameResults[gameKey] // Only include if not in results
       })
       
-      setGameResults(newResults)
+      // Only simulate uncompleted games
+      if (uncompletedGames.length > 0) {
+        const games = uncompletedGames.map(matchup => ({
+          homeTeamId: matchup.homeTeamId,
+          awayTeamId: matchup.awayTeamId
+        }))
+        await simulateMultipleGames(games)
+        
+        // Generate scores only for uncompleted games
+        const newResults: {[key: string]: {homeScore: number, awayScore: number}} = {}
+        uncompletedGames.forEach(matchup => {
+          const homeScore = Math.floor(Math.random() * 30) + 85
+          const awayScore = Math.floor(Math.random() * 30) + 85
+          const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
+          newResults[gameKey] = { homeScore, awayScore }
+        })
+        
+        // Merge with existing results instead of replacing
+        setGameResults(prev => ({
+          ...prev,
+          ...newResults
+        }))
+      }
+      
       setAllGamesCompleted(true)
-      console.log('Simulated all games')
+      console.log(`Simulated ${uncompletedGames.length} remaining games`)
     } catch (error) {
       console.error('Failed to simulate all games:', error)
     }
@@ -477,7 +491,7 @@ export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSele
 
                 <TabsContent value="standings" className="mt-4 flex-1 h-full">
                   <div className="tab-content tab-content--transparent">
-                    <div className="space-y-4 h-full overflow-y-auto">
+                    <div className="space-y-4 h-full max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                       <div>
                         <h4 className="font-semibold text-sm mb-2">Eastern Conference</h4>
                         <div className="space-y-1">
@@ -554,7 +568,7 @@ export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSele
                 return (
                   <div
                     key={globalIndex}
-                    className={`flex-shrink-0 p-3 rounded cursor-pointer transition-colors w-[105px] ${
+                    className={`flex-shrink-0 p-3 rounded cursor-pointer transition-colors w-[89px] ${
                       globalIndex === selectedMatchup ? 'border border-primary bg-primary/5' : 'border-0'
                     }`}
                     onClick={() => {

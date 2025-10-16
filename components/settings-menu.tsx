@@ -17,6 +17,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import type { GM, League, Team } from "@/types/game"
+import { useLeague } from "@/lib/context/league-context"
 
 interface SettingsMenuProps {
   gm: GM
@@ -28,7 +29,9 @@ interface SettingsMenuProps {
 }
 
 export function SettingsMenu({ gm, league, userTeam, onResetGame, onBackToMenu, onOpenDebugger }: SettingsMenuProps) {
+  const { deleteLeague, teams, players } = useLeague()
   const [showResetDialog, setShowResetDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const getTeamOverallRating = (team: Team): number => {
     const totalOverall = team.players.reduce((sum, player) => sum + player.overall, 0)
@@ -53,6 +56,17 @@ export function SettingsMenu({ gm, league, userTeam, onResetGame, onBackToMenu, 
   const handleResetConfirm = () => {
     setShowResetDialog(false)
     onResetGame()
+  }
+
+  const handleDeleteLeague = async () => {
+    try {
+      await deleteLeague()
+      setShowDeleteDialog(false)
+      // The league context will handle clearing the state
+      console.log('League deleted successfully')
+    } catch (error) {
+      console.error('Failed to delete league:', error)
+    }
   }
 
   return (
@@ -238,6 +252,58 @@ export function SettingsMenu({ gm, league, userTeam, onResetGame, onBackToMenu, 
           </CardContent>
         </Card>
       )}
+
+      {/* League Management */}
+      <Card>
+        <CardHeader>
+          <CardTitle>League Management</CardTitle>
+          <CardDescription>Manage your current league</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* League Info */}
+          <div className="space-y-2">
+            <h4 className="font-semibold">Current League</h4>
+            <div className="text-sm space-y-1">
+              <div>Teams: {teams.length}</div>
+              <div>Players: {players.length}</div>
+              <div>Games Played: {leagueStats.totalGames / 2}</div>
+            </div>
+          </div>
+          
+          <Separator />
+          
+          {/* Danger Zone */}
+          <div className="space-y-2">
+            <h4 className="font-semibold text-red-600">Danger Zone</h4>
+            <p className="text-sm text-muted-foreground">
+              Irreversible actions that will delete data
+            </p>
+            
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="w-full">
+                  Delete League
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete League</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete your entire league including all teams, players, and game data. 
+                    This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteLeague} className="bg-red-600 hover:bg-red-700">
+                    Delete League
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* About */}
       <Card>

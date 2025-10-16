@@ -264,6 +264,8 @@ export interface LeagueInitOptions {
   generate_schedule: boolean;
   /** Random seed for reproducible generation */
   random_seed?: number;
+  /** Whether to use V2 balanced scheduler (default: true) */
+  useV2Scheduler?: boolean;
 }
 
 /**
