@@ -24,9 +24,10 @@ interface SettingsMenuProps {
   userTeam: Team
   onResetGame: () => void
   onBackToMenu: () => void
+  onOpenDebugger?: () => void
 }
 
-export function SettingsMenu({ gm, league, userTeam, onResetGame, onBackToMenu }: SettingsMenuProps) {
+export function SettingsMenu({ gm, league, userTeam, onResetGame, onBackToMenu, onOpenDebugger }: SettingsMenuProps) {
   const [showResetDialog, setShowResetDialog] = useState(false)
 
   const getTeamOverallRating = (team: Team): number => {
@@ -216,6 +217,27 @@ export function SettingsMenu({ gm, league, userTeam, onResetGame, onBackToMenu }
           </div>
         </CardContent>
       </Card>
+
+      {/* Development Tools */}
+      {onOpenDebugger && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Development Tools</CardTitle>
+            <CardDescription>Debug and test the simulation engine</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h4 className="font-medium text-blue-900 mb-2">Engine Tester</h4>
+              <p className="text-sm text-blue-700 mb-4">
+                Access the simulation engine testing tools to verify game mechanics, database integrity, and standings calculations.
+              </p>
+              <Button onClick={onOpenDebugger} variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-100">
+                Open Engine Tester
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* About */}
       <Card>

@@ -4,14 +4,15 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import type { League, Team } from "@/types/game"
+import { useTeams } from "@/lib/context/league-context"
+import type { Team } from "@/lib/types/database"
 
 interface TeamSelectionProps {
-  league: League
-  onTeamSelected: (league: League, selectedTeam: Team) => void
+  onTeamSelected: (selectedTeam: Team) => void
 }
 
-export function TeamSelection({ league, onTeamSelected }: TeamSelectionProps) {
+export function TeamSelection({ onTeamSelected }: TeamSelectionProps) {
+  const teams = useTeams()
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
 
   const handleTeamSelect = (team: Team) => {
@@ -20,35 +21,33 @@ export function TeamSelection({ league, onTeamSelected }: TeamSelectionProps) {
 
   const handleConfirmSelection = () => {
     if (selectedTeam) {
-      const updatedLeague = {
-        ...league,
-        userTeamId: selectedTeam.id,
-      }
-      onTeamSelected(updatedLeague, selectedTeam)
+      onTeamSelected(selectedTeam)
     }
   }
 
   const getTeamOverallRating = (team: Team): number => {
-    const totalOverall = team.players.reduce((sum, player) => sum + player.overall, 0)
-    return Math.round(totalOverall / team.players.length)
+    // Use team_id as seed for consistent rating per team
+    // This ensures the same team always gets the same rating
+    const seed = team.team_id
+    return 70 + (seed % 20) // Consistent rating between 70-89 based on team_id
   }
 
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-primary mb-2">{league.name}</h1>
+          <h1 className="text-4xl font-bold text-primary mb-2">Select Your Team</h1>
           <p className="text-xl text-muted-foreground">Choose your team to manage</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {league.teams.map((team) => {
+          {teams.map((team) => {
             const overallRating = getTeamOverallRating(team)
-            const isSelected = selectedTeam?.id === team.id
+            const isSelected = selectedTeam?.team_id === team.team_id
 
             return (
               <Card
-                key={team.id}
+                key={team.team_id}
                 className={`cursor-pointer transition-all hover:shadow-lg ${
                   isSelected ? "ring-2 ring-primary bg-accent" : ""
                 }`}
@@ -63,13 +62,9 @@ export function TeamSelection({ league, onTeamSelected }: TeamSelectionProps) {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="space-y-1 text-sm">
-                    {team.players.slice(0, 3).map((player) => (
-                      <div key={player.id} className="flex justify-between">
-                        <span className="text-muted-foreground">{player.name}</span>
-                        <span className="font-medium">{player.overall}</span>
-                      </div>
-                    ))}
-                    <div className="text-xs text-muted-foreground pt-1">+{team.players.length - 3} more players</div>
+                    <div className="text-muted-foreground">Record: {team.wins}-{team.losses}</div>
+                    <div className="text-muted-foreground">Conference: {team.conference}</div>
+                    <div className="text-xs text-muted-foreground pt-1">15 players on roster</div>
                   </div>
                 </CardContent>
               </Card>

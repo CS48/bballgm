@@ -8,18 +8,19 @@ import { GameSimulation } from "./game-simulation"
 import { GameResultComponent } from "./game-result"
 import { SettingsMenu } from "./settings-menu"
 import { HomeHub } from "./home-hub"
-import type { GM, League, Team, GameResult } from "@/types/game"
+import type { GM, GameResult } from "@/types/game"
+import type { Team } from "@/lib/types/database"
 
 interface MainMenuProps {
   gm: GM
-  league: League
   userTeam: Team
   onResetGame: () => void
+  onOpenDebugger?: () => void
 }
 
 type MenuView = "main" | "roster" | "game-select" | "game-simulation" | "game-result" | "settings"
 
-export function MainMenu({ gm, league, userTeam, onResetGame }: MainMenuProps) {
+export function MainMenu({ gm, userTeam, onResetGame, onOpenDebugger }: MainMenuProps) {
   const [currentView, setCurrentView] = useState<MenuView>("main")
   const [selectedOpponent, setSelectedOpponent] = useState<Team | null>(null)
   const [gameResult, setGameResult] = useState<GameResult | null>(null)
@@ -105,6 +106,7 @@ export function MainMenu({ gm, league, userTeam, onResetGame }: MainMenuProps) {
             userTeam={userTeam}
             onResetGame={onResetGame}
             onBackToMenu={() => setCurrentView("main")}
+            onOpenDebugger={onOpenDebugger}
           />
         </div>
       </div>
@@ -114,7 +116,6 @@ export function MainMenu({ gm, league, userTeam, onResetGame }: MainMenuProps) {
   return (
     <HomeHub
       gm={gm}
-      league={league}
       userTeam={userTeam}
       onNavigateToRoster={() => setCurrentView("roster")}
       onNavigateToGameSelect={() => setCurrentView("game-select")}

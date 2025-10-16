@@ -1,57 +1,75 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { GMCreation } from "@/components/gm-creation"
-import { LeagueCreation } from "@/components/league-creation"
 import { TeamSelection } from "@/components/team-selection"
 import { MainMenu } from "@/components/main-menu"
-import type { GM, League, Team } from "@/types/game"
+import { LeagueInitializer } from "@/components/league-initializer"
+import { LeagueTester } from "@/components/league-tester"
+import { useLeague, useLeagueReady } from "@/lib/context/league-context"
+import type { GM } from "@/types/game"
+import type { Team } from "@/lib/types/database"
 
-type GameState = "gm-creation" | "league-creation" | "team-selection" | "main-game"
+type GameState = "league-initialization" | "gm-creation" | "team-selection" | "main-game" | "testing"
 
 export default function HomePage() {
-  const [gameState, setGameState] = useState<GameState>("gm-creation")
+  const { isLoading, error } = useLeague()
+  const isLeagueReady = useLeagueReady()
+  const [gameState, setGameState] = useState<GameState>("league-initialization")
   const [currentGM, setCurrentGM] = useState<GM | null>(null)
-  const [currentLeague, setCurrentLeague] = useState<League | null>(null)
   const [userTeam, setUserTeam] = useState<Team | null>(null)
+
+  // Check if league is ready and update game state
+  useEffect(() => {
+    if (isLeagueReady && gameState === "league-initialization") {
+      // Go to GM creation to start the game
+      setGameState("gm-creation")
+    }
+  }, [isLeagueReady, gameState])
 
   const handleGMCreated = (gm: GM) => {
     setCurrentGM(gm)
-    setGameState("league-creation")
-  }
-
-  const handleLeagueCreated = (league: League) => {
-    setCurrentLeague(league)
     setGameState("team-selection")
   }
 
-  const handleTeamSelected = (league: League, selectedTeam: Team) => {
-    setCurrentLeague(league)
+  const handleTeamSelected = (selectedTeam: Team) => {
     setUserTeam(selectedTeam)
     setGameState("main-game")
   }
 
   const handleResetGame = () => {
     setCurrentGM(null)
-    setCurrentLeague(null)
     setUserTeam(null)
     setGameState("gm-creation")
+  }
+
+  const handleOpenDebugger = () => {
+    setGameState("testing")
+  }
+
+  const handleBackFromDebugger = () => {
+    setGameState("main-game")
+  }
+
+  // Show league initializer if no league exists
+  if (gameState === "league-initialization") {
+    return <LeagueInitializer />
   }
 
   if (gameState === "gm-creation") {
     return <GMCreation onGMCreated={handleGMCreated} />
   }
 
-  if (gameState === "league-creation") {
-    return <LeagueCreation onLeagueCreated={handleLeagueCreated} />
+  if (gameState === "team-selection") {
+    return <TeamSelection onTeamSelected={handleTeamSelected} />
   }
 
-  if (gameState === "team-selection" && currentLeague) {
-    return <TeamSelection league={currentLeague} onTeamSelected={handleTeamSelected} />
+  if (gameState === "main-game" && currentGM && userTeam) {
+    return <MainMenu gm={currentGM} userTeam={userTeam} onResetGame={handleResetGame} onOpenDebugger={handleOpenDebugger} />
   }
 
-  if (gameState === "main-game" && currentGM && currentLeague && userTeam) {
-    return <MainMenu gm={currentGM} league={currentLeague} userTeam={userTeam} onResetGame={handleResetGame} />
+  if (gameState === "testing") {
+    return <LeagueTester onBackToGame={handleBackFromDebugger} />
   }
 
   return null

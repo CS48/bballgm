@@ -1,42 +1,134 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { GM, League, Team } from "@/types/game"
+import { useLeague, useTeams, useStandings } from "@/lib/context/league-context"
+import type { GM } from "@/types/game"
+import type { Team } from "@/lib/types/database"
 
 interface HomeHubProps {
   gm: GM
-  league: League
   userTeam: Team
   onNavigateToRoster: () => void
   onNavigateToGameSelect: () => void
   onNavigateToSettings: () => void
 }
 
-export function HomeHub({ gm, league, userTeam, onNavigateToRoster, onNavigateToGameSelect, onNavigateToSettings }: HomeHubProps) {
+export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSelect, onNavigateToSettings }: HomeHubProps) {
+  const { teams, simulateGame, simulateMultipleGames, advanceToNextGameDay, currentGameDay } = useLeague()
+  const standings = useStandings()
   const [selectedMatchup, setSelectedMatchup] = useState(0)
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0)
+  const [currentPage, setCurrentPage] = useState(0)
+  const [gameResults, setGameResults] = useState<{[key: string]: {homeScore: number, awayScore: number}}>({})
+  const [allGamesCompleted, setAllGamesCompleted] = useState(false)
 
-  // Sample matchups data
-  const matchups = [
-    { away: "Boston Celtics", home: "New York Knicks", awayRecord: "52-30", homeRecord: "30-52" },
-    { away: "Dallas Mavericks", home: "Los Angeles Lakers", awayRecord: "41-41", homeRecord: "45-37" },
-    { away: "Miami Heat", home: "Chicago Bulls", awayRecord: "38-44", homeRecord: "42-40" },
-    { away: "Phoenix Suns", home: "Denver Nuggets", awayRecord: "48-34", homeRecord: "55-27" },
-  ]
+  // Debug: Log when currentGameDay changes
+  useEffect(() => {
+    console.log('HomeHub: currentGameDay updated:', currentGameDay)
+    if (currentGameDay?.games) {
+      console.log('HomeHub: Games for current day:', currentGameDay.games.length)
+    }
+  }, [currentGameDay])
+  
+  // Pagination settings
+  const matchupsPerPage = 6 // Show 6 matchups per page
 
-  // Team abbreviations mapping
+  // Generate matchups from today's games or fallback to sample matchups
+  const matchups = useMemo(() => {
+    if (currentGameDay && currentGameDay.games && currentGameDay.games.length > 0) {
+      // Use real games from today's schedule
+      console.log(`🏀 HomeHub: Displaying ${currentGameDay.games.length} real games for today`);
+      console.log(`🏀 HomeHub: First 3 games:`, currentGameDay.games.slice(0, 3).map(g => 
+        `Team ${g.home_team_id} vs Team ${g.away_team_id}`
+      ));
+      
+      return currentGameDay.games.map(game => {
+        const homeTeam = teams.find(t => t.team_id === game.home_team_id)
+        const awayTeam = teams.find(t => t.team_id === game.away_team_id)
+        
+        if (!homeTeam || !awayTeam) return null
+        
+        return {
+          away: `${awayTeam.city} ${awayTeam.name}`,
+          home: `${homeTeam.city} ${homeTeam.name}`,
+          awayRecord: `${awayTeam.wins}-${awayTeam.losses}`,
+          homeRecord: `${homeTeam.wins}-${homeTeam.losses}`,
+          awayTeamId: awayTeam.team_id,
+          homeTeamId: homeTeam.team_id,
+          gameId: game.game_id,
+          completed: game.completed
+        }
+      }).filter(Boolean)
+    } else {
+      // Fallback to sample matchups if no games scheduled
+      const otherTeams = teams.filter(team => team.team_id !== userTeam.team_id)
+      const userTeamMatchup = {
+        away: `${userTeam.city} ${userTeam.name}`,
+        home: `${otherTeams[0].city} ${otherTeams[0].name}`,
+        awayRecord: `${userTeam.wins}-${userTeam.losses}`,
+        homeRecord: `${otherTeams[0].wins}-${otherTeams[0].losses}`,
+        awayTeamId: userTeam.team_id,
+        homeTeamId: otherTeams[0].team_id,
+        completed: false
+      }
+      
+      const otherMatchups = otherTeams.slice(1, 7).map((team, index) => {
+        const opponent = otherTeams[(index + 6) % otherTeams.length]
+        return {
+          away: `${team.city} ${team.name}`,
+          home: `${opponent.city} ${opponent.name}`,
+          awayRecord: `${team.wins}-${team.losses}`,
+          homeRecord: `${opponent.wins}-${opponent.losses}`,
+          awayTeamId: team.team_id,
+          homeTeamId: opponent.team_id,
+          completed: false
+        }
+      })
+      
+      return [userTeamMatchup, ...otherMatchups]
+    }
+  }, [currentGameDay, teams, userTeam])
+
+  // Calculate total pages after matchups are defined
+  const totalPages = Math.ceil(matchups.length / matchupsPerPage)
+
+  // Team abbreviations mapping for all 30 teams
   const teamAbbreviations: { [key: string]: string } = {
+    // Eastern Conference
     "Boston Celtics": "BOS",
-    "New York Knicks": "NYK", 
-    "Dallas Mavericks": "DAL",
-    "Los Angeles Lakers": "LAL",
-    "Miami Heat": "MIA",
+    "Brooklyn Nets": "BKN",
+    "New York Knicks": "NYK",
+    "Philadelphia 76ers": "PHI",
+    "Toronto Raptors": "TOR",
     "Chicago Bulls": "CHI",
-    "Phoenix Suns": "PHX",
+    "Cleveland Cavaliers": "CLE",
+    "Detroit Pistons": "DET",
+    "Indiana Pacers": "IND",
+    "Milwaukee Bucks": "MIL",
+    "Atlanta Hawks": "ATL",
+    "Charlotte Hornets": "CHA",
+    "Miami Heat": "MIA",
+    "Orlando Magic": "ORL",
+    "Washington Wizards": "WAS",
+    // Western Conference
+    "Dallas Mavericks": "DAL",
+    "Houston Rockets": "HOU",
+    "Memphis Grizzlies": "MEM",
+    "New Orleans Pelicans": "NOP",
+    "San Antonio Spurs": "SAS",
     "Denver Nuggets": "DEN",
+    "Minnesota Timberwolves": "MIN",
+    "Oklahoma City Thunder": "OKC",
+    "Portland Trail Blazers": "POR",
+    "Utah Jazz": "UTA",
+    "Golden State Warriors": "GSW",
+    "Los Angeles Clippers": "LAC",
+    "Los Angeles Lakers": "LAL",
+    "Phoenix Suns": "PHX",
+    "Sacramento Kings": "SAC"
   }
 
   // Sample news data
@@ -58,23 +150,32 @@ export function HomeHub({ gm, league, userTeam, onNavigateToRoster, onNavigateTo
     }
   ]
 
-  // Get starting 5 players
-  const starters = userTeam.players.slice(0, 5)
+  // Get starting 5 players - for now, create placeholder data since we don't have players loaded
+  const starters = [
+    { id: 1, name: "Player 1", position: "PG", overall: 85 },
+    { id: 2, name: "Player 2", position: "SG", overall: 82 },
+    { id: 3, name: "Player 3", position: "SF", overall: 88 },
+    { id: 4, name: "Player 4", position: "PF", overall: 80 },
+    { id: 5, name: "Player 5", position: "C", overall: 90 }
+  ]
 
-  // Sort teams by record for standings
-  const sortedTeams = [...league.teams].sort((a, b) => {
-    const aWinPct = a.record.wins / (a.record.wins + a.record.losses)
-    const bWinPct = b.record.wins / (b.record.wins + b.record.losses)
-    return bWinPct - aWinPct
-  })
+  // Use standings from database context instead of sorting league teams
+  const easternStandings = standings.eastern || []
+  const westernStandings = standings.western || []
 
-  const nextMatchup = () => {
-    setSelectedMatchup((prev) => (prev + 1) % matchups.length)
+  const nextPage = () => {
+    setCurrentPage((prev) => (prev + 1) % totalPages)
   }
 
-  const prevMatchup = () => {
-    setSelectedMatchup((prev) => (prev - 1 + matchups.length) % matchups.length)
+  const prevPage = () => {
+    setCurrentPage((prev) => (prev - 1 + totalPages) % totalPages)
   }
+  
+  // Get current page matchups
+  const currentPageMatchups = matchups.slice(
+    currentPage * matchupsPerPage, 
+    (currentPage + 1) * matchupsPerPage
+  )
 
   const nextNews = () => {
     setCurrentNewsIndex((prev) => (prev + 1) % newsItems.length)
@@ -98,6 +199,104 @@ export function HomeHub({ gm, league, userTeam, onNavigateToRoster, onNavigateTo
   const resetAutoAdvance = () => {
     // This will trigger the useEffect to restart the interval
     setCurrentNewsIndex((prev) => prev)
+  }
+
+  const handleSimulateGame = async (matchup: any) => {
+    try {
+      await simulateGame(matchup.homeTeamId, matchup.awayTeamId)
+      
+      // Generate random scores for display (in real implementation, this would come from the simulation)
+      const homeScore = Math.floor(Math.random() * 30) + 85
+      const awayScore = Math.floor(Math.random() * 30) + 85
+      
+      const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
+      setGameResults(prev => ({
+        ...prev,
+        [gameKey]: { homeScore, awayScore }
+      }))
+      
+      console.log(`Simulated game: ${matchup.away} vs ${matchup.home}`)
+      
+      // Check if all games are completed
+      checkAllGamesCompleted()
+    } catch (error) {
+      console.error('Failed to simulate game:', error)
+    }
+  }
+
+  const handleSimulateAllGames = async () => {
+    try {
+      const games = matchups.map(matchup => ({
+        homeTeamId: matchup.homeTeamId,
+        awayTeamId: matchup.awayTeamId
+      }))
+      await simulateMultipleGames(games)
+      
+      // Generate random scores for all games
+      const newResults: {[key: string]: {homeScore: number, awayScore: number}} = {}
+      matchups.forEach(matchup => {
+        const homeScore = Math.floor(Math.random() * 30) + 85
+        const awayScore = Math.floor(Math.random() * 30) + 85
+        const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
+        newResults[gameKey] = { homeScore, awayScore }
+      })
+      
+      setGameResults(newResults)
+      setAllGamesCompleted(true)
+      console.log('Simulated all games')
+    } catch (error) {
+      console.error('Failed to simulate all games:', error)
+    }
+  }
+
+  const checkAllGamesCompleted = () => {
+    const totalGames = matchups.length
+    const completedGames = Object.keys(gameResults).length
+    setAllGamesCompleted(completedGames >= totalGames)
+  }
+
+  const handleProceedToNextDay = async () => {
+    console.log('HomeHub: Proceeding to next day...')
+    console.log('HomeHub: Current game day before advance:', currentGameDay)
+    
+    // Reset local UI state
+    setGameResults({})
+    setAllGamesCompleted(false)
+    setSelectedMatchup(0)
+    setCurrentPage(0)
+    
+    // Advance to next game day in the database/calendar
+    try {
+      await advanceToNextGameDay()
+      console.log('HomeHub: Advanced to next game day successfully')
+    } catch (error) {
+      console.error('HomeHub: Failed to advance to next day:', error)
+    }
+  }
+
+  // Calculate updated team record based on game results
+  const getUpdatedTeamRecord = (teamId: number) => {
+    let wins = userTeam.wins
+    let losses = userTeam.losses
+    
+    // Check if this team played any games today
+    Object.entries(gameResults).forEach(([gameKey, result]) => {
+      const [homeTeamId, awayTeamId] = gameKey.split('-').map(Number)
+      
+      if (teamId === homeTeamId || teamId === awayTeamId) {
+        const isHomeTeam = teamId === homeTeamId
+        const teamScore = isHomeTeam ? result.homeScore : result.awayScore
+        const opponentScore = isHomeTeam ? result.awayScore : result.homeScore
+        
+        if (teamScore > opponentScore) {
+          wins++
+        } else {
+          losses++
+        }
+      }
+    })
+    
+    return { wins, losses }
   }
 
   return (
@@ -132,11 +331,18 @@ export function HomeHub({ gm, league, userTeam, onNavigateToRoster, onNavigateTo
           {/* Team Name/Record Card - Row 1, Col 1 */}
           <div className="row-start-1 row-span-1 col-start-1 col-span-1 team-info-card hub-card--transparent" style={{ gap: '0', padding: '0.5rem' }}>
             <p className="team-city" style={{ fontSize: '1.5rem', margin: '0', color: '#000000' }}>{userTeam.city}</p>
-            <h2 className="team-name" style={{ fontSize: '2.25rem', margin: '0', lineHeight: '1' }}>{userTeam.name.replace(userTeam.city, '').trim().toUpperCase()}</h2>
+            <h2 className="team-name" style={{ fontSize: '2.25rem', margin: '0', lineHeight: '1' }}>{userTeam.name.toUpperCase()}</h2>
             <div className="team-record" style={{ fontSize: '1rem', margin: '0' }}>
-              <span>({userTeam.record.wins}-{userTeam.record.losses})</span>
-              <span> | </span>
-              <span>#{sortedTeams.findIndex(t => t.id === userTeam.id) + 1} in Conference</span>
+              {(() => {
+                const updatedRecord = getUpdatedTeamRecord(userTeam.team_id)
+                return (
+                  <>
+                    <span>({updatedRecord.wins}-{updatedRecord.losses})</span>
+                    <span> | </span>
+                    <span>#{standings.overall?.findIndex(t => t.team_id === userTeam.team_id) + 1 || 1} in League</span>
+                  </>
+                )
+              })()}
             </div>
           </div>
 
@@ -167,13 +373,13 @@ export function HomeHub({ gm, league, userTeam, onNavigateToRoster, onNavigateTo
                               stroke="#333333"
                               strokeWidth="3"
                               fill="none"
-                              strokeDasharray={`${Math.round(userTeam.players.reduce((sum, p) => sum + p.overall, 0) / userTeam.players.length)}, 100`}
+                              strokeDasharray={`85, 100`}
                               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                             />
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-sm font-bold text-gray-800">
-                              {Math.round(userTeam.players.reduce((sum, p) => sum + p.overall, 0) / userTeam.players.length)}
+                              85
                             </span>
                           </div>
                         </div>
@@ -271,17 +477,40 @@ export function HomeHub({ gm, league, userTeam, onNavigateToRoster, onNavigateTo
 
                 <TabsContent value="standings" className="mt-4 flex-1 h-full">
                   <div className="tab-content tab-content--transparent">
-                    {sortedTeams.slice(0, 8).map((team, index) => (
-                      <div key={team.id} className={`flex justify-between items-center p-2 rounded ${team.id === userTeam.id ? 'bg-primary/10' : 'bg-muted'}`}>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold">#{index + 1}</span>
-                          <span className="font-medium">{team.name}</span>
+                    <div className="space-y-4 h-full overflow-y-auto">
+                      <div>
+                        <h4 className="font-semibold text-sm mb-2">Eastern Conference</h4>
+                        <div className="space-y-1">
+                          {easternStandings.map((team, index) => (
+                            <div key={team.team_id} className={`flex justify-between items-center p-2 rounded ${team.team_id === userTeam.team_id ? 'bg-primary/10' : 'bg-muted'}`}>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold">#{index + 1}</span>
+                                <span className="font-medium">{team.city} {team.name}</span>
+                              </div>
+                              <span className="text-sm text-muted-foreground">
+                                {team.wins}-{team.losses}
+                              </span>
+                            </div>
+                          ))}
                         </div>
-                        <span className="text-sm text-muted-foreground">
-                          {team.record.wins}-{team.record.losses}
-                        </span>
                       </div>
-                    ))}
+                      <div>
+                        <h4 className="font-semibold text-sm mb-2">Western Conference</h4>
+                        <div className="space-y-1">
+                          {westernStandings.map((team, index) => (
+                            <div key={team.team_id} className={`flex justify-between items-center p-2 rounded ${team.team_id === userTeam.team_id ? 'bg-primary/10' : 'bg-muted'}`}>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold">#{index + 1}</span>
+                                <span className="font-medium">{team.city} {team.name}</span>
+                              </div>
+                              <span className="text-sm text-muted-foreground">
+                                {team.wins}-{team.losses}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </TabsContent>
               </Tabs>
@@ -291,49 +520,155 @@ export function HomeHub({ gm, league, userTeam, onNavigateToRoster, onNavigateTo
           {/* Today's Matchups Carousel - Row 1, Cols 2-3 */}
           <div className="row-start-1 row-span-1 col-start-2 col-span-2">
             <div className="flex justify-between items-center mb-2">
-              <h3 className="font-semibold" style={{ fontSize: '1rem' }}>Today's Games</h3>
+              <h3 className="font-semibold" style={{ fontSize: '1rem' }}>
+                {currentGameDay?.date_display || 'Today\'s'} Matchups
+              </h3>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={prevMatchup}>‹</Button>
-                <span className="text-sm text-muted-foreground">Sim all</span>
-                <Button variant="outline" size="sm" onClick={nextMatchup}>›</Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={allGamesCompleted ? handleProceedToNextDay : handleSimulateAllGames}
+                >
+                  {allGamesCompleted ? 'Proceed to next day' : 'Sim all'}
+                </Button>
+                <Button variant="outline" size="sm" onClick={prevPage}>‹</Button>
+                
+                {/* Page indicators */}
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <div
+                      key={i}
+                      className={`w-2 h-2 rounded-full ${
+                        i === currentPage ? 'bg-black' : 'bg-gray-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+                
+                <Button variant="outline" size="sm" onClick={nextPage}>›</Button>
               </div>
             </div>
             <div className="flex gap-4 overflow-x-auto">
-              {matchups.map((matchup, index) => (
-                <div
-                  key={index}
-                  className={`flex-shrink-0 p-3 rounded cursor-pointer transition-colors w-[105px] ${
-                    index === selectedMatchup ? 'border border-primary bg-primary/5' : 'border-0'
-                  }`}
-                  onClick={() => setSelectedMatchup(index)}
-                >
-                  <div className="text-sm space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">{teamAbbreviations[matchup.away] || matchup.away}</span>
-                      <span className="text-muted-foreground">{matchup.awayRecord}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">{teamAbbreviations[matchup.home] || matchup.home}</span>
-                      <span className="text-muted-foreground">{matchup.homeRecord}</span>
+              {currentPageMatchups.map((matchup, index) => {
+                const globalIndex = currentPage * matchupsPerPage + index
+                return (
+                  <div
+                    key={globalIndex}
+                    className={`flex-shrink-0 p-3 rounded cursor-pointer transition-colors w-[105px] ${
+                      globalIndex === selectedMatchup ? 'border border-primary bg-primary/5' : 'border-0'
+                    }`}
+                    onClick={() => {
+                      setSelectedMatchup(globalIndex)
+                    }}
+                  >
+                    <div className="text-sm space-y-2">
+                      {(() => {
+                        const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
+                        const gameResult = gameResults[gameKey]
+                        const isCompleted = !!gameResult
+                        
+                        return (
+                          <>
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium">{teamAbbreviations[matchup.away] || matchup.away}</span>
+                              <span className="text-muted-foreground">
+                                {isCompleted ? gameResult.awayScore : matchup.awayRecord}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium">{teamAbbreviations[matchup.home] || matchup.home}</span>
+                              <span className="text-muted-foreground">
+                                {isCompleted ? gameResult.homeScore : matchup.homeRecord}
+                              </span>
+                            </div>
+                          </>
+                        )
+                      })()}
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
           {/* Matchup Detail Card - Rows 2-4, Cols 2-3 */}
           <Card className="row-start-2 row-span-3 col-start-2 col-span-2 flex flex-col">
-            <CardContent className="p-6 flex-1 flex items-center justify-center">
-              <div className="text-center">
+            <CardContent className="p-6 flex-1 flex flex-col items-center justify-center">
+              <div className="text-center mb-6">
                 <div className="text-2xl font-bold mb-2">
-                  {matchups[selectedMatchup].away} vs. {matchups[selectedMatchup].home}
+                  {matchups[selectedMatchup]?.away} vs. {matchups[selectedMatchup]?.home}
                 </div>
-                <div className="flex justify-center gap-4 text-muted-foreground">
-                  <span>Points per game</span>
-                  <span>•</span>
-                  <span>Points per game</span>
-                </div>
+                {(() => {
+                  const selectedGame = matchups[selectedMatchup]
+                  if (!selectedGame) return null
+                  
+                  const gameKey = `${selectedGame.homeTeamId}-${selectedGame.awayTeamId}`
+                  const gameResult = gameResults[gameKey]
+                  const isCompleted = !!gameResult
+                  
+                  if (isCompleted) {
+                    return (
+                      <div className="flex justify-center gap-4 text-2xl font-bold">
+                        <span className={gameResult.awayScore > gameResult.homeScore ? 'text-green-600' : 'text-gray-600'}>
+                          {gameResult.awayScore}
+                        </span>
+                        <span>-</span>
+                        <span className={gameResult.homeScore > gameResult.awayScore ? 'text-green-600' : 'text-gray-600'}>
+                          {gameResult.homeScore}
+                        </span>
+                      </div>
+                    )
+                  } else {
+                    return (
+                      <div className="flex justify-center gap-4 text-muted-foreground">
+                        <span>Points per game</span>
+                        <span>•</span>
+                        <span>Points per game</span>
+                      </div>
+                    )
+                  }
+                })()}
+              </div>
+              <div className="flex gap-4">
+                {(() => {
+                  const selectedGame = matchups[selectedMatchup]
+                  if (!selectedGame) return null
+                  
+                  const gameKey = `${selectedGame.homeTeamId}-${selectedGame.awayTeamId}`
+                  const gameResult = gameResults[gameKey]
+                  const isCompleted = !!gameResult
+                  
+                  if (isCompleted) {
+                    return (
+                      <div className="text-center">
+                        <p className="text-green-600 font-semibold">Game Completed</p>
+                        <p className="text-sm text-muted-foreground">Final Score</p>
+                      </div>
+                    )
+                  } else {
+                    return (
+                      <>
+                        <Button 
+                          onClick={() => {
+                            // Navigate to game simulation for this specific matchup
+                            console.log('Play game:', matchups[selectedMatchup])
+                            // This could navigate to a game simulation view
+                          }}
+                          className="px-6 py-2"
+                        >
+                          Play
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          onClick={() => handleSimulateGame(matchups[selectedMatchup])}
+                          className="px-6 py-2"
+                        >
+                          Sim
+                        </Button>
+                      </>
+                    )
+                  }
+                })()}
               </div>
             </CardContent>
           </Card>
