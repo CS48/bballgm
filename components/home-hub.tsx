@@ -1,22 +1,22 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useLeague, useTeams, useStandings } from "@/lib/context/league-context"
-import type { GM } from "@/types/game"
+import { leagueService } from "@/lib/services/league-service"
 import type { Team } from "@/lib/types/database"
 
 interface HomeHubProps {
-  gm: GM
   userTeam: Team
   onNavigateToRoster: () => void
   onNavigateToGameSelect: () => void
   onNavigateToSettings: () => void
 }
 
-export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSelect, onNavigateToSettings }: HomeHubProps) {
+export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, onNavigateToSettings }: HomeHubProps) {
   const { teams, simulateGame, simulateMultipleGames, advanceToNextGameDay, currentGameDay } = useLeague()
   const standings = useStandings()
   const [selectedMatchup, setSelectedMatchup] = useState(0)
@@ -24,6 +24,14 @@ export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSele
   const [currentPage, setCurrentPage] = useState(0)
   const [gameResults, setGameResults] = useState<{[key: string]: {homeScore: number, awayScore: number}}>({})
   const [allGamesCompleted, setAllGamesCompleted] = useState(false)
+  const [userTeamRoster, setUserTeamRoster] = useState<any>(null)
+  const [teamRatings, setTeamRatings] = useState({
+    overall: 0,
+    interiorShooting: 0,
+    threePointShooting: 0,
+    passing: 0,
+    onBallDefense: 0
+  })
 
   // Debug: Log when currentGameDay changes
   useEffect(() => {
@@ -32,6 +40,38 @@ export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSele
       console.log('HomeHub: Games for current day:', currentGameDay.games.length)
     }
   }, [currentGameDay])
+
+  // Fetch user team roster and calculate ratings
+  useEffect(() => {
+    const fetchUserTeamRoster = async () => {
+      try {
+        const roster = await leagueService.getTeamRoster(userTeam.team_id)
+        setUserTeamRoster(roster)
+
+        // Calculate team ratings from player attributes
+        if (roster.players && roster.players.length > 0) {
+          const players = roster.players
+          const overallRatings = players.map(p => p.overall_rating)
+          const interiorShooting = players.map(p => p.inside_shot)
+          const threePointShooting = players.map(p => p.three_point_shot)
+          const passing = players.map(p => p.pass)
+          const onBallDefense = players.map(p => p.on_ball_defense)
+
+          setTeamRatings({
+            overall: Math.round(overallRatings.reduce((a, b) => a + b, 0) / overallRatings.length),
+            interiorShooting: Math.round(interiorShooting.reduce((a, b) => a + b, 0) / interiorShooting.length),
+            threePointShooting: Math.round(threePointShooting.reduce((a, b) => a + b, 0) / threePointShooting.length),
+            passing: Math.round(passing.reduce((a, b) => a + b, 0) / passing.length),
+            onBallDefense: Math.round(onBallDefense.reduce((a, b) => a + b, 0) / onBallDefense.length)
+          })
+        }
+      } catch (error) {
+        console.error('Failed to fetch user team roster:', error)
+      }
+    }
+
+    fetchUserTeamRoster()
+  }, [userTeam.team_id])
   
   // Pagination settings
   const matchupsPerPage = 8 // Show 8 matchups per page (better for 15 games per day)
@@ -150,14 +190,18 @@ export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSele
     }
   ]
 
-  // Get starting 5 players - for now, create placeholder data since we don't have players loaded
-  const starters = [
-    { id: 1, name: "Player 1", position: "PG", overall: 85 },
-    { id: 2, name: "Player 2", position: "SG", overall: 82 },
-    { id: 3, name: "Player 3", position: "SF", overall: 88 },
-    { id: 4, name: "Player 4", position: "PF", overall: 80 },
-    { id: 5, name: "Player 5", position: "C", overall: 90 }
-  ]
+  // Get starting 5 players from real roster data
+  const starters = userTeamRoster?.players
+    ? userTeamRoster.players
+        .sort((a: any, b: any) => b.overall_rating - a.overall_rating)
+        .slice(0, 5)
+    : [
+        { player_id: 1, name: "Player 1", position: "PG", overall_rating: 85, current_stats: { ppg: 0, apg: 0, rpg: 0 } },
+        { player_id: 2, name: "Player 2", position: "SG", overall_rating: 82, current_stats: { ppg: 0, apg: 0, rpg: 0 } },
+        { player_id: 3, name: "Player 3", position: "SF", overall_rating: 88, current_stats: { ppg: 0, apg: 0, rpg: 0 } },
+        { player_id: 4, name: "Player 4", position: "PF", overall_rating: 80, current_stats: { ppg: 0, apg: 0, rpg: 0 } },
+        { player_id: 5, name: "Player 5", position: "C", overall_rating: 90, current_stats: { ppg: 0, apg: 0, rpg: 0 } }
+      ]
 
   // Use standings from database context instead of sorting league teams
   const easternStandings = standings.eastern || []
@@ -387,13 +431,13 @@ export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSele
                               stroke="#333333"
                               strokeWidth="3"
                               fill="none"
-                              strokeDasharray={`85, 100`}
+                              strokeDasharray={`${teamRatings.overall}, 100`}
                               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                             />
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-sm font-bold text-gray-800">
-                              85
+                              {teamRatings.overall}
                             </span>
                           </div>
                         </div>
@@ -413,15 +457,15 @@ export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSele
                               stroke="#333333"
                               strokeWidth="3"
                               fill="none"
-                              strokeDasharray="80, 100"
+                              strokeDasharray={`${teamRatings.interiorShooting}, 100`}
                               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                             />
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-sm font-bold text-gray-800">80</span>
+                            <span className="text-sm font-bold text-gray-800">{teamRatings.interiorShooting}</span>
                           </div>
                         </div>
-                        <p className="stat-ring-label">Offense</p>
+                        <p className="stat-ring-label">Interior Shooting</p>
                       </div>
                       <div className="stat-ring">
                         <div className="relative w-16 h-16 mx-auto mb-2">
@@ -437,15 +481,63 @@ export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSele
                               stroke="#333333"
                               strokeWidth="3"
                               fill="none"
-                              strokeDasharray="90, 100"
+                              strokeDasharray={`${teamRatings.threePointShooting}, 100`}
                               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                             />
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-sm font-bold text-gray-800">90</span>
+                            <span className="text-sm font-bold text-gray-800">{teamRatings.threePointShooting}</span>
                           </div>
                         </div>
-                        <p className="stat-ring-label">Defense</p>
+                        <p className="stat-ring-label">3P Shooting</p>
+                      </div>
+                      <div className="stat-ring">
+                        <div className="relative w-16 h-16 mx-auto mb-2">
+                          <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
+                            <path
+                              className="text-gray-300"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              fill="none"
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            />
+                            <path
+                              stroke="#333333"
+                              strokeWidth="3"
+                              fill="none"
+                              strokeDasharray={`${teamRatings.passing}, 100`}
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-sm font-bold text-gray-800">{teamRatings.passing}</span>
+                          </div>
+                        </div>
+                        <p className="stat-ring-label">Passing</p>
+                      </div>
+                      <div className="stat-ring">
+                        <div className="relative w-16 h-16 mx-auto mb-2">
+                          <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
+                            <path
+                              className="text-gray-300"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              fill="none"
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            />
+                            <path
+                              stroke="#333333"
+                              strokeWidth="3"
+                              fill="none"
+                              strokeDasharray={`${teamRatings.onBallDefense}, 100`}
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-sm font-bold text-gray-800">{teamRatings.onBallDefense}</span>
+                          </div>
+                        </div>
+                        <p className="stat-ring-label">On-Ball Defense</p>
                       </div>
                     </div>
 
@@ -461,26 +553,32 @@ export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSele
                         </tr>
                       </thead>
                       <tbody>
-                        {starters.map((player, index) => (
-                          <tr key={player.id} className="border-b border-gray-200">
+                        {starters.map((player: any, index: number) => (
+                          <tr key={player.player_id || player.id} className="border-b border-gray-200">
                             {/* Column 1: Name (fills remaining width) */}
                             <td className="player-name-cell">
                               <p className="font-medium">{player.name}</p>
                               <div className="text-sm text-muted-foreground">
                                 <span>{player.position}</span>
                                 <span> | </span>
-                                <span>{player.overall} ovr</span>
+                                <span>{player.overall_rating || player.overall} ovr</span>
                               </div>
                             </td>
                             
                             {/* Column 2: PPG (hugs content) */}
-                            <td className="starters-table-cell">11.9</td>
+                            <td className="starters-table-cell">
+                              {player.current_stats?.ppg?.toFixed(1) || '0.0'}
+                            </td>
                             
                             {/* Column 3: APG (hugs content) */}
-                            <td className="starters-table-cell">2.1</td>
+                            <td className="starters-table-cell">
+                              {player.current_stats?.apg?.toFixed(1) || '0.0'}
+                            </td>
                             
                             {/* Column 4: RPG (hugs content) */}
-                            <td className="starters-table-cell">5.7</td>
+                            <td className="starters-table-cell">
+                              {player.current_stats?.rpg?.toFixed(1) || '0.0'}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -499,7 +597,9 @@ export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSele
                             <div key={team.team_id} className={`flex justify-between items-center p-2 rounded ${team.team_id === userTeam.team_id ? 'bg-primary/10' : 'bg-muted'}`}>
                               <div className="flex items-center gap-2">
                                 <span className="font-bold">#{index + 1}</span>
-                                <span className="font-medium">{team.city} {team.name}</span>
+                                <Link href={`/team/${team.team_id}`} className="font-medium hover:text-primary transition-colors">
+                                  {team.city} {team.name}
+                                </Link>
                               </div>
                               <span className="text-sm text-muted-foreground">
                                 {team.wins}-{team.losses}
@@ -515,7 +615,9 @@ export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSele
                             <div key={team.team_id} className={`flex justify-between items-center p-2 rounded ${team.team_id === userTeam.team_id ? 'bg-primary/10' : 'bg-muted'}`}>
                               <div className="flex items-center gap-2">
                                 <span className="font-bold">#{index + 1}</span>
-                                <span className="font-medium">{team.city} {team.name}</span>
+                                <Link href={`/team/${team.team_id}`} className="font-medium hover:text-primary transition-colors">
+                                  {team.city} {team.name}
+                                </Link>
                               </div>
                               <span className="text-sm text-muted-foreground">
                                 {team.wins}-{team.losses}
@@ -610,7 +712,13 @@ export function HomeHub({ gm, userTeam, onNavigateToRoster, onNavigateToGameSele
             <CardContent className="p-6 flex-1 flex flex-col items-center justify-center">
               <div className="text-center mb-6">
                 <div className="text-2xl font-bold mb-2">
-                  {matchups[selectedMatchup]?.away} vs. {matchups[selectedMatchup]?.home}
+                  <Link href={`/team/${matchups[selectedMatchup]?.awayTeamId}`} className="hover:text-primary transition-colors">
+                    {matchups[selectedMatchup]?.away}
+                  </Link>
+                  <span className="mx-2">vs.</span>
+                  <Link href={`/team/${matchups[selectedMatchup]?.homeTeamId}`} className="hover:text-primary transition-colors">
+                    {matchups[selectedMatchup]?.home}
+                  </Link>
                 </div>
                 {(() => {
                   const selectedGame = matchups[selectedMatchup]

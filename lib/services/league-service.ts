@@ -396,7 +396,20 @@ export class LeagueService {
           weight: player.weight,
           years_pro: player.years_pro,
           overall_rating: playerService.calculateOverallRating(player),
-          current_stats: player.current_season_stats ? JSON.parse(player.current_season_stats) : null
+          current_stats: player.current_season_stats ? JSON.parse(player.current_season_stats) : null,
+          // Include player attributes for rating calculations
+          speed: player.speed,
+          ball_iq: player.ball_iq,
+          inside_shot: player.inside_shot,
+          three_point_shot: player.three_point_shot,
+          pass: player.pass,
+          skill_move: player.skill_move,
+          on_ball_defense: player.on_ball_defense,
+          stamina: player.stamina,
+          block: player.block,
+          steal: player.steal,
+          offensive_rebound: player.offensive_rebound,
+          defensive_rebound: player.defensive_rebound
         }))
       };
     } catch (error) {
@@ -437,7 +450,9 @@ export class LeagueService {
           current_season_stats: JSON.stringify({
             games: 0, wins: 0, losses: 0, ppg: 0, opp_ppg: 0,
             fg_pct: 0, three_pct: 0, ft_pct: 0, rpg: 0, apg: 0,
-            spg: 0, bpg: 0, tpg: 0
+            spg: 0, bpg: 0, tpg: 0, fg_made: 0, fg_attempted: 0,
+            three_made: 0, three_attempted: 0, ft_made: 0, ft_attempted: 0,
+            oreb: 0, dreb: 0, pf: 0, dd: 0, td: 0, plus_minus: 0
           }),
           historical_records: JSON.stringify(historicalRecords),
           schedule: JSON.stringify([])

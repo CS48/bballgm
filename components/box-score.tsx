@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Trophy } from "lucide-react"
-import type { GameResult, PlayerGameStats } from "@/types/game"
+import type { GameSimulationResult, PlayerGameStats } from "@/lib/types/game-simulation"
 
 interface BoxScoreProps {
-  result: GameResult
+  result: GameSimulationResult
   onClose: () => void
 }
 

@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import type { GM } from "@/types/game"
+// GM type is now just a simple object
 
 interface GMCreationProps {
-  onGMCreated: (gm: GM) => void
+  onGMCreated: (gm: { id: string; firstName: string; lastName: string; createdAt: Date }) => void
 }
 
 export function GMCreation({ onGMCreated }: GMCreationProps) {
@@ -24,7 +24,7 @@ export function GMCreation({ onGMCreated }: GMCreationProps) {
       return
     }
 
-    const gm: GM = {
+    const gm = {
       id: Math.random().toString(36).substr(2, 9),
       firstName: firstName.trim(),
       lastName: lastName.trim(),

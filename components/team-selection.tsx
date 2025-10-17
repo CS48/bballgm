@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useTeams } from "@/lib/context/league-context"
+import { leagueService } from "@/lib/services/league-service"
 import type { Team } from "@/lib/types/database"
 
 interface TeamSelectionProps {
@@ -14,6 +15,7 @@ interface TeamSelectionProps {
 export function TeamSelection({ onTeamSelected }: TeamSelectionProps) {
   const teams = useTeams()
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
+  const [teamRatings, setTeamRatings] = useState<Map<number, number>>(new Map())
 
   const handleTeamSelect = (team: Team) => {
     setSelectedTeam(team)
@@ -25,11 +27,37 @@ export function TeamSelection({ onTeamSelected }: TeamSelectionProps) {
     }
   }
 
+  // Calculate team ratings from player data
+  useEffect(() => {
+    const calculateTeamRatings = async () => {
+      const ratings = new Map<number, number>()
+      
+      for (const team of teams) {
+        try {
+          const roster = await leagueService.getTeamRoster(team.team_id)
+          if (roster.players && roster.players.length > 0) {
+            const overallRatings = roster.players.map(p => p.overall_rating)
+            const averageRating = Math.round(overallRatings.reduce((a, b) => a + b, 0) / overallRatings.length)
+            ratings.set(team.team_id, averageRating)
+          } else {
+            ratings.set(team.team_id, 50) // Default rating if no players
+          }
+        } catch (error) {
+          console.error(`Failed to get rating for team ${team.team_id}:`, error)
+          ratings.set(team.team_id, 50) // Default rating on error
+        }
+      }
+      
+      setTeamRatings(ratings)
+    }
+
+    if (teams.length > 0) {
+      calculateTeamRatings()
+    }
+  }, [teams])
+
   const getTeamOverallRating = (team: Team): number => {
-    // Use team_id as seed for consistent rating per team
-    // This ensures the same team always gets the same rating
-    const seed = team.team_id
-    return 70 + (seed % 20) // Consistent rating between 70-89 based on team_id
+    return teamRatings.get(team.team_id) || 50
   }
 
   return (

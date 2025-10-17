@@ -7,12 +7,15 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { GameEngine } from "@/lib/game-engine"
 import { Halftime } from "./halftime"
-import type { Team, GameResult, GameEvent, StrategicAdjustments } from "@/types/game"
+import type { Team } from "@/lib/types/database"
+import type { GameSimulationTeam, GameSimulationResult, GameEvent, StrategicAdjustments } from "@/lib/types/game-simulation"
+import { convertDatabaseTeamToGameTeam } from "@/lib/types/game-simulation"
+import { leagueService } from "@/lib/services/league-service"
 
 interface GameSimulationProps {
   userTeam: Team
   opponent: Team
-  onGameComplete: (result: GameResult) => void
+  onGameComplete: (result: GameSimulationResult) => void
   onBackToOpponentSelect: () => void
 }
 
@@ -34,7 +37,29 @@ export function GameSimulation({ userTeam, opponent, onGameComplete, onBackToOpp
     }
   }, [])
 
-  const [gameResult, setGameResult] = useState<GameResult | null>(null)
+  // Convert database teams to game teams
+  useEffect(() => {
+    const convertTeams = async () => {
+      try {
+        const [userRoster, opponentRoster] = await Promise.all([
+          leagueService.getTeamRoster(userTeam.team_id),
+          leagueService.getTeamRoster(opponent.team_id)
+        ])
+
+        const gameUserTeam = convertDatabaseTeamToGameTeam(userTeam, userRoster.players)
+        const gameOpponentTeam = convertDatabaseTeamToGameTeam(opponent, opponentRoster.players)
+
+        setGameTeams({ userTeam: gameUserTeam, opponent: gameOpponentTeam })
+      } catch (error) {
+        console.error('Failed to convert teams:', error)
+      }
+    }
+
+    convertTeams()
+  }, [userTeam, opponent])
+
+  const [gameResult, setGameResult] = useState<GameSimulationResult | null>(null)
+  const [gameTeams, setGameTeams] = useState<{ userTeam: GameSimulationTeam; opponent: GameSimulationTeam } | null>(null)
   const [currentEventIndex, setCurrentEventIndex] = useState(0)
   const [isSimulating, setIsSimulating] = useState(true)
   const [displayedEvents, setDisplayedEvents] = useState<GameEvent[]>([])
@@ -58,14 +83,15 @@ export function GameSimulation({ userTeam, opponent, onGameComplete, onBackToOpp
   // Run simulation once when teams are available
   const simulationResult = useMemo(() => {
     console.log('🔍 useMemo executing with dependencies:', {
-      userTeamId: userTeam?.id,
-      opponentId: opponent?.id,
+      userTeamId: userTeam?.team_id,
+      opponentId: opponent?.team_id,
       userTeamName: userTeam?.name,
-      opponentName: opponent?.name
+      opponentName: opponent?.name,
+      gameTeamsAvailable: !!gameTeams
     })
     
-    if (!userTeam || !opponent) {
-      console.log('❌ Missing teams, returning null')
+    if (!gameTeams) {
+      console.log('❌ Game teams not converted yet, returning null')
       return null
     }
     
@@ -77,11 +103,11 @@ export function GameSimulation({ userTeam, opponent, onGameComplete, onBackToOpp
     }
     
     simulationRunRef.current = true
-    console.log('🎮 Running first half simulation for:', userTeam.name, 'vs', opponent.name)
+    console.log('🎮 Running first half simulation for:', gameTeams.userTeam.name, 'vs', gameTeams.opponent.name)
     
     // Determine home/away teams (user team is always home for now)
-    const homeTeam = userTeam
-    const awayTeam = opponent
+    const homeTeam = gameTeams.userTeam
+    const awayTeam = gameTeams.opponent
     
     // Start first half simulation
     const result = GameEngine.simulateGameSegment(
@@ -107,7 +133,7 @@ export function GameSimulation({ userTeam, opponent, onGameComplete, onBackToOpp
       events: result.events,
       eventId: result.eventId
     }
-  }, [userTeam?.id, opponent?.id])
+  }, [gameTeams])
 
   // Start animation when simulation result is available
   useEffect(() => {
@@ -214,8 +240,12 @@ export function GameSimulation({ userTeam, opponent, onGameComplete, onBackToOpp
     setGamePhase('second-half')
     
     // Simulate second half
-    const homeTeam = userTeam
-    const awayTeam = opponent
+    if (!gameTeams) {
+      console.error('Game teams not available for second half')
+      return
+    }
+    const homeTeam = gameTeams.userTeam
+    const awayTeam = gameTeams.opponent
     
     const secondHalfResult = GameEngine.simulateGameSegment(
       homeTeam,
@@ -244,7 +274,7 @@ export function GameSimulation({ userTeam, opponent, onGameComplete, onBackToOpp
     console.log('First few combined events:', allEvents.slice(0, 3).map(e => ({ id: e.id, quarter: e.quarter, description: e.description })))
     console.log('Last few first half events:', firstHalfResult!.events.slice(-3).map(e => ({ id: e.id, quarter: e.quarter, description: e.description })))
     console.log('First few second half events:', secondHalfResult.events.slice(0, 3).map(e => ({ id: e.id, quarter: e.quarter, description: e.description })))
-    const finalResult: GameResult = {
+    const finalResult: GameSimulationResult = {
       homeTeam,
       awayTeam,
       homeScore: secondHalfResult.homeScore,

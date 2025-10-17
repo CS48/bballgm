@@ -203,4 +203,37 @@
   .team-record {
     @apply text-muted-foreground;
   }
+
+  /* Roster Table */
+  .roster-table-container {
+    @apply bg-transparent;
+  }
+
+  .roster-table-container table {
+    @apply w-full text-sm;
+  }
+
+  .roster-table-container thead tr {
+    @apply border-b border-gray-200;
+  }
+
+  .roster-table-container th {
+    @apply text-left p-2 font-medium text-gray-700;
+  }
+
+  .roster-table-container tbody tr {
+    @apply border-b border-gray-100 hover:bg-gray-50;
+  }
+
+  .roster-table-container td {
+    @apply p-2 text-sm;
+  }
+
+  .roster-table-container .player-cell {
+    @apply font-medium;
+  }
+
+  .roster-table-container .player-position {
+    @apply text-sm text-muted-foreground;
+  }
 }

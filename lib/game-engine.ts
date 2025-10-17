@@ -1,4 +1,4 @@
-import type { Player, Team, GameEvent, GameResult, StrategicAdjustments } from "@/types/game"
+import type { GameSimulationPlayer, GameSimulationTeam, GameEvent, GameSimulationResult, StrategicAdjustments } from "@/lib/types/game-simulation"
 import { GameClock } from "./game-clock"
 
 export interface GameSegmentResult {
@@ -7,28 +7,28 @@ export interface GameSegmentResult {
   awayScore: number
   homePlayerStats: Map<string, any>
   awayPlayerStats: Map<string, any>
-  finalPossession: Team
+  finalPossession: GameSimulationTeam
   homePossessions: number
   awayPossessions: number
   eventId: number
 }
 
 export class GameEngine {
-  private static getPlayerEffectiveness(player: Player): number {
+  private static getPlayerEffectiveness(player: GameSimulationPlayer): number {
     // Calculate effectiveness based on overall rating with some randomness
     const baseEffectiveness = player.overall / 100
     const randomFactor = 0.8 + Math.random() * 0.4 // 0.8 to 1.2 multiplier
     return Math.min(1, baseEffectiveness * randomFactor)
   }
 
-  private static calculateTeamStrength(team: Team): number {
+  private static calculateTeamStrength(team: GameSimulationTeam): number {
     // Calculate team strength based on average player overall rating
     const totalRating = team.players.reduce((sum, player) => sum + player.overall, 0)
     return totalRating / team.players.length
   }
 
   private static generatePlayDescription(
-    player: Player,
+    player: GameSimulationPlayer,
     action: string,
     success: boolean,
     isThreePointer?: boolean,
@@ -69,7 +69,7 @@ export class GameEngine {
     return z * stdDev + mean
   }
 
-  public static simulateGame(homeTeam: Team, awayTeam: Team): GameResult {
+  public static simulateGame(homeTeam: GameSimulationTeam, awayTeam: GameSimulationTeam): GameSimulationResult {
     console.log('🏀 Starting full game simulation:', homeTeam.name, 'vs', awayTeam.name)
     
     // Calculate team strengths
@@ -147,8 +147,8 @@ export class GameEngine {
   }
 
   public static simulateGameSegment(
-    homeTeam: Team,
-    awayTeam: Team,
+    homeTeam: GameSimulationTeam,
+    awayTeam: GameSimulationTeam,
     strategy: StrategicAdjustments,
     startQuarter: number,
     endQuarter: number,
@@ -635,14 +635,14 @@ export class GameEngine {
   }
 
   private static buildGameResult(
-    homeTeam: Team,
-    awayTeam: Team,
+    homeTeam: GameSimulationTeam,
+    awayTeam: GameSimulationTeam,
     homeScore: number,
     awayScore: number,
     events: GameEvent[],
     homePlayerStats: Map<string, any>,
     awayPlayerStats: Map<string, any>
-  ): GameResult {
+  ): GameSimulationResult {
     const homePlayerStatsArray = homeTeam.players.map((player) => ({
       ...player,
       ...homePlayerStats.get(player.id)!,

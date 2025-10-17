@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
-import type { Team, GameEvent, StrategicAdjustments } from "@/types/game"
+import type { Team } from "@/lib/types/database"
+import type { GameEvent, StrategicAdjustments } from "@/lib/types/game-simulation"
 
 interface HalftimeProps {
   homeTeam: Team

@@ -7,7 +7,6 @@ import { MainMenu } from "@/components/main-menu"
 import { LeagueInitializer } from "@/components/league-initializer"
 import { LeagueTester } from "@/components/league-tester"
 import { useLeague, useLeagueReady } from "@/lib/context/league-context"
-import type { GM } from "@/types/game"
 import type { Team } from "@/lib/types/database"
 
 type GameState = "league-initialization" | "gm-creation" | "team-selection" | "main-game" | "testing"
@@ -16,7 +15,7 @@ export default function HomePage() {
   const { isLoading, error } = useLeague()
   const isLeagueReady = useLeagueReady()
   const [gameState, setGameState] = useState<GameState>("league-initialization")
-  const [currentGM, setCurrentGM] = useState<GM | null>(null)
+  const [currentGM, setCurrentGM] = useState<any>(null)
   const [userTeam, setUserTeam] = useState<Team | null>(null)
 
   // Check if league is ready and update game state
@@ -27,7 +26,7 @@ export default function HomePage() {
     }
   }, [isLeagueReady, gameState])
 
-  const handleGMCreated = (gm: GM) => {
+  const handleGMCreated = (gm: any) => {
     setCurrentGM(gm)
     setGameState("team-selection")
   }
@@ -65,7 +64,7 @@ export default function HomePage() {
   }
 
   if (gameState === "main-game" && currentGM && userTeam) {
-    return <MainMenu gm={currentGM} userTeam={userTeam} onResetGame={handleResetGame} onOpenDebugger={handleOpenDebugger} />
+    return <MainMenu userTeam={userTeam} onResetGame={handleResetGame} onOpenDebugger={handleOpenDebugger} />
   }
 
   if (gameState === "testing") {

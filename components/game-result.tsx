@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Trophy } from "lucide-react"
 import { BoxScore } from "./box-score"
-import type { GameResult, Team, PlayerGameStats } from "@/types/game"
+import type { Team } from "@/lib/types/database"
+import type { GameSimulationResult, PlayerGameStats } from "@/lib/types/game-simulation"
 
 interface GameResultProps {
-  result: GameResult
+  result: GameSimulationResult
   userTeam: Team
   onPlayAgain: () => void
   onBackToMenu: () => void
@@ -19,7 +20,7 @@ interface GameResultProps {
 export function GameResultComponent({ result, userTeam, onPlayAgain, onBackToMenu }: GameResultProps) {
   const [showBoxScore, setShowBoxScore] = useState(false)
 
-  const userIsHome = userTeam.id === result.homeTeam.id
+  const userIsHome = userTeam.team_id.toString() === result.homeTeam.id
   const userWon =
     (userIsHome && result.homeScore > result.awayScore) || (!userIsHome && result.awayScore > result.homeScore)
 

@@ -16,38 +16,75 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import type { GM, League, Team } from "@/types/game"
 import { useLeague } from "@/lib/context/league-context"
+import { leagueService } from "@/lib/services/league-service"
+import type { Team } from "@/lib/types/database"
 
 interface SettingsMenuProps {
-  gm: GM
-  league: League
-  userTeam: Team
   onResetGame: () => void
   onBackToMenu: () => void
   onOpenDebugger?: () => void
 }
 
-export function SettingsMenu({ gm, league, userTeam, onResetGame, onBackToMenu, onOpenDebugger }: SettingsMenuProps) {
+export function SettingsMenu({ onResetGame, onBackToMenu, onOpenDebugger }: SettingsMenuProps) {
   const { deleteLeague, teams, players } = useLeague()
+  
+  // Get user team from context (assuming first team is user team for now)
+  const userTeam = teams[0] || null
   const [showResetDialog, setShowResetDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [teamRatings, setTeamRatings] = useState<Map<string, number>>(new Map())
+
+  // Calculate team ratings from database data
+  useEffect(() => {
+    const calculateTeamRatings = async () => {
+      const ratings = new Map<string, number>()
+      
+      for (const team of teams) {
+        try {
+          const roster = await leagueService.getTeamRoster(team.team_id)
+          if (roster.players && roster.players.length > 0) {
+            const overallRatings = roster.players.map(p => p.overall_rating)
+            const averageRating = Math.round(overallRatings.reduce((a, b) => a + b, 0) / overallRatings.length)
+            ratings.set(team.team_id.toString(), averageRating)
+          } else {
+            ratings.set(team.team_id.toString(), 50) // Default rating if no players
+          }
+        } catch (error) {
+          console.error(`Failed to get rating for team ${team.team_id}:`, error)
+          ratings.set(team.team_id.toString(), 50) // Default rating on error
+        }
+      }
+      
+      setTeamRatings(ratings)
+    }
+
+    if (teams.length > 0) {
+      calculateTeamRatings()
+    }
+  }, [teams])
 
   const getTeamOverallRating = (team: Team): number => {
-    const totalOverall = team.players.reduce((sum, player) => sum + player.overall, 0)
-    return Math.round(totalOverall / team.players.length)
+    // Get from database calculation
+    if (teamRatings.has(team.team_id.toString())) {
+      return teamRatings.get(team.team_id.toString()) || 50
+    }
+    
+    // Default rating if not calculated yet
+    return 50
   }
 
   const getLeagueStats = () => {
-    const totalPlayers = league.teams.reduce((sum, team) => sum + team.players.length, 0)
-    const averageTeamRating =
-      league.teams.reduce((sum, team) => sum + getTeamOverallRating(team), 0) / league.teams.length
-    const totalGames = league.teams.reduce((sum, team) => sum + team.record.wins + team.record.losses, 0)
+    const totalPlayers = players.length
+    const averageTeamRating = teams.length > 0 
+      ? teams.reduce((sum, team) => sum + getTeamOverallRating(team), 0) / teams.length 
+      : 0
+    const totalGames = teams.reduce((sum, team) => sum + team.wins + team.losses, 0)
 
     return {
       totalPlayers,
       averageTeamRating: Math.round(averageTeamRating),
-      totalGames,
+      totalGames: Math.round(totalGames / 2), // Divide by 2 since each game involves 2 teams
     }
   }
 
@@ -92,21 +129,21 @@ export function SettingsMenu({ gm, league, userTeam, onResetGame, onBackToMenu, 
             <div>
               <p className="text-sm text-muted-foreground">Name</p>
               <p className="font-medium">
-                {gm.firstName} {gm.lastName}
+                General Manager
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Created</p>
-              <p className="font-medium">{gm.createdAt.toLocaleDateString()}</p>
+              <p className="font-medium">{new Date().toLocaleDateString()}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Current Team</p>
-              <p className="font-medium">{userTeam.name}</p>
+              <p className="font-medium">{userTeam?.name || 'No Team'}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Team Record</p>
               <p className="font-medium">
-                {userTeam.record.wins}-{userTeam.record.losses}
+                {userTeam?.wins || 0}-{userTeam?.losses || 0}
               </p>
             </div>
           </div>
@@ -123,11 +160,11 @@ export function SettingsMenu({ gm, league, userTeam, onResetGame, onBackToMenu, 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">League Name</p>
-              <p className="font-medium">{league.name}</p>
+              <p className="font-medium">Basketball League</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Teams</p>
-              <p className="font-medium">{league.teams.length}</p>
+              <p className="font-medium">{teams.length}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Players</p>
@@ -140,12 +177,12 @@ export function SettingsMenu({ gm, league, userTeam, onResetGame, onBackToMenu, 
           <div>
             <p className="text-sm text-muted-foreground mb-3">League Teams</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {league.teams.map((team) => (
-                <div key={team.id} className="flex justify-between items-center p-2 bg-muted rounded">
+              {teams.map((team) => (
+                <div key={team.team_id} className="flex justify-between items-center p-2 bg-muted rounded">
                   <span className="font-medium">{team.name}</span>
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary">{getTeamOverallRating(team)} OVR</Badge>
-                    {team.id === userTeam.id && <Badge variant="default">Your Team</Badge>}
+                    {team.team_id === userTeam?.team_id && <Badge variant="default">Your Team</Badge>}
                   </div>
                 </div>
               ))}
@@ -163,21 +200,21 @@ export function SettingsMenu({ gm, league, userTeam, onResetGame, onBackToMenu, 
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div>
-              <p className="text-2xl font-bold text-primary">{userTeam.record.wins}</p>
+              <p className="text-2xl font-bold text-primary">{userTeam?.wins || 0}</p>
               <p className="text-sm text-muted-foreground">Wins</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-destructive">{userTeam.record.losses}</p>
+              <p className="text-2xl font-bold text-destructive">{userTeam?.losses || 0}</p>
               <p className="text-sm text-muted-foreground">Losses</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-primary">{getTeamOverallRating(userTeam)}</p>
+              <p className="text-2xl font-bold text-primary">{userTeam ? getTeamOverallRating(userTeam) : 0}</p>
               <p className="text-sm text-muted-foreground">Team Rating</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-primary">
-                {userTeam.record.wins + userTeam.record.losses > 0
-                  ? Math.round((userTeam.record.wins / (userTeam.record.wins + userTeam.record.losses)) * 100)
+                {userTeam && (userTeam.wins + userTeam.losses) > 0
+                  ? Math.round((userTeam.wins / (userTeam.wins + userTeam.losses)) * 100)
                   : 0}
                 %
               </p>
@@ -211,9 +248,9 @@ export function SettingsMenu({ gm, league, userTeam, onResetGame, onBackToMenu, 
                   <AlertDialogDescription>
                     This action cannot be undone. This will permanently delete:
                     <br />
-                    <br />• Your GM profile ({gm.firstName} {gm.lastName})
-                    <br />• Your current league ({league.name})
-                    <br />• Your team ({userTeam.name})
+                    <br />• Your GM profile (General Manager)
+                    <br />• Your current league (Basketball League)
+                    <br />• Your team ({userTeam?.name || 'No Team'})
                     <br />• All game progress and statistics
                     <br />
                     <br />

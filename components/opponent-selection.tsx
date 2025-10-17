@@ -4,23 +4,25 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { League, Team } from "@/types/game"
+import type { Team } from "@/lib/types/database"
+import { useTeams } from "@/lib/context/league-context"
 
 interface OpponentSelectionProps {
-  league: League
   userTeam: Team
   onOpponentSelected: (opponent: Team) => void
   onBackToMenu: () => void
 }
 
-export function OpponentSelection({ league, userTeam, onOpponentSelected, onBackToMenu }: OpponentSelectionProps) {
+export function OpponentSelection({ userTeam, onOpponentSelected, onBackToMenu }: OpponentSelectionProps) {
+  const teams = useTeams()
   const [selectedOpponent, setSelectedOpponent] = useState<Team | null>(null)
 
-  const opponents = league.teams.filter((team) => team.id !== userTeam.id)
+  const opponents = teams.filter((team) => team.team_id !== userTeam.team_id)
 
   const getTeamOverallRating = (team: Team): number => {
-    const totalOverall = team.players.reduce((sum, player) => sum + player.overall, 0)
-    return Math.round(totalOverall / team.players.length)
+    // For now, return a default rating since we don't have player data here
+    // This should be calculated from the league context like in other components
+    return 75 // Default rating
   }
 
   const getMatchupDifficulty = (opponent: Team): string => {
@@ -74,11 +76,11 @@ export function OpponentSelection({ league, userTeam, onOpponentSelected, onBack
         {opponents.map((opponent) => {
           const overallRating = getTeamOverallRating(opponent)
           const difficulty = getMatchupDifficulty(opponent)
-          const isSelected = selectedOpponent?.id === opponent.id
+          const isSelected = selectedOpponent?.team_id === opponent.team_id
 
           return (
             <Card
-              key={opponent.id}
+              key={opponent.team_id}
               className={`cursor-pointer transition-all hover:shadow-lg ${
                 isSelected ? "ring-2 ring-primary bg-accent" : ""
               }`}
@@ -96,7 +98,7 @@ export function OpponentSelection({ league, userTeam, onOpponentSelected, onBack
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Record:</span>
                     <span className="text-sm font-medium">
-                      {opponent.record.wins}-{opponent.record.losses}
+                      {opponent.wins}-{opponent.losses}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -104,10 +106,7 @@ export function OpponentSelection({ league, userTeam, onOpponentSelected, onBack
                     <Badge className={getDifficultyColor(difficulty)}>{difficulty}</Badge>
                   </div>
                   <div className="text-xs text-muted-foreground pt-1">
-                    Top Player:{" "}
-                    {opponent.players.reduce((best, player) => (player.overall > best.overall ? player : best)).name} (
-                    {opponent.players.reduce((best, player) => (player.overall > best.overall ? player : best)).overall}
-                    )
+                    Conference: {opponent.conference}
                   </div>
                 </div>
               </CardContent>

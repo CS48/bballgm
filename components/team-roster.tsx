@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PlayerCard } from "./player-card"
-import type { Team } from "@/types/game"
+import type { Team } from "@/lib/types/database"
+import { leagueService } from "@/lib/services/league-service"
+import { useState, useEffect } from "react"
 
 interface TeamRosterProps {
   team: Team
@@ -13,13 +14,33 @@ interface TeamRosterProps {
 
 export function TeamRoster({ team, onBackToMenu }: TeamRosterProps) {
   const [showDetailed, setShowDetailed] = useState(false)
+  const [teamRoster, setTeamRoster] = useState<any>(null)
+  const [teamRatings, setTeamRatings] = useState({ overall: 0 })
+
+  useEffect(() => {
+    const fetchTeamData = async () => {
+      try {
+        const roster = await leagueService.getTeamRoster(team.team_id)
+        setTeamRoster(roster)
+        
+        if (roster.players && roster.players.length > 0) {
+          const overallRatings = roster.players.map(p => p.overall_rating)
+          const averageRating = Math.round(overallRatings.reduce((a, b) => a + b, 0) / overallRatings.length)
+          setTeamRatings({ overall: averageRating })
+        }
+      } catch (error) {
+        console.error('Failed to fetch team roster:', error)
+      }
+    }
+
+    fetchTeamData()
+  }, [team.team_id])
 
   const getTeamOverallRating = (): number => {
-    const totalOverall = team.players.reduce((sum, player) => sum + player.overall, 0)
-    return Math.round(totalOverall / team.players.length)
+    return teamRatings.overall
   }
 
-  const sortedPlayers = [...team.players].sort((a, b) => b.overall - a.overall)
+  const sortedPlayers = teamRoster?.players ? [...teamRoster.players].sort((a, b) => b.overall_rating - a.overall_rating) : []
 
   return (
     <div className="space-y-6">
@@ -27,8 +48,8 @@ export function TeamRoster({ team, onBackToMenu }: TeamRosterProps) {
         <div>
           <h2 className="text-3xl font-bold text-primary">{team.name}</h2>
           <p className="text-muted-foreground">
-            Team Overall: <span className="font-semibold">{getTeamOverallRating()}</span> • Record: {team.record.wins}-
-            {team.record.losses}
+            Team Overall: <span className="font-semibold">{getTeamOverallRating()}</span> • Record: {team.wins}-
+            {team.losses}
           </p>
         </div>
         <div className="flex gap-2">
@@ -51,7 +72,7 @@ export function TeamRoster({ team, onBackToMenu }: TeamRosterProps) {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             {sortedPlayers.map((player) => (
-              <PlayerCard key={player.id} player={player} showDetailed={showDetailed} />
+              <PlayerCard key={player.player_id} player={player} showDetailed={showDetailed} />
             ))}
           </div>
         </CardContent>
@@ -64,13 +85,14 @@ export function TeamRoster({ team, onBackToMenu }: TeamRosterProps) {
           </CardHeader>
           <CardContent>
             {(() => {
-              const bestShooter = team.players.reduce((best, player) =>
-                player.attributes.shooting > best.attributes.shooting ? player : best,
+              if (!teamRoster?.players) return <div>Loading...</div>
+              const bestShooter = teamRoster.players.reduce((best, player) =>
+                player.inside_shot > best.inside_shot ? player : best,
               )
               return (
                 <div>
                   <p className="font-medium text-sm">{bestShooter.name}</p>
-                  <p className="text-xs text-muted-foreground">{bestShooter.attributes.shooting} Shooting</p>
+                  <p className="text-xs text-muted-foreground">{bestShooter.inside_shot} Inside Shot</p>
                 </div>
               )
             })()}
@@ -83,13 +105,14 @@ export function TeamRoster({ team, onBackToMenu }: TeamRosterProps) {
           </CardHeader>
           <CardContent>
             {(() => {
-              const bestDefender = team.players.reduce((best, player) =>
-                player.attributes.defense > best.attributes.defense ? player : best,
+              if (!teamRoster?.players) return <div>Loading...</div>
+              const bestDefender = teamRoster.players.reduce((best, player) =>
+                player.on_ball_defense > best.on_ball_defense ? player : best,
               )
               return (
                 <div>
                   <p className="font-medium text-sm">{bestDefender.name}</p>
-                  <p className="text-xs text-muted-foreground">{bestDefender.attributes.defense} Defense</p>
+                  <p className="text-xs text-muted-foreground">{bestDefender.on_ball_defense} Defense</p>
                 </div>
               )
             })()}
@@ -102,13 +125,14 @@ export function TeamRoster({ team, onBackToMenu }: TeamRosterProps) {
           </CardHeader>
           <CardContent>
             {(() => {
-              const bestRebounder = team.players.reduce((best, player) =>
-                player.attributes.rebounding > best.attributes.rebounding ? player : best,
+              if (!teamRoster?.players) return <div>Loading...</div>
+              const bestRebounder = teamRoster.players.reduce((best, player) =>
+                (player.offensive_rebound + player.defensive_rebound) > (best.offensive_rebound + best.defensive_rebound) ? player : best,
               )
               return (
                 <div>
                   <p className="font-medium text-sm">{bestRebounder.name}</p>
-                  <p className="text-xs text-muted-foreground">{bestRebounder.attributes.rebounding} Rebounding</p>
+                  <p className="text-xs text-muted-foreground">{bestRebounder.offensive_rebound + bestRebounder.defensive_rebound} Rebounding</p>
                 </div>
               )
             })()}
@@ -121,13 +145,14 @@ export function TeamRoster({ team, onBackToMenu }: TeamRosterProps) {
           </CardHeader>
           <CardContent>
             {(() => {
-              const bestPasser = team.players.reduce((best, player) =>
-                player.attributes.passing > best.attributes.passing ? player : best,
+              if (!teamRoster?.players) return <div>Loading...</div>
+              const bestPasser = teamRoster.players.reduce((best, player) =>
+                player.pass > best.pass ? player : best,
               )
               return (
                 <div>
                   <p className="font-medium text-sm">{bestPasser.name}</p>
-                  <p className="text-xs text-muted-foreground">{bestPasser.attributes.passing} Passing</p>
+                  <p className="text-xs text-muted-foreground">{bestPasser.pass} Passing</p>
                 </div>
               )
             })()}
@@ -140,13 +165,14 @@ export function TeamRoster({ team, onBackToMenu }: TeamRosterProps) {
           </CardHeader>
           <CardContent>
             {(() => {
-              const mostAthletic = team.players.reduce((best, player) =>
-                player.attributes.athleticism > best.attributes.athleticism ? player : best,
+              if (!teamRoster?.players) return <div>Loading...</div>
+              const mostAthletic = teamRoster.players.reduce((best, player) =>
+                (player.speed + player.stamina) > (best.speed + best.stamina) ? player : best,
               )
               return (
                 <div>
                   <p className="font-medium text-sm">{mostAthletic.name}</p>
-                  <p className="text-xs text-muted-foreground">{mostAthletic.attributes.athleticism} Athleticism</p>
+                  <p className="text-xs text-muted-foreground">{Math.round((mostAthletic.speed + mostAthletic.stamina) / 2)} Athleticism</p>
                 </div>
               )
             })()}

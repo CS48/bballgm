@@ -502,9 +502,13 @@ export class SimulationService {
       await this.updatePlayerStats(gameResult.box_score.home_team.players, gameResult.home_score > gameResult.away_score);
       await this.updatePlayerStats(gameResult.box_score.away_team.players, gameResult.away_score > gameResult.home_score);
 
+      // Calculate team statistics from player stats
+      const homeTeamStats = this.calculateTeamGameStats(gameResult.box_score.home_team.players, gameResult.home_score > gameResult.away_score);
+      const awayTeamStats = this.calculateTeamGameStats(gameResult.box_score.away_team.players, gameResult.away_score > gameResult.home_score);
+      
       // Update team statistics
-      await this.updateTeamStats(homeTeamId, gameResult.game_stats.home_team_stats);
-      await this.updateTeamStats(awayTeamId, gameResult.game_stats.away_team_stats);
+      await this.updateTeamStats(homeTeamId, homeTeamStats);
+      await this.updateTeamStats(awayTeamId, awayTeamStats);
 
       // Store game in database
       await this.storeGameResult(homeTeamId, awayTeamId, gameResult);
@@ -566,6 +570,65 @@ export class SimulationService {
   }
 
   /**
+   * Calculate team game statistics from player box scores
+   * @param playerBoxScores Array of player box scores
+   * @param won Whether the team won
+   * @returns Team game statistics
+   */
+  private calculateTeamGameStats(playerBoxScores: any[], won: boolean): any {
+    const totals = playerBoxScores.reduce((acc, player) => ({
+      points: acc.points + (player.points || 0),
+      rebounds: acc.rebounds + (player.rebounds || 0),
+      assists: acc.assists + (player.assists || 0),
+      steals: acc.steals + (player.steals || 0),
+      blocks: acc.blocks + (player.blocks || 0),
+      turnovers: acc.turnovers + (player.turnovers || 0),
+      fg_made: acc.fg_made + (player.fg_made || 0),
+      fg_attempted: acc.fg_attempted + (player.fg_attempted || 0),
+      three_made: acc.three_made + (player.three_made || 0),
+      three_attempted: acc.three_attempted + (player.three_attempted || 0),
+      ft_made: acc.ft_made + (player.ft_made || 0),
+      ft_attempted: acc.ft_attempted + (player.ft_attempted || 0),
+      oreb: acc.oreb + (player.oreb || 0),
+      dreb: acc.dreb + (player.dreb || 0),
+      pf: acc.pf + (player.pf || 0),
+      dd: acc.dd + (player.dd || 0),
+      td: acc.td + (player.td || 0),
+      plus_minus: acc.plus_minus + (player.plus_minus || 0)
+    }), {
+      points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0,
+      fg_made: 0, fg_attempted: 0, three_made: 0, three_attempted: 0,
+      ft_made: 0, ft_attempted: 0, oreb: 0, dreb: 0,
+      pf: 0, dd: 0, td: 0, plus_minus: 0
+    });
+
+    return {
+      won,
+      points: totals.points,
+      rebounds: totals.rebounds,
+      assists: totals.assists,
+      steals: totals.steals,
+      blocks: totals.blocks,
+      turnovers: totals.turnovers,
+      fg_made: totals.fg_made,
+      fg_attempted: totals.fg_attempted,
+      three_made: totals.three_made,
+      three_attempted: totals.three_attempted,
+      ft_made: totals.ft_made,
+      ft_attempted: totals.ft_attempted,
+      oreb: totals.oreb,
+      dreb: totals.dreb,
+      pf: totals.pf,
+      dd: totals.dd,
+      td: totals.td,
+      plus_minus: totals.plus_minus,
+      fg_pct: totals.fg_attempted > 0 ? totals.fg_made / totals.fg_attempted : 0,
+      three_pct: totals.three_attempted > 0 ? totals.three_made / totals.three_attempted : 0,
+      ft_pct: totals.ft_attempted > 0 ? totals.ft_made / totals.ft_attempted : 0
+    };
+  }
+
+  /**
    * Update team statistics after a game
    * @param teamId Team ID
    * @param teamStats Team game statistics
@@ -575,17 +638,35 @@ export class SimulationService {
       const currentStats = await teamService.getTeamSeasonStats(teamId);
       if (!currentStats) return;
 
+      const newGames = currentStats.games + 1;
+
       const updatedStats = {
-        games: currentStats.games + 1,
-        ppg: ((currentStats.ppg * currentStats.games) + teamStats.points) / (currentStats.games + 1),
-        rpg: ((currentStats.rpg * currentStats.games) + teamStats.rebounds) / (currentStats.games + 1),
-        apg: ((currentStats.apg * currentStats.games) + teamStats.assists) / (currentStats.games + 1),
-        spg: ((currentStats.spg * currentStats.games) + teamStats.steals) / (currentStats.games + 1),
-        bpg: ((currentStats.bpg * currentStats.games) + teamStats.blocks) / (currentStats.games + 1),
-        tpg: ((currentStats.tpg * currentStats.games) + teamStats.turnovers) / (currentStats.games + 1),
+        games: newGames,
+        wins: teamStats.won ? currentStats.wins + 1 : currentStats.wins,
+        losses: teamStats.won ? currentStats.losses : currentStats.losses + 1,
+        ppg: ((currentStats.ppg * currentStats.games) + teamStats.points) / newGames,
+        opp_ppg: ((currentStats.opp_ppg * currentStats.games) + teamStats.opp_points) / newGames,
+        rpg: ((currentStats.rpg * currentStats.games) + teamStats.rebounds) / newGames,
+        apg: ((currentStats.apg * currentStats.games) + teamStats.assists) / newGames,
+        spg: ((currentStats.spg * currentStats.games) + teamStats.steals) / newGames,
+        bpg: ((currentStats.bpg * currentStats.games) + teamStats.blocks) / newGames,
+        tpg: ((currentStats.tpg * currentStats.games) + teamStats.turnovers) / newGames,
         fg_pct: teamStats.fg_pct,
         three_pct: teamStats.three_pct,
-        ft_pct: teamStats.ft_pct
+        ft_pct: teamStats.ft_pct,
+        // Add missing stats that were causing the 0 values
+        fg_made: (currentStats.fg_made || 0) + (teamStats.fg_made || 0),
+        fg_attempted: (currentStats.fg_attempted || 0) + (teamStats.fg_attempted || 0),
+        three_made: (currentStats.three_made || 0) + (teamStats.three_made || 0),
+        three_attempted: (currentStats.three_attempted || 0) + (teamStats.three_attempted || 0),
+        ft_made: (currentStats.ft_made || 0) + (teamStats.ft_made || 0),
+        ft_attempted: (currentStats.ft_attempted || 0) + (teamStats.ft_attempted || 0),
+        oreb: (currentStats.oreb || 0) + (teamStats.oreb || 0),
+        dreb: (currentStats.dreb || 0) + (teamStats.dreb || 0),
+        pf: (currentStats.pf || 0) + (teamStats.pf || 0),
+        dd: (currentStats.dd || 0) + (teamStats.dd || 0),
+        td: (currentStats.td || 0) + (teamStats.td || 0),
+        plus_minus: ((currentStats.plus_minus || 0) * currentStats.games + (teamStats.plus_minus || 0)) / newGames
       };
 
       await teamService.updateTeamStats(teamId, updatedStats);

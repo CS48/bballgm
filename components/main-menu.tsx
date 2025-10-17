@@ -8,11 +8,9 @@ import { GameSimulation } from "./game-simulation"
 import { GameResultComponent } from "./game-result"
 import { SettingsMenu } from "./settings-menu"
 import { HomeHub } from "./home-hub"
-import type { GM, GameResult } from "@/types/game"
 import type { Team } from "@/lib/types/database"
 
 interface MainMenuProps {
-  gm: GM
   userTeam: Team
   onResetGame: () => void
   onOpenDebugger?: () => void
@@ -20,17 +18,17 @@ interface MainMenuProps {
 
 type MenuView = "main" | "roster" | "game-select" | "game-simulation" | "game-result" | "settings"
 
-export function MainMenu({ gm, userTeam, onResetGame, onOpenDebugger }: MainMenuProps) {
+export function MainMenu({ userTeam, onResetGame, onOpenDebugger }: MainMenuProps) {
   const [currentView, setCurrentView] = useState<MenuView>("main")
   const [selectedOpponent, setSelectedOpponent] = useState<Team | null>(null)
-  const [gameResult, setGameResult] = useState<GameResult | null>(null)
+  const [gameResult, setGameResult] = useState<any>(null)
 
   const handleOpponentSelected = (opponent: Team) => {
     setSelectedOpponent(opponent)
     setCurrentView("game-simulation")
   }
 
-  const handleGameComplete = (result: GameResult) => {
+  const handleGameComplete = (result: any) => {
     setGameResult(result)
     setCurrentView("game-result")
   }
@@ -56,7 +54,6 @@ export function MainMenu({ gm, userTeam, onResetGame, onOpenDebugger }: MainMenu
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-6xl mx-auto">
           <OpponentSelection
-            league={league}
             userTeam={userTeam}
             onOpponentSelected={handleOpponentSelected}
             onBackToMenu={() => setCurrentView("main")}
@@ -101,9 +98,6 @@ export function MainMenu({ gm, userTeam, onResetGame, onOpenDebugger }: MainMenu
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-6xl mx-auto">
           <SettingsMenu
-            gm={gm}
-            league={league}
-            userTeam={userTeam}
             onResetGame={onResetGame}
             onBackToMenu={() => setCurrentView("main")}
             onOpenDebugger={onOpenDebugger}
@@ -115,7 +109,6 @@ export function MainMenu({ gm, userTeam, onResetGame, onOpenDebugger }: MainMenu
 
   return (
     <HomeHub
-      gm={gm}
       userTeam={userTeam}
       onNavigateToRoster={() => setCurrentView("roster")}
       onNavigateToGameSelect={() => setCurrentView("game-select")}

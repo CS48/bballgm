@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import type { Player } from "@/types/game"
+import type { Player } from "@/lib/types/database"
 
 interface PlayerCardProps {
   player: Player
@@ -49,14 +49,14 @@ export function PlayerCard({ player, showDetailed = false }: PlayerCardProps) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="text-lg text-balance">{player.name}</CardTitle>
+            <CardTitle className="text-lg text-balance">{player.first_name} {player.last_name}</CardTitle>
             <div className="flex items-center gap-2 mt-1">
               <Badge className={getPositionColor(player.position)}>{player.position}</Badge>
-              <Badge variant="outline">{player.descriptor}</Badge>
+              <Badge variant="outline">{player.position} - {player.overall_rating} OVR</Badge>
             </div>
           </div>
           <div className="text-right">
-            <div className={`text-2xl font-bold ${getOverallColor(player.overall)}`}>{player.overall}</div>
+            <div className={`text-2xl font-bold ${getOverallColor(player.overall_rating)}`}>{player.overall_rating}</div>
             <div className="text-xs text-muted-foreground">OVR</div>
           </div>
         </div>
@@ -69,41 +69,41 @@ export function PlayerCard({ player, showDetailed = false }: PlayerCardProps) {
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-muted-foreground">Shooting</span>
-                  <span className="font-medium">{player.attributes.shooting}</span>
+                  <span className="font-medium">{Math.round((player.inside_shot + player.three_point_shot) / 2)}</span>
                 </div>
-                <Progress value={player.attributes.shooting} className="h-2" />
+                <Progress value={Math.round((player.inside_shot + player.three_point_shot) / 2)} className="h-2" />
               </div>
 
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-muted-foreground">Defense</span>
-                  <span className="font-medium">{player.attributes.defense}</span>
+                  <span className="font-medium">{Math.round((player.on_ball_defense + player.block + player.steal) / 3)}</span>
                 </div>
-                <Progress value={player.attributes.defense} className="h-2" />
+                <Progress value={Math.round((player.on_ball_defense + player.block + player.steal) / 3)} className="h-2" />
               </div>
 
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-muted-foreground">Rebounding</span>
-                  <span className="font-medium">{player.attributes.rebounding}</span>
+                  <span className="font-medium">{Math.round((player.offensive_rebound + player.defensive_rebound) / 2)}</span>
                 </div>
-                <Progress value={player.attributes.rebounding} className="h-2" />
+                <Progress value={Math.round((player.offensive_rebound + player.defensive_rebound) / 2)} className="h-2" />
               </div>
 
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-muted-foreground">Passing</span>
-                  <span className="font-medium">{player.attributes.passing}</span>
+                  <span className="font-medium">{player.pass}</span>
                 </div>
-                <Progress value={player.attributes.passing} className="h-2" />
+                <Progress value={player.pass} className="h-2" />
               </div>
 
               <div className="col-span-2">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-muted-foreground">Athleticism</span>
-                  <span className="font-medium">{player.attributes.athleticism}</span>
+                  <span className="font-medium">{Math.round((player.speed + player.stamina) / 2)}</span>
                 </div>
-                <Progress value={player.attributes.athleticism} className="h-2" />
+                <Progress value={Math.round((player.speed + player.stamina) / 2)} className="h-2" />
               </div>
             </div>
           </div>
