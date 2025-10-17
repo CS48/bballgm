@@ -1,5 +1,10 @@
 import type { GameSimulationPlayer, GameSimulationTeam, GameEvent, GameSimulationResult, StrategicAdjustments } from "@/lib/types/game-simulation"
+import type { SimulationTeam, D20GameEvent } from "@/lib/types/simulation-engine"
 import { GameClock } from "./game-clock"
+import { simulatePossession } from "./simulation/possession-engine"
+import { convertToSimulationTeam, convertToSimulationPlayer } from "./types/simulation-engine"
+import { initializeD20RNG } from "./simulation/d20-rng"
+import { getConfig } from "./simulation/config-loader"
 
 export interface GameSegmentResult {
   events: GameEvent[]
@@ -75,7 +80,7 @@ export class GameEngine {
     // Calculate team strengths
     const homeStrength = this.calculateTeamStrength(homeTeam)
     const awayStrength = this.calculateTeamStrength(awayTeam)
-    console.log('📊 Team strengths - Home:', homeStrength.toFixed(1), 'Away:', awayStrength.toFixed(1))
+    // Team strengths calculated for legacy compatibility
     
     // Simulate first half (quarters 1-2)
     console.log('⏰ Starting first half simulation...')
@@ -220,7 +225,7 @@ export class GameEngine {
     const paceMultiplier = strategy.pace === 'slow' ? 0.8 : strategy.pace === 'fast' ? 1.2 : 1.0
     const targetPossessionsPerTeam = Math.round(basePossessionsPerTeam * paceMultiplier)
     
-    console.log(`📊 Target possessions per team: ${targetPossessionsPerTeam} (pace: ${strategy.pace})`)
+    // Target possessions calculated for legacy compatibility
 
     // Start first possession
     gameClock.startShotClock()
@@ -311,9 +316,9 @@ export class GameEngine {
   }
 
   private static simulatePossession(
-    offensiveTeam: Team,
-    defensiveTeam: Team,
-    homeTeam: Team,
+    offensiveTeam: GameSimulationTeam,
+    defensiveTeam: GameSimulationTeam,
+    homeTeam: GameSimulationTeam,
     gameClock: GameClock,
     playerStats: Map<string, any>,
     currentHomeScore: number,
@@ -327,280 +332,147 @@ export class GameEngine {
     changePossession: boolean
     offensiveRebound: boolean
   } {
+    // Convert to simulation teams
+    const simOffensiveTeam = convertToSimulationTeam(offensiveTeam)
+    const simDefensiveTeam = convertToSimulationTeam(defensiveTeam)
+    
+    // Initialize D20 RNG with game time as seed for deterministic results
+    const seed = Math.floor(gameClock.getTotalGameTime() * 1000) + startEventId
+    initializeD20RNG(seed)
+    
+    // Start with point guard as ball handler
+    const ballHandler = simOffensiveTeam.players.find(p => p.position === 'PG') || simOffensiveTeam.players[0]
+    
+    // Simulate possession using D20 engine
+    const possessionResult = simulatePossession(
+      simOffensiveTeam,
+      simDefensiveTeam,
+      ballHandler,
+      seed
+    )
+    
+    // Log possession summary
+    const config = getConfig()
+    const shouldLog = config.logging?.verbose_possession_logs !== false
+    
+    if (shouldLog) {
+      const scoreChange = possessionResult.finalScore
+      const teamName = offensiveTeam === homeTeam ? 'Home' : 'Away'
+      const newHomeScore = offensiveTeam === homeTeam ? currentHomeScore + scoreChange : currentHomeScore
+      const newAwayScore = offensiveTeam === homeTeam ? currentAwayScore : currentAwayScore + scoreChange
+      
+      console.log(`📊 Possession Summary: ${teamName} ${scoreChange > 0 ? '+' : ''}${scoreChange} pts (Score: ${newHomeScore}-${newAwayScore})`)
+      console.log(`   Duration: ${possessionResult.possessionDuration}s, ${possessionResult.events.length} actions, changed possession: ${possessionResult.changePossession}`)
+      console.log('')
+    }
+    
+    // Convert possession result to game events
     const events: GameEvent[] = []
     let eventId = startEventId
     let homeScore = currentHomeScore
     let awayScore = currentAwayScore
     let changePossession = true
     let offensiveRebound = false
-
-    // Possession duration based on strategy
-    const baseDuration = 10 + Math.random() * 10
-    const paceMultiplier = strategy.pace === 'slow' ? 1.3 : strategy.pace === 'fast' ? 0.7 : 1.0
-    const possessionDuration = baseDuration * paceMultiplier
     
-    // Cap possession duration to not exceed remaining quarter time
-    const quarterTimeRemaining = gameClock.getQuarterTimeRemaining()
-    const cappedDuration = Math.min(possessionDuration, quarterTimeRemaining)
-    gameClock.advanceTime(cappedDuration)
-
-    // Check for non-shot events first (turnovers, fouls)
-    const eventRoll = Math.random()
-    
-    if (eventRoll < 0.08) { // 8% chance of turnover
-      const turnoverPlayer = offensiveTeam.players[Math.floor(Math.random() * 5)]
-      playerStats.get(turnoverPlayer.id)!.turnovers++
-      
+    // Process each possession event
+    for (const possessionEvent of possessionResult.events) {
       const currentTime = gameClock.getCurrentTime()
-      events.push({
+      
+      // Create enhanced game event with D20 details
+      const gameEvent: D20GameEvent = {
         id: eventId.toString(),
         quarter: currentTime.quarter,
         time: gameClock.getFormattedTime(),
-        description: this.generatePlayDescription(turnoverPlayer, "turnover", false, false, offensiveTeam.name),
-        homeScore,
-        awayScore,
-        eventType: 'turnover',
-        playerId: turnoverPlayer.id,
+        description: possessionEvent.description,
+        homeScore: offensiveTeam === homeTeam ? homeScore : awayScore,
+        awayScore: offensiveTeam === homeTeam ? awayScore : homeScore,
+        eventType: this.mapPossessionEventType(possessionEvent),
+        playerId: this.findPlayerIdByName(possessionEvent.ballHandler, offensiveTeam),
         teamId: offensiveTeam.id,
         shotClockRemaining: gameClock.getShotClock().timeRemaining,
-        gameTimeSeconds: gameClock.getTotalGameTime()
-      })
-      eventId++
-      
-      return { events, homeScore, awayScore, changePossession: true, offensiveRebound: false }
-    } else if (eventRoll < 0.12) { // 4% chance of foul
-      const foulPlayer = offensiveTeam.players[Math.floor(Math.random() * 5)]
-      playerStats.get(foulPlayer.id)!.fouls++
-      
-      const currentTime = gameClock.getCurrentTime()
-      events.push({
-        id: eventId.toString(),
-        quarter: currentTime.quarter,
-        time: gameClock.getFormattedTime(),
-        description: this.generatePlayDescription(foulPlayer, "foul", false, false, offensiveTeam.name),
-        homeScore,
-        awayScore,
-        eventType: 'foul',
-        playerId: foulPlayer.id,
-        teamId: offensiveTeam.id,
-        shotClockRemaining: gameClock.getShotClock().timeRemaining,
-        gameTimeSeconds: gameClock.getTotalGameTime()
-      })
-      eventId++
-      
-      return { events, homeScore, awayScore, changePossession: true, offensiveRebound: false }
-    }
-
-    // Shot attempt (88% of possessions - 8% turnovers, 4% fouls)
-    const shooter = offensiveTeam.players[Math.floor(Math.random() * 5)]
-    const effectiveness = this.getPlayerEffectiveness(shooter)
-
-    // Determine shot type based on strategy
-    const baseThreePointChance = 0.35 // 35% base chance
-    const shotSelectionMultiplier = strategy.shotSelection === 'conservative' ? 0.6 : 
-                                   strategy.shotSelection === 'aggressive' ? 1.4 : 1.0
-    const threePointChance = Math.min(0.6, baseThreePointChance * shotSelectionMultiplier)
-    const isThreePointer = Math.random() < threePointChance
-
-    // Check shot clock violation
-    if (gameClock.getShotClock().timeRemaining <= 0) {
-      // Shot clock violation
-      const currentTime = gameClock.getCurrentTime()
-      events.push({
-        id: eventId.toString(),
-        quarter: currentTime.quarter,
-        time: gameClock.getFormattedTime(),
-        description: `${offensiveTeam.name} shot clock violation`,
-        homeScore,
-        awayScore,
-        eventType: 'foul',
-        teamId: offensiveTeam.id,
-        shotClockRemaining: 0,
-        gameTimeSeconds: gameClock.getTotalGameTime()
-      })
-      eventId++
-      return { events, homeScore, awayScore, changePossession: true, offensiveRebound: false }
-    }
-
-    // Calculate shot success based on player effectiveness and team strength
-    const offensiveTeamStrength = this.calculateTeamStrength(offensiveTeam)
-    const defensiveTeamStrength = this.calculateTeamStrength(defensiveTeam)
-    
-    // Base shot success from player effectiveness
-    const baseShotSuccess = effectiveness * 0.5 + 0.15
-    
-    // Adjust for team strength difference
-    const strengthDifference = (offensiveTeamStrength - defensiveTeamStrength) / 100
-    const strengthAdjustment = Math.max(0.7, Math.min(1.3, 1 + strengthDifference * 0.3))
-    
-    // Adjust for defensive strategy
-    const defenseMultiplier = strategy.defense === 'intense' ? 0.85 : 
-                             strategy.defense === 'soft' ? 1.15 : 1.0
-    
-    const finalShotSuccess = baseShotSuccess * strengthAdjustment * defenseMultiplier
-    const shotSuccess = Math.random() < finalShotSuccess
-
-    const shooterStats = playerStats.get(shooter.id)!
-    if (isThreePointer) {
-      shooterStats.threePointersAttempted++
-    }
-    shooterStats.fieldGoalsAttempted++
-
-    const currentTime = gameClock.getCurrentTime()
-
-    if (shotSuccess) {
-      // Made shot
-      const points = isThreePointer ? 3 : 2
-      shooterStats.points += points
-      shooterStats.fieldGoalsMade++
-      if (isThreePointer) {
-        shooterStats.threePointersMade++
+        gameTimeSeconds: gameClock.getTotalGameTime(),
+        
+        // D20 simulation details
+        ballHandler: {
+          id: this.findPlayerIdByName(possessionEvent.ballHandler, offensiveTeam) || '',
+          name: possessionEvent.ballHandler
+        },
+        opennessScores: possessionEvent.opennessScores,
+        decision: possessionEvent.decision,
+        rollDetails: possessionEvent.rollResult ? {
+          roll: possessionEvent.rollResult.roll,
+          faces: possessionEvent.rollResult.faces,
+          outcome: possessionEvent.rollResult.outcome,
+          rawValue: possessionEvent.rollResult.rawValue
+        } : undefined
       }
-
-      if (offensiveTeam === homeTeam) {
-        homeScore += points
-      } else {
-        awayScore += points
-      }
-
-      // Check for assist
-      let assistPlayer: Player | null = null
-      if (Math.random() > 0.6) {
-        assistPlayer = offensiveTeam.players.find((p) => p.id !== shooter.id && Math.random() > 0.6) || null
-        if (assistPlayer) {
-          playerStats.get(assistPlayer.id)!.assists++
+      
+      events.push(gameEvent)
+      eventId++
+      
+      // Update scores and stats based on possession result
+      if (possessionEvent.rollResult?.outcome === 'success' && possessionEvent.rollResult.points) {
+        const points = possessionEvent.rollResult.points
+        if (offensiveTeam === homeTeam) {
+          homeScore += points
+        } else {
+          awayScore += points
+        }
+        
+        // Update player stats
+        const shooterId = this.findPlayerIdByName(possessionEvent.ballHandler, offensiveTeam)
+        if (shooterId) {
+          const shooterStats = playerStats.get(shooterId)!
+          shooterStats.points += points
+          shooterStats.fieldGoalsMade++
+          shooterStats.fieldGoalsAttempted++
+          if (possessionEvent.rollResult.isThreePointer) {
+            shooterStats.threePointersMade++
+            shooterStats.threePointersAttempted++
+          }
+        }
+      } else if (possessionEvent.rollResult?.outcome === 'failure') {
+        // Missed shot - update attempts
+        const shooterId = this.findPlayerIdByName(possessionEvent.ballHandler, offensiveTeam)
+        if (shooterId) {
+          const shooterStats = playerStats.get(shooterId)!
+          shooterStats.fieldGoalsAttempted++
+          if (possessionEvent.rollResult.isThreePointer) {
+            shooterStats.threePointersAttempted++
+          }
         }
       }
-
-      // Add shot event
-      events.push({
-        id: eventId.toString(),
-        quarter: currentTime.quarter,
-        time: gameClock.getFormattedTime(),
-        description: this.generatePlayDescription(shooter, "shot", true, isThreePointer, offensiveTeam.name),
-        homeScore,
-        awayScore,
-        eventType: 'shot',
-        playerId: shooter.id,
-        teamId: offensiveTeam.id,
-        shotClockRemaining: gameClock.getShotClock().timeRemaining,
-        gameTimeSeconds: gameClock.getTotalGameTime()
-      })
-      eventId++
-
-      // Add assist event if applicable
-      if (assistPlayer) {
-        events.push({
-          id: eventId.toString(),
-          quarter: currentTime.quarter,
-          time: gameClock.getFormattedTime(),
-          description: this.generatePlayDescription(assistPlayer, "assist", true, false, offensiveTeam.name),
-          homeScore,
-          awayScore,
-          eventType: 'assist',
-          playerId: assistPlayer.id,
-          teamId: offensiveTeam.id,
-          shotClockRemaining: gameClock.getShotClock().timeRemaining,
-          gameTimeSeconds: gameClock.getTotalGameTime()
-        })
-        eventId++
-      }
-
-      gameClock.stopShotClock()
-    } else {
-      // Missed shot - potential for rebound
-      events.push({
-        id: eventId.toString(),
-        quarter: currentTime.quarter,
-        time: gameClock.getFormattedTime(),
-        description: this.generatePlayDescription(shooter, "shot", false, isThreePointer, offensiveTeam.name),
-        homeScore,
-        awayScore,
-        eventType: 'shot',
-        playerId: shooter.id,
-        teamId: offensiveTeam.id,
-        shotClockRemaining: gameClock.getShotClock().timeRemaining,
-        gameTimeSeconds: gameClock.getTotalGameTime()
-      })
-      eventId++
-
-      // Simulate rebound
-      const reboundTime = 0.5 + Math.random() * 1.5 // 0.5-2 seconds
-      gameClock.advanceTime(reboundTime)
-
-      const isOffensiveRebound = Math.random() > 0.7 // 30% chance for offensive rebound
-      const rebounder = isOffensiveRebound 
-        ? offensiveTeam.players[Math.floor(Math.random() * 5)]
-        : defensiveTeam.players[Math.floor(Math.random() * 5)]
-
-      playerStats.get(rebounder.id)!.rebounds++
-
-      const reboundTime_current = gameClock.getCurrentTime()
-      const rebounderTeam = isOffensiveRebound ? offensiveTeam : defensiveTeam
-      events.push({
-        id: eventId.toString(),
-        quarter: reboundTime_current.quarter,
-        time: gameClock.getFormattedTime(),
-        description: this.generatePlayDescription(rebounder, "rebound", true, false, rebounderTeam.name),
-        homeScore,
-        awayScore,
-        eventType: 'rebound',
-        playerId: rebounder.id,
-        teamId: rebounderTeam.id,
-        shotClockRemaining: gameClock.getShotClock().timeRemaining,
-        gameTimeSeconds: gameClock.getTotalGameTime()
-      })
-      eventId++
-
-      if (isOffensiveRebound) {
-        changePossession = false
-        offensiveRebound = true
-      } else {
-        changePossession = true
-        offensiveRebound = false
-      }
     }
-
-    // Random chance for additional events (steals, blocks) during possession
-    if (Math.random() > 0.85 && !shotSuccess) { // Only if shot was missed
-      const eventType = Math.random()
-      let eventPlayer: Player
-      let actionType: string
-
-      if (eventType > 0.6) {
-        // Steal
-        eventPlayer = defensiveTeam.players[Math.floor(Math.random() * 5)]
-        actionType = "steal"
-        playerStats.get(eventPlayer.id)!.steals++
-        changePossession = true
-        offensiveRebound = false
-      } else {
-        // Block
-        eventPlayer = defensiveTeam.players[Math.floor(Math.random() * 5)]
-        actionType = "block"
-        playerStats.get(eventPlayer.id)!.blocks++
-        changePossession = true
-        offensiveRebound = false
-      }
-
-      const additionalEventTime = gameClock.getCurrentTime()
-      events.push({
-        id: eventId.toString(),
-        quarter: additionalEventTime.quarter,
-        time: gameClock.getFormattedTime(),
-        description: this.generatePlayDescription(eventPlayer, actionType, true, false, defensiveTeam.name),
-        homeScore,
-        awayScore,
-        eventType: actionType as any,
-        playerId: eventPlayer.id,
-        teamId: defensiveTeam.id,
-        shotClockRemaining: gameClock.getShotClock().timeRemaining,
-        gameTimeSeconds: gameClock.getTotalGameTime()
-      })
-      eventId++
-    }
-
+    
+    // Handle possession result
+    changePossession = possessionResult.changePossession
+    offensiveRebound = possessionResult.offensiveRebound
+    
+    // Advance game clock based on possession duration
+    gameClock.advanceTime(possessionResult.possessionDuration)
+    
     return { events, homeScore, awayScore, changePossession, offensiveRebound }
+  }
+  
+  private static mapPossessionEventType(possessionEvent: any): GameEvent['eventType'] {
+    if (possessionEvent.rollResult?.outcome === 'success' && possessionEvent.rollResult.points) {
+      return 'shot'
+    } else if (possessionEvent.rollResult?.outcome === 'failure') {
+      return 'shot'
+    } else if (possessionEvent.rollResult?.outcome === 'complete') {
+      return 'pass'
+    } else if (possessionEvent.rollResult?.outcome === 'intercepted') {
+      return 'steal'
+    } else if (possessionEvent.rollResult?.outcome === 'steal') {
+      return 'steal'
+    } else if (possessionEvent.rollResult?.outcome === 'rebound') {
+      return 'rebound'
+    }
+    return 'shot'
+  }
+  
+  private static findPlayerIdByName(playerName: string, team: GameSimulationTeam): string | undefined {
+    return team.players.find(p => p.name === playerName)?.id
   }
 
   private static simulateOvertime(

@@ -46,11 +46,30 @@ export interface GameEvent {
   description: string
   homeScore: number
   awayScore: number
-  eventType: 'shot' | 'rebound' | 'assist' | 'steal' | 'block' | 'foul' | 'timeout' | 'substitution' | 'turnover'
+  eventType: 'shot' | 'rebound' | 'assist' | 'steal' | 'block' | 'foul' | 'timeout' | 'substitution' | 'turnover' | 'pass' | 'skill_move'
   playerId?: string
   teamId?: string
   shotClockRemaining?: number
   gameTimeSeconds: number
+  
+  // D20 simulation details
+  ballHandler?: {
+    id: string
+    name: string
+  }
+  opennessScores?: Record<string, number>
+  decision?: {
+    action: 'pass' | 'skill_move' | 'shoot'
+    target?: string
+    reasoning: string
+    opennessScore: number
+  }
+  rollDetails?: {
+    roll: number
+    faces: number[]
+    outcome: string
+    rawValue: number
+  }
 }
 
 /**

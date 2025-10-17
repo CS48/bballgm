@@ -86,7 +86,7 @@ export class SimulationService {
   }
 
   /**
-   * Run the core game simulation logic
+   * Run the core game simulation logic using D20 engine
    * @param homeTeam Home team data
    * @param awayTeam Away team data
    * @param homePlayers Home team players
@@ -99,54 +99,127 @@ export class SimulationService {
     homePlayers: Player[],
     awayPlayers: Player[]
   ): Promise<GameSimulationResult> {
-    // Calculate team overall ratings
-    const homeTeamRating = this.calculateTeamRating(homePlayers);
-    const awayTeamRating = this.calculateTeamRating(awayPlayers);
+    // Convert database teams to game simulation teams
+    const homeGameTeam = this.convertToGameTeam(homeTeam, homePlayers);
+    const awayGameTeam = this.convertToGameTeam(awayTeam, awayPlayers);
 
-    // Apply home court advantage
-    const homeCourtAdvantage = 5; // +5 point advantage for home team
-    const adjustedHomeRating = homeTeamRating + homeCourtAdvantage;
+    // Use the D20 game engine for simulation
+    const { GameEngine } = await import('../game-engine');
+    const gameResult = GameEngine.simulateGame(homeGameTeam, awayGameTeam);
 
-    // Calculate base scores using team ratings
-    const baseHomeScore = this.calculateBaseScore(adjustedHomeRating);
-    const baseAwayScore = this.calculateBaseScore(awayTeamRating);
-
-    // Add randomness to scores
-    const homeScore = Math.max(60, Math.min(150, baseHomeScore + this.getRandomVariation()));
-    const awayScore = Math.max(60, Math.min(150, baseAwayScore + this.getRandomVariation()));
-
-    // Generate individual player box scores
-    const homeBoxScore = await this.generatePlayerBoxScores(homePlayers, homeScore, true);
-    const awayBoxScore = await this.generatePlayerBoxScores(awayPlayers, awayScore, false);
-
-    // Create complete box score
+    // Convert game result to simulation result format
     const boxScore: GameBoxScore = {
       home_team: {
         team_id: homeTeam.team_id,
         team_name: `${homeTeam.city} ${homeTeam.name}`,
-        total_points: homeScore,
-        players: homeBoxScore
+        total_points: gameResult.homeScore,
+        players: gameResult.homePlayerStats.map(player => ({
+          player_id: parseInt(player.id),
+          name: player.name,
+          position: player.position,
+          minutes: 0, // Will be calculated from game events
+          points: player.points,
+          rebounds: player.rebounds,
+          assists: player.assists,
+          steals: player.steals,
+          blocks: player.blocks,
+          turnovers: player.turnovers,
+          fg_made: player.fieldGoalsMade,
+          fg_attempted: player.fieldGoalsAttempted,
+          fg_pct: player.fieldGoalsAttempted > 0 ? player.fieldGoalsMade / player.fieldGoalsAttempted : 0,
+          three_made: player.threePointersMade,
+          three_attempted: player.threePointersAttempted,
+          three_pct: player.threePointersAttempted > 0 ? player.threePointersMade / player.threePointersAttempted : 0,
+          ft_made: 0, // Not tracked in current system
+          ft_attempted: 0,
+          ft_pct: 0,
+          plus_minus: 0 // Will be calculated
+        }))
       },
       away_team: {
         team_id: awayTeam.team_id,
         team_name: `${awayTeam.city} ${awayTeam.name}`,
-        total_points: awayScore,
-        players: awayBoxScore
+        total_points: gameResult.awayScore,
+        players: gameResult.awayPlayerStats.map(player => ({
+          player_id: parseInt(player.id),
+          name: player.name,
+          position: player.position,
+          minutes: 0, // Will be calculated from game events
+          points: player.points,
+          rebounds: player.rebounds,
+          assists: player.assists,
+          steals: player.steals,
+          blocks: player.blocks,
+          turnovers: player.turnovers,
+          fg_made: player.fieldGoalsMade,
+          fg_attempted: player.fieldGoalsAttempted,
+          fg_pct: player.fieldGoalsAttempted > 0 ? player.fieldGoalsMade / player.fieldGoalsAttempted : 0,
+          three_made: player.threePointersMade,
+          three_attempted: player.threePointersAttempted,
+          three_pct: player.threePointersAttempted > 0 ? player.threePointersMade / player.threePointersAttempted : 0,
+          ft_made: 0, // Not tracked in current system
+          ft_attempted: 0,
+          ft_pct: 0,
+          plus_minus: 0 // Will be calculated
+        }))
       }
     };
 
     // Calculate team stats for the game
-    const homeTeamStats = this.calculateTeamGameStats(homeBoxScore);
-    const awayTeamStats = this.calculateTeamGameStats(awayBoxScore);
+    const homeTeamStats = this.calculateTeamGameStats(boxScore.home_team.players);
+    const awayTeamStats = this.calculateTeamGameStats(boxScore.away_team.players);
 
     return {
-      home_score: homeScore,
-      away_score: awayScore,
+      home_score: gameResult.homeScore,
+      away_score: gameResult.awayScore,
       box_score: boxScore,
       game_stats: {
         home_team_stats: homeTeamStats,
         away_team_stats: awayTeamStats
       }
+    };
+  }
+
+  /**
+   * Convert database team and players to game simulation team
+   * @param team Database team
+   * @param players Database players
+   * @returns Game simulation team
+   */
+  private convertToGameTeam(team: Team, players: Player[]): any {
+    return {
+      id: team.team_id.toString(),
+      name: team.name,
+      city: team.city,
+      players: players.map(player => ({
+        id: player.player_id.toString(),
+        name: `${player.first_name} ${player.last_name}`,
+        position: player.position,
+        teamId: team.team_id.toString(), // Add teamId for D20 engine
+        attributes: {
+          shooting: Math.round((player.inside_shot + player.three_point_shot) / 2),
+          defense: Math.round((player.on_ball_defense + player.block + player.steal) / 3),
+          rebounding: Math.round((player.offensive_rebound + player.defensive_rebound) / 2),
+          passing: player.pass,
+          athleticism: Math.round((player.speed + player.stamina) / 2)
+        },
+        overall: player.overall_rating,
+        descriptor: `${player.position} - ${player.overall_rating} OVR`,
+        // Add individual attributes for D20 engine
+        speed: player.speed,
+        ball_iq: player.ball_iq,
+        inside_shot: player.inside_shot,
+        three_point_shot: player.three_point_shot,
+        pass: player.pass,
+        skill_move: player.skill_move,
+        on_ball_defense: player.on_ball_defense,
+        stamina: player.stamina,
+        block: player.block,
+        steal: player.steal,
+        offensive_rebound: player.offensive_rebound,
+        defensive_rebound: player.defensive_rebound
+      })),
+      record: { wins: team.wins, losses: team.losses }
     };
   }
 
