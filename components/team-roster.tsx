@@ -40,7 +40,37 @@ export function TeamRoster({ team, onBackToMenu }: TeamRosterProps) {
     return teamRatings.overall
   }
 
-  const sortedPlayers = teamRoster?.players ? [...teamRoster.players].sort((a, b) => b.overall_rating - a.overall_rating) : []
+  // Get actual starters and bench players separately
+  const starters = teamRoster?.players 
+    ? (() => {
+        // Debug: Check if any players have is_starter set
+        const playersWithStarterFlag = teamRoster.players.filter(player => player.is_starter === 1)
+        console.log('TeamRoster Debug - Players with is_starter=1:', playersWithStarterFlag.length)
+        console.log('TeamRoster Debug - All players is_starter values:', teamRoster.players.map(p => ({ name: p.name, is_starter: p.is_starter })))
+        
+        // If no players are marked as starters, fall back to top 5 by overall rating
+        if (playersWithStarterFlag.length === 0) {
+          console.log('TeamRoster Debug - No starters found, using top 5 by overall rating')
+          return teamRoster.players
+            .sort((a, b) => b.overall_rating - a.overall_rating)
+            .slice(0, 5)
+        }
+        
+        // Use actual starters
+        return playersWithStarterFlag.sort((a, b) => {
+          // Sort by position order: PG, SG, SF, PF, C
+          const positionOrder = ['PG', 'SG', 'SF', 'PF', 'C']
+          return positionOrder.indexOf(a.position) - positionOrder.indexOf(b.position)
+        })
+      })()
+    : []
+  
+  const benchPlayers = teamRoster?.players 
+    ? teamRoster.players.filter(player => player.is_starter !== 1)
+        .sort((a, b) => b.overall_rating - a.overall_rating)
+    : []
+  
+  const sortedPlayers = [...starters, ...benchPlayers]
 
   return (
     <div className="space-y-6">
@@ -67,7 +97,7 @@ export function TeamRoster({ team, onBackToMenu }: TeamRosterProps) {
       <Card>
         <CardHeader>
           <CardTitle>Starting Lineup</CardTitle>
-          <CardDescription>Your team's roster sorted by overall rating</CardDescription>
+          <CardDescription>Your team's starting 5 players</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">

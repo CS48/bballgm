@@ -9,13 +9,15 @@ import { useTeams } from "@/lib/context/league-context"
 
 interface OpponentSelectionProps {
   userTeam: Team
-  onOpponentSelected: (opponent: Team) => void
+  onOpponentSelected: (opponent: Team, gameMode: 'sim' | 'watch') => void
   onBackToMenu: () => void
+  isSimulating?: boolean
 }
 
-export function OpponentSelection({ userTeam, onOpponentSelected, onBackToMenu }: OpponentSelectionProps) {
+export function OpponentSelection({ userTeam, onOpponentSelected, onBackToMenu, isSimulating = false }: OpponentSelectionProps) {
   const teams = useTeams()
   const [selectedOpponent, setSelectedOpponent] = useState<Team | null>(null)
+  const [selectedGameMode, setSelectedGameMode] = useState<'sim' | 'watch'>('watch')
 
   const opponents = teams.filter((team) => team.team_id !== userTeam.team_id)
 
@@ -56,7 +58,7 @@ export function OpponentSelection({ userTeam, onOpponentSelected, onBackToMenu }
 
   const handleConfirmSelection = () => {
     if (selectedOpponent) {
-      onOpponentSelected(selectedOpponent)
+      onOpponentSelected(selectedOpponent, selectedGameMode)
     }
   }
 
@@ -138,9 +140,41 @@ export function OpponentSelection({ userTeam, onOpponentSelected, onBackToMenu }
                   <div className="text-sm text-muted-foreground">Opponent</div>
                 </div>
               </div>
-              <Button onClick={handleConfirmSelection} className="w-full text-lg py-6">
-                Start Game
-              </Button>
+              <div className="space-y-4">
+                {/* Game Mode Selection */}
+                <div className="flex space-x-2">
+                  <Button
+                    variant={selectedGameMode === 'watch' ? 'default' : 'outline'}
+                    onClick={() => setSelectedGameMode('watch')}
+                    className="flex-1"
+                  >
+                    Watch Game
+                  </Button>
+                  <Button
+                    variant={selectedGameMode === 'sim' ? 'default' : 'outline'}
+                    onClick={() => setSelectedGameMode('sim')}
+                    className="flex-1"
+                  >
+                    Sim Game
+                  </Button>
+                </div>
+                
+                {/* Start Button */}
+                <Button 
+                  onClick={handleConfirmSelection} 
+                  className="w-full text-lg py-6"
+                  disabled={isSimulating}
+                >
+                  {isSimulating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      {selectedGameMode === 'watch' ? 'Starting Watch...' : 'Simulating Game...'}
+                    </>
+                  ) : (
+                    `Start ${selectedGameMode === 'watch' ? 'Watch' : 'Sim'}`
+                  )}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

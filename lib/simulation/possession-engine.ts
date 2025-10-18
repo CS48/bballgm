@@ -24,8 +24,11 @@ import {
   applyModifiers, 
   resetPossessionState, 
   updateShotClock, 
+  updateQuarterTime,
   isShotClockViolation,
-  getPossessionDuration 
+  isQuarterExpired,
+  getPossessionDuration,
+  getActionDuration 
 } from './modifiers'
 import { getConfig } from './config-loader'
 
@@ -41,7 +44,8 @@ export function simulatePossession(
   offensiveTeam: SimulationTeam,
   defensiveTeam: SimulationTeam,
   ballHandler: SimulationPlayer,
-  seed: number
+  seed: number,
+  quarterTimeRemaining: number
 ): PossessionResult {
   // Initialize RNG with seed
   initializeD20RNG(seed)
@@ -49,7 +53,7 @@ export function simulatePossession(
   // Create initial possession state - only use first 5 players (starters) from each team
   const activeOffensivePlayers = offensiveTeam.players.slice(0, 5)
   const activeDefensivePlayers = defensiveTeam.players.slice(0, 5)
-  let state = resetPossessionState(ballHandler, [...activeOffensivePlayers, ...activeDefensivePlayers])
+  let state = resetPossessionState(ballHandler, [...activeOffensivePlayers, ...activeDefensivePlayers], quarterTimeRemaining)
   
   const events: PossessionLogEntry[] = []
   let step = 0
@@ -70,9 +74,58 @@ export function simulatePossession(
     console.log('')
   }
 
-  // Main possession loop
-  while (state.shotClock > 0 && !changePossession) {
-    step++
+  // MANDATORY: Ball advance at start of possession
+  // Player brings ball up court - this always happens and consumes time
+  if (state.quarterTimeRemaining > 0) {
+    // Random time between 3-7 seconds for ball advance
+    const ballAdvanceTime = Math.floor(Math.random() * 5) + 3 // 3-7 seconds
+    
+    if (shouldLog) {
+      console.log(`🏃 BALL ADVANCE - ${state.ballHandler.name} brings ball up (${ballAdvanceTime}s)`)
+    }
+    
+    // Update time BEFORE creating event (so stateUpdate has correct time)
+    state = updateQuarterTime(state, ballAdvanceTime)
+    
+    // Create ball advance event log entry
+    const ballAdvanceEvent: PossessionLogEntry = {
+      step: 0, // Step 0 for ball advance (before player decisions)
+      ballHandler: state.ballHandler.name,
+      decision: { action: 'ball_advance', reasoning: 'Ball advance' },
+      opennessScores: {},
+      description: `${state.ballHandler.name} brings the ball up the court`,
+      stateUpdate: {
+        passCount: state.passCount,
+        defensiveBreakdown: state.defensiveBreakdown,
+        shotClock: state.shotClock,
+        quarterTimeRemaining: state.quarterTimeRemaining
+      }
+    }
+    
+    events.push(ballAdvanceEvent)
+    
+    // Check if ball advance consumed all remaining time
+    if (state.quarterTimeRemaining <= 0) {
+      if (shouldLog) {
+        console.log(`⏰ Quarter time expired during ball advance`)
+      }
+      return {
+        events,
+        finalScore: 0,
+        changePossession: true,
+        offensiveRebound: false,
+        newBallHandler: undefined,
+        possessionDuration: ballAdvanceTime,
+        quarterTimeRemaining: state.quarterTimeRemaining
+      }
+    }
+  }
+
+  // Main possession loop - player decisions start here
+  let stepCounter = 1 // Start from step 1 (step 0 was ball advance)
+  while (state.shotClock > 0 && state.quarterTimeRemaining > 0 && !changePossession) {
+    step = stepCounter
+    stepCounter++
     
     // Calculate openness scores for all matchups
     const opennessScores = calculateAllOpennessScores(
@@ -110,6 +163,17 @@ export function simulatePossession(
       decision,
       opennessScores: Object.fromEntries(opennessScores),
       description: `${state.ballHandler.name} decides to ${decision.action}${decision.target ? ` to ${decision.target.name}` : ''}`
+    }
+    
+    // Check if there's enough quarter time for this action
+    const estimatedActionTime = decision.action === 'shoot' ? 3 : 
+                                decision.action === 'pass' ? 3 : 5
+    if (state.quarterTimeRemaining < estimatedActionTime) {
+      if (shouldLog) {
+        console.log(`⏰ Quarter time expired - ending possession`)
+      }
+      changePossession = true
+      break
     }
     
     let eventResult: any = null
@@ -167,6 +231,9 @@ export function simulatePossession(
       
       // Check for possession change
       if (eventResult.outcome === 'intercepted' || eventResult.outcome === 'steal') {
+        if (shouldLog) {
+          console.log(`🚨 TURNOVER - ${eventResult.outcome === 'intercepted' ? 'Pass intercepted!' : 'Ball stolen!'}`)
+        }
         changePossession = true
       } else if (eventResult.outcome === 'success' && eventResult.points) {
         finalScore = eventResult.points
@@ -191,13 +258,22 @@ export function simulatePossession(
       
       // Apply modifiers
       state = applyModifiers(state, eventResult, [...activeOffensivePlayers, ...activeDefensivePlayers])
-      decisionLog.stateUpdate = {
-        passCount: state.passCount,
-        defensiveBreakdown: state.defensiveBreakdown,
-        shotClock: state.shotClock
-      }
     }
     
+    // Update both shot clock and quarter time with realistic action duration
+    const timeElapsed = getActionDuration(decision, eventResult)
+    console.log(`⏱️ Action: ${decision.action}, Time elapsed: ${timeElapsed}s, Shot clock: ${state.shotClock}s → ${state.shotClock - timeElapsed}s, Quarter time: ${state.quarterTimeRemaining}s → ${state.quarterTimeRemaining - timeElapsed}s`)
+    state = updateQuarterTime(state, timeElapsed)
+    
+    // Update state snapshot AFTER time update
+    decisionLog.stateUpdate = {
+      passCount: state.passCount,
+      defensiveBreakdown: state.defensiveBreakdown,
+      shotClock: state.shotClock,
+      quarterTimeRemaining: state.quarterTimeRemaining
+    }
+    
+    // Add event to log
     events.push(decisionLog)
     
     // Check for shot clock violation
@@ -205,16 +281,13 @@ export function simulatePossession(
       const violationLog: PossessionLogEntry = {
         step: step + 1,
         ballHandler: state.ballHandler.name,
-        decision: { action: 'shoot', reasoning: 'Shot clock violation', opennessScore: 0 },
+        decision: { action: 'violation', reasoning: 'Shot clock violation' },
         opennessScores: Object.fromEntries(opennessScores),
         description: 'Shot clock violation - possession ends'
       }
       events.push(violationLog)
       changePossession = true
     }
-    
-    // Update shot clock
-    state = updateShotClock(state, 1) // Assume 1 second per step
   }
   
   // Log possession end
@@ -234,7 +307,8 @@ export function simulatePossession(
     changePossession,
     offensiveRebound,
     newBallHandler,
-    possessionDuration: getPossessionDuration(state)
+    possessionDuration: getPossessionDuration(state),
+    quarterTimeRemaining: state.quarterTimeRemaining
   }
 }
 

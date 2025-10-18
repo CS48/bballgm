@@ -72,7 +72,32 @@ export function RosterTable({ players }: RosterTableProps) {
     }
   }
 
-  const sortedPlayers = [...players].sort((a, b) => b.overall_rating - a.overall_rating)
+  // Sort players: starters first (by position order), then bench players (by overall rating)
+  const starters = (() => {
+    // Debug: Check if any players have is_starter set
+    const playersWithStarterFlag = players.filter(player => player.is_starter === 1)
+    console.log('RosterTable Debug - Players with is_starter=1:', playersWithStarterFlag.length)
+    console.log('RosterTable Debug - All players is_starter values:', players.map(p => ({ name: p.name, is_starter: p.is_starter })))
+    
+    // If no players are marked as starters, fall back to top 5 by overall rating
+    if (playersWithStarterFlag.length === 0) {
+      console.log('RosterTable Debug - No starters found, using top 5 by overall rating')
+      return players
+        .sort((a, b) => b.overall_rating - a.overall_rating)
+        .slice(0, 5)
+    }
+    
+    // Use actual starters
+    return playersWithStarterFlag.sort((a, b) => {
+      const positionOrder = ['PG', 'SG', 'SF', 'PF', 'C']
+      return positionOrder.indexOf(a.position) - positionOrder.indexOf(b.position)
+    })
+  })()
+  
+  const benchPlayers = players.filter(player => player.is_starter !== 1)
+    .sort((a, b) => b.overall_rating - a.overall_rating)
+  
+  const sortedPlayers = [...starters, ...benchPlayers]
 
   return (
     <div className="roster-table-container">

@@ -136,10 +136,26 @@ export default function TeamPage({ params }: TeamPageProps) {
     )
   }
 
-  // Get top 5 players for starters (by overall rating)
-  const starters = teamRoster.players
-    .sort((a: any, b: any) => b.overall_rating - a.overall_rating)
-    .slice(0, 5)
+  // Get actual starters from roster data
+  const starters = teamRoster?.players
+    ? (() => {
+        // If no players are marked as starters, fall back to top 5 by overall rating
+        const playersWithStarterFlag = teamRoster.players.filter((player: any) => player.is_starter === 1)
+        
+        if (playersWithStarterFlag.length === 0) {
+          return teamRoster.players
+            .sort((a: any, b: any) => b.overall_rating - a.overall_rating)
+            .slice(0, 5)
+        }
+        
+        // Use actual starters
+        return playersWithStarterFlag.sort((a: any, b: any) => {
+          // Sort by position order: PG, SG, SF, PF, C
+          const positionOrder = ['PG', 'SG', 'SF', 'PF', 'C']
+          return positionOrder.indexOf(a.position) - positionOrder.indexOf(b.position)
+        })
+      })()
+    : []
 
   return (
     <div className="min-h-screen bg-background" style={{ paddingLeft: '6vw', paddingRight: '6vw', paddingTop: '3vh', paddingBottom: '3vh' }}>

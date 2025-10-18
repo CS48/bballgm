@@ -20,6 +20,7 @@ export const PLAYERS_TABLE_SCHEMA = `
     last_name TEXT NOT NULL,
     age INTEGER NOT NULL,
     position TEXT NOT NULL,
+    is_starter INTEGER DEFAULT 0,
     height INTEGER NOT NULL,
     weight INTEGER NOT NULL,
     years_pro INTEGER NOT NULL,

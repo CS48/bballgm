@@ -95,8 +95,6 @@ export class TeamService {
     try {
       const sql = 'SELECT * FROM teams ORDER BY conference, city';
       const results = dbService.exec(sql);
-      console.log(`Retrieved ${results.length} teams from database`);
-      console.log('First few teams:', results.slice(0, 3).map(t => ({ city: t.city, name: t.name, conference: t.conference })));
       return results as Team[];
     } catch (error) {
       console.error('Failed to get all teams:', error);
@@ -276,11 +274,9 @@ export class TeamService {
    */
   public async updateTeamSchedule(teamId: number, schedule: GameScheduleEntry[]): Promise<void> {
     try {
-      console.log(`Updating team schedule for team ${teamId} with ${schedule.length} games`);
       const scheduleJson = JSON.stringify(schedule);
       const sql = 'UPDATE teams SET schedule = ? WHERE team_id = ?';
       dbService.run(sql, [scheduleJson, teamId]);
-      console.log(`Successfully updated schedule for team ${teamId}`);
     } catch (error) {
       console.error('Failed to update team schedule:', error);
       throw new Error('Failed to update team schedule');

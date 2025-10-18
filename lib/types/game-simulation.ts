@@ -14,6 +14,7 @@ export interface GameSimulationPlayer {
   id: string
   name: string
   position: "PG" | "SG" | "SF" | "PF" | "C"
+  is_starter: number
   attributes: {
     shooting: number
     defense: number
@@ -72,14 +73,6 @@ export interface GameEvent {
   }
 }
 
-/**
- * Strategic adjustments for game simulation
- */
-export interface StrategicAdjustments {
-  pace: 'slow' | 'normal' | 'fast'
-  shotSelection: 'conservative' | 'balanced' | 'aggressive'
-  defense: 'soft' | 'normal' | 'intense'
-}
 
 /**
  * Player game stats during simulation
@@ -112,6 +105,37 @@ export interface GameSimulationResult {
 }
 
 /**
+ * Game mode selection
+ */
+export type GameMode = 'sim' | 'watch'
+
+/**
+ * Animation speed options
+ */
+export type AnimationSpeed = 1 | 2 | 4 | 8
+
+/**
+ * Watch mode game state
+ */
+export interface WatchGameState {
+  homeTeam: GameSimulationTeam
+  awayTeam: GameSimulationTeam
+  homeScore: number
+  awayScore: number
+  currentQuarter: number
+  quarterTimeRemaining: number
+  gameClock: string
+  currentPossession: 'home' | 'away'
+  events: GameEvent[]
+  isPlaying: boolean
+  isPaused: boolean
+  isComplete: boolean
+  animationSpeed: AnimationSpeed
+  playerStats: Map<string, PlayerGameStats>
+  currentEventIndex: number
+}
+
+/**
  * Convert database team to game simulation team
  */
 export function convertDatabaseTeamToGameTeam(dbTeam: DatabaseTeam, players: DatabasePlayer[]): GameSimulationTeam {
@@ -119,6 +143,7 @@ export function convertDatabaseTeamToGameTeam(dbTeam: DatabaseTeam, players: Dat
     id: player.player_id.toString(),
     name: `${player.first_name} ${player.last_name}`,
     position: player.position as "PG" | "SG" | "SF" | "PF" | "C",
+    is_starter: player.is_starter,
     attributes: {
       shooting: Math.round((player.inside_shot + player.three_point_shot) / 2),
       defense: Math.round((player.on_ball_defense + player.block + player.steal) / 3),

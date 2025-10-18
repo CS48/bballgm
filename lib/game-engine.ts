@@ -19,77 +19,21 @@ export interface GameSegmentResult {
 }
 
 export class GameEngine {
-  private static getPlayerEffectiveness(player: GameSimulationPlayer): number {
-    // Calculate effectiveness based on overall rating with some randomness
-    const baseEffectiveness = player.overall / 100
-    const randomFactor = 0.8 + Math.random() * 0.4 // 0.8 to 1.2 multiplier
-    return Math.min(1, baseEffectiveness * randomFactor)
-  }
 
-  private static calculateTeamStrength(team: GameSimulationTeam): number {
-    // Calculate team strength based on average player overall rating
-    const totalRating = team.players.reduce((sum, player) => sum + player.overall, 0)
-    return totalRating / team.players.length
-  }
 
-  private static generatePlayDescription(
-    player: GameSimulationPlayer,
-    action: string,
-    success: boolean,
-    isThreePointer?: boolean,
-    teamName?: string,
-  ): string {
-    const playerName = player.name.split(" ")[1] // Use last name
-    const teamPrefix = teamName ? `[${teamName}] ` : ""
 
-    if (action === "shot") {
-      if (success) {
-        return isThreePointer ? `${teamPrefix}${playerName} drains a three-pointer!` : `${teamPrefix}${playerName} makes a two-pointer!`
-      } else {
-        return isThreePointer ? `${teamPrefix}${playerName} misses the three-point attempt` : `${teamPrefix}${playerName} misses the shot`
-      }
-    } else if (action === "rebound") {
-      return `${teamPrefix}${playerName} grabs the rebound`
-    } else if (action === "assist") {
-      return `${teamPrefix}${playerName} with the assist`
-    } else if (action === "steal") {
-      return `${teamPrefix}${playerName} steals the ball!`
-    } else if (action === "block") {
-      return `${teamPrefix}${playerName} with the block!`
-    } else if (action === "turnover") {
-      return `${teamPrefix}${playerName} turns the ball over`
-    } else if (action === "foul") {
-      return `${teamPrefix}${playerName} commits a foul`
-    }
-
-    return `${teamPrefix}${playerName} makes a play`
-  }
-
-  private static normalRandom(mean: number, stdDev: number): number {
-    let u = 0,
-      v = 0
-    while (u === 0) u = Math.random() // Converting [0,1) to (0,1)
-    while (v === 0) v = Math.random()
-    const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v)
-    return z * stdDev + mean
-  }
 
   public static simulateGame(homeTeam: GameSimulationTeam, awayTeam: GameSimulationTeam): GameSimulationResult {
     console.log('🏀 Starting full game simulation:', homeTeam.name, 'vs', awayTeam.name)
     
-    // Calculate team strengths
-    const homeStrength = this.calculateTeamStrength(homeTeam)
-    const awayStrength = this.calculateTeamStrength(awayTeam)
-    // Team strengths calculated for legacy compatibility
     
-    // Simulate first half (quarters 1-2)
-    console.log('⏰ Starting first half simulation...')
-    const firstHalfResult = this.simulateGameSegment(
+    // Simulate full game (quarters 1-4)
+    console.log('⏰ Starting game simulation...')
+    const gameResult = this.simulateGameSegment(
       homeTeam, 
       awayTeam, 
-      { pace: 'normal', shotSelection: 'balanced', defense: 'normal' },
       1, // start quarter
-      2, // end quarter
+      4, // end quarter
       0, // starting home score
       0, // starting away score
       new Map(), // starting player stats
@@ -100,61 +44,37 @@ export class GameEngine {
       1 // starting event ID
     )
     
-    console.log('🏁 First half complete - Home:', firstHalfResult.homeScore, 'Away:', firstHalfResult.awayScore)
-    
-    // For now, simulate second half with same strategy (will be replaced with user input)
-    console.log('⏰ Starting second half simulation...')
-    const secondHalfResult = this.simulateGameSegment(
-      homeTeam,
-      awayTeam,
-      { pace: 'normal', shotSelection: 'balanced', defense: 'normal' },
-      3, // start quarter
-      4, // end quarter
-      firstHalfResult.homeScore,
-      firstHalfResult.awayScore,
-      firstHalfResult.homePlayerStats,
-      firstHalfResult.awayPlayerStats,
-      firstHalfResult.homePossessions,
-      firstHalfResult.awayPossessions,
-      firstHalfResult.finalPossession,
-      firstHalfResult.eventId // Continue event ID sequence
-    )
-    
-    console.log('🏁 Second half complete - Home:', secondHalfResult.homeScore, 'Away:', secondHalfResult.awayScore)
-    
-    // Combine results
-    const allEvents = [...firstHalfResult.events, ...secondHalfResult.events]
+    console.log('🏁 Game complete - Home:', gameResult.homeScore, 'Away:', gameResult.awayScore)
     
     // Check for overtime
-    if (secondHalfResult.homeScore === secondHalfResult.awayScore) {
+    if (gameResult.homeScore === gameResult.awayScore) {
       console.log('⏰ Game tied - starting overtime...')
       const overtimeResult = this.simulateOvertime(
         homeTeam,
         awayTeam,
-        secondHalfResult.homeScore,
-        secondHalfResult.awayScore,
-        secondHalfResult.homePlayerStats,
-        secondHalfResult.awayPlayerStats,
-        secondHalfResult.homePossessions,
-        secondHalfResult.awayPossessions,
-        secondHalfResult.finalPossession,
-        secondHalfResult.eventId
+        gameResult.homeScore,
+        gameResult.awayScore,
+        gameResult.homePlayerStats,
+        gameResult.awayPlayerStats,
+        gameResult.homePossessions,
+        gameResult.awayPossessions,
+        gameResult.finalPossession,
+        gameResult.eventId
       )
       
-      allEvents.push(...overtimeResult.events)
-      secondHalfResult.homeScore = overtimeResult.homeScore
-      secondHalfResult.awayScore = overtimeResult.awayScore
+      gameResult.events.push(...overtimeResult.events)
+      gameResult.homeScore = overtimeResult.homeScore
+      gameResult.awayScore = overtimeResult.awayScore
     }
     
-    console.log('🏆 Game complete - Final: Home:', secondHalfResult.homeScore, 'Away:', secondHalfResult.awayScore)
+    console.log('🏆 Final Score - Home:', gameResult.homeScore, 'Away:', gameResult.awayScore)
     
-    return this.buildGameResult(homeTeam, awayTeam, secondHalfResult.homeScore, secondHalfResult.awayScore, allEvents, secondHalfResult.homePlayerStats, secondHalfResult.awayPlayerStats)
+    return this.buildGameResult(homeTeam, awayTeam, gameResult.homeScore, gameResult.awayScore, gameResult.events, gameResult.homePlayerStats, gameResult.awayPlayerStats)
   }
 
   public static simulateGameSegment(
     homeTeam: GameSimulationTeam,
     awayTeam: GameSimulationTeam,
-    strategy: StrategicAdjustments,
     startQuarter: number,
     endQuarter: number,
     startingHomeScore: number,
@@ -163,10 +83,10 @@ export class GameEngine {
     startingAwayPlayerStats: Map<string, any>,
     startingHomePossessions: number,
     startingAwayPossessions: number,
-    startingPossession: Team,
+    startingPossession: GameSimulationTeam,
     startingEventId: number
   ): GameSegmentResult {
-    console.log(`🎯 Simulating quarters ${startQuarter}-${endQuarter} with strategy:`, strategy)
+    console.log(`🎯 Simulating quarters ${startQuarter}-${endQuarter}`)
     
     const events: GameEvent[] = []
     let homeScore = startingHomeScore
@@ -220,12 +140,6 @@ export class GameEngine {
       })
     })
 
-    // Calculate target possessions based on strategy
-    const basePossessionsPerTeam = 55 // Half of full game (110/2)
-    const paceMultiplier = strategy.pace === 'slow' ? 0.8 : strategy.pace === 'fast' ? 1.2 : 1.0
-    const targetPossessionsPerTeam = Math.round(basePossessionsPerTeam * paceMultiplier)
-    
-    // Target possessions calculated for legacy compatibility
 
     // Start first possession
     gameClock.startShotClock()
@@ -247,22 +161,10 @@ export class GameEngine {
         }
       }
 
-      // Check if we've reached realistic possession limits
-      const currentTeamPossessions = currentPossession === homeTeam ? homePossessions : awayPossessions
-      if (currentTeamPossessions >= targetPossessionsPerTeam) {
-        // Switch to other team if they haven't reached limit
-        const otherTeamPossessions = currentPossession === homeTeam ? awayPossessions : homePossessions
-        if (otherTeamPossessions < targetPossessionsPerTeam) {
-          currentPossession = currentPossession === homeTeam ? awayTeam : homeTeam
-          gameClock.resetShotClock('full')
-          continue
-        } else {
-          // Both teams have reached possession limit, end segment
-          console.log(`📊 Possession limit reached - ending segment`)
-          break
-        }
-      }
 
+      // Get quarter time remaining before simulating possession
+      const quarterTimeRemaining = gameClock.getQuarterTimeRemaining()
+      
       // Simulate a possession
       const possessionResult = this.simulatePossession(
         currentPossession,
@@ -273,7 +175,7 @@ export class GameEngine {
         homeScore,
         awayScore,
         eventId,
-        strategy
+        quarterTimeRemaining
       )
 
       // Add events from this possession
@@ -324,7 +226,7 @@ export class GameEngine {
     currentHomeScore: number,
     currentAwayScore: number,
     startEventId: number,
-    strategy: StrategicAdjustments
+    quarterTimeRemaining: number
   ): {
     events: GameEvent[]
     homeScore: number
@@ -348,7 +250,8 @@ export class GameEngine {
       simOffensiveTeam,
       simDefensiveTeam,
       ballHandler,
-      seed
+      seed,
+      quarterTimeRemaining
     )
     
     // Log possession summary
@@ -361,7 +264,9 @@ export class GameEngine {
       const newHomeScore = offensiveTeam === homeTeam ? currentHomeScore + scoreChange : currentHomeScore
       const newAwayScore = offensiveTeam === homeTeam ? currentAwayScore : currentAwayScore + scoreChange
       
+      const currentTime = gameClock.getCurrentTime()
       console.log(`📊 Possession Summary: ${teamName} ${scoreChange > 0 ? '+' : ''}${scoreChange} pts (Score: ${newHomeScore}-${newAwayScore})`)
+      console.log(`   Quarter ${currentTime.quarter}, Time: ${gameClock.getFormattedTime()}`)
       console.log(`   Duration: ${possessionResult.possessionDuration}s, ${possessionResult.events.length} actions, changed possession: ${possessionResult.changePossession}`)
       console.log('')
     }
@@ -374,8 +279,13 @@ export class GameEngine {
     let changePossession = true
     let offensiveRebound = false
     
-    // Process each possession event
+    // Process each possession event with proper time advancement
+    let timeElapsed = 0
+    const timePerEvent = possessionResult.possessionDuration / Math.max(1, possessionResult.events.length)
+
     for (const possessionEvent of possessionResult.events) {
+      // Advance clock before creating event
+      gameClock.advanceTime(timePerEvent)
       const currentTime = gameClock.getCurrentTime()
       
       // Create enhanced game event with D20 details
@@ -409,6 +319,7 @@ export class GameEngine {
       
       events.push(gameEvent)
       eventId++
+      timeElapsed += timePerEvent
       
       // Update scores and stats based on possession result
       if (possessionEvent.rollResult?.outcome === 'success' && possessionEvent.rollResult.points) {
@@ -447,9 +358,11 @@ export class GameEngine {
     // Handle possession result
     changePossession = possessionResult.changePossession
     offensiveRebound = possessionResult.offensiveRebound
-    
-    // Advance game clock based on possession duration
-    gameClock.advanceTime(possessionResult.possessionDuration)
+
+    // Note: Quarter advancement is handled by the main loop in simulateGameSegment
+    // The possession engine just tracks and returns quarter time remaining
+
+    // Game clock already advanced during event processing
     
     return { events, homeScore, awayScore, changePossession, offensiveRebound }
   }
@@ -476,15 +389,15 @@ export class GameEngine {
   }
 
   private static simulateOvertime(
-    homeTeam: Team,
-    awayTeam: Team,
+    homeTeam: GameSimulationTeam,
+    awayTeam: GameSimulationTeam,
     startingHomeScore: number,
     startingAwayScore: number,
     startingHomePlayerStats: Map<string, any>,
     startingAwayPlayerStats: Map<string, any>,
     startingHomePossessions: number,
     startingAwayPossessions: number,
-    startingPossession: Team,
+    startingPossession: GameSimulationTeam,
     startingEventId: number
   ): GameSegmentResult {
     console.log('⏰ Starting overtime simulation...')
@@ -492,7 +405,6 @@ export class GameEngine {
     return this.simulateGameSegment(
       homeTeam,
       awayTeam,
-      { pace: 'normal', shotSelection: 'balanced', defense: 'normal' },
       5, // overtime quarter
       5, // end at overtime
       startingHomeScore,
@@ -525,10 +437,8 @@ export class GameEngine {
       ...awayPlayerStats.get(player.id)!,
     }))
 
-    const homeCalculatedScore = homePlayerStatsArray.reduce((sum, player) => sum + player.points, 0)
-    const awayCalculatedScore = awayPlayerStatsArray.reduce((sum, player) => sum + player.points, 0)
-
-    const winningTeamStats = homeCalculatedScore > awayCalculatedScore ? homePlayerStatsArray : awayPlayerStatsArray
+    // Use the actual game scores passed in, not calculated from player stats
+    const winningTeamStats = homeScore > awayScore ? homePlayerStatsArray : awayPlayerStatsArray
     const mvp = winningTeamStats.reduce((best, player) => {
       const playerScore = player.points + player.rebounds * 0.5 + player.assists * 0.7
       const bestScore = best.points + best.rebounds * 0.5 + best.assists * 0.7
@@ -538,10 +448,10 @@ export class GameEngine {
     return {
       homeTeam,
       awayTeam,
-      homeScore: homeCalculatedScore,
-      awayScore: awayCalculatedScore,
+      homeScore: homeScore,
+      awayScore: awayScore,
       events,
-      winner: homeCalculatedScore > awayCalculatedScore ? homeTeam.name : awayTeam.name,
+      winner: homeScore > awayScore ? homeTeam.name : awayTeam.name,
       homePlayerStats: homePlayerStatsArray,
       awayPlayerStats: awayPlayerStatsArray,
       mvp,

@@ -44,7 +44,7 @@ interface LeagueContextType {
   // Actions
   initializeLeague: (options: LeagueInitOptions) => Promise<void>;
   deleteLeague: () => Promise<void>;
-  simulateGame: (homeTeamId: number, awayTeamId: number) => Promise<void>;
+  simulateGame: (homeTeamId: number, awayTeamId: number) => Promise<{ homeScore: number; awayScore: number }>;
   simulateMultipleGames: (games: Array<{ homeTeamId: number; awayTeamId: number }>) => Promise<void>;
   advanceToNextGameDay: () => Promise<void>;
   simulateToGameDay: (gameDay: number) => Promise<void>;
@@ -236,17 +236,23 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
   /**
    * Simulate a single game
    */
-  const simulateGame = async (homeTeamId: number, awayTeamId: number): Promise<void> => {
+  const simulateGame = async (homeTeamId: number, awayTeamId: number): Promise<{ homeScore: number; awayScore: number }> => {
     try {
       setIsLoading(true);
       setError(null);
       
-      await simulationService.simulateGame(homeTeamId, awayTeamId);
+      const result = await simulationService.simulateGame(homeTeamId, awayTeamId);
       
       // Refresh data after simulation
       await refreshData();
       
       console.log(`Game simulated: Team ${homeTeamId} vs Team ${awayTeamId}`);
+      
+      // Return the actual scores
+      return {
+        homeScore: result.home_score,
+        awayScore: result.away_score
+      };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Game simulation failed';
       setError(errorMessage);

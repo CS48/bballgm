@@ -13,7 +13,6 @@ import { teamService } from './team-service';
 import { calendarService } from './calendar-service';
 import { playerGenerator } from '../generators/player-generator';
 import { teamGenerator } from '../generators/team-generator';
-import { scheduleBuilder } from '../utils/schedule-builder';
 import { scheduleBuilderV2 } from '../utils/schedule-builder-v2';
 import { Team, Player, Conference, LeagueState, SeasonInfo } from '../types/database';
 import { LeagueConfig, LeagueInitOptions } from '../types/league';
@@ -85,55 +84,12 @@ export class LeagueService {
       const allTeams = await teamService.getAllTeams();
       // Enhanced seed generation to ensure uniqueness even for rapid refreshes
       const scheduleSeed = Date.now() + Math.floor(Math.random() * 10000) + Math.floor(Math.random() * 1000);
-      console.log(`🎲 Generated enhanced schedule seed: ${scheduleSeed}`);
       
-      // Choose scheduler version (default to V2 for balanced schedules)
-      const useV2Scheduler = options.useV2Scheduler !== false; // Default to true
-      const schedulerName = useV2Scheduler ? 'V2 (Balanced)' : 'V1 (Original)';
-      console.log(`📅 Using ${schedulerName} scheduler`);
-      
-      const { teamSchedules, allGames, gameDaySchedule } = useV2Scheduler 
-        ? scheduleBuilderV2.generateScheduleWithCalendar(allTeams, currentYear, scheduleSeed)
-        : scheduleBuilder.generateScheduleWithCalendar(allTeams, currentYear, scheduleSeed);
+      const { teamSchedules, allGames, gameDaySchedule } = scheduleBuilderV2.generateScheduleWithCalendar(allTeams, currentYear, scheduleSeed);
 
       // Insert games into database with game day assignments
-      console.log(`Inserting ${allGames.length} games into database...`);
-      console.log('First game sample:', allGames[0]);
-      console.log('About to start game insertion loop...');
-      
-      // CHECKPOINT 2: Before Database Insertion
-      console.log(`\n🔍 CHECKPOINT 2: About to insert ${allGames.length} games`);
-      console.log(`Games with game_day assigned: ${allGames.filter(g => g.game_day != null).length}`);
-      console.log(`First game to insert:`, allGames[0]);
-      console.log(`Day 1 games to insert:`, allGames.filter(g => g.game_day === 1).length);
-      
-      let loggedDay1Game = false;
       for (let i = 0; i < allGames.length; i++) {
         const game = allGames[i];
-        console.log(`Inserting game ${i + 1}/${allGames.length}: ${game.date} (Game Day ${game.game_day})`);
-        console.log('Game data being inserted:', {
-          season: game.season,
-          date: game.date,
-          game_day: game.game_day,
-          home_team_id: game.home_team_id,
-          away_team_id: game.away_team_id,
-          home_score: game.home_score,
-          away_score: game.away_score,
-          completed: game.completed,
-          box_score: game.box_score
-        });
-        
-        // CHECKPOINT 3: During Insertion (Sample)
-        if (game.game_day === 1 && !loggedDay1Game) {
-          console.log(`\n🔍 CHECKPOINT 3: Inserting first day 1 game:`, {
-            season: game.season,
-            home_team_id: game.home_team_id,
-            away_team_id: game.away_team_id,
-            game_day: game.game_day,
-            date: game.date
-          });
-          loggedDay1Game = true;
-        }
         const sql = `
           INSERT INTO games (season, date, game_day, home_team_id, away_team_id, home_score, away_score, completed, box_score)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -154,33 +110,15 @@ export class LeagueService {
         ]);
       }
 
-      // CHECKPOINT 4: After All Insertions
-      console.log(`\n🔍 CHECKPOINT 4: Verifying database after insertion`);
-      const totalGames = dbService.exec(`SELECT COUNT(*) as total FROM games WHERE season = ?`, [currentYear]);
-      console.log(`Total games in DB: ${totalGames[0]?.total || 0}`);
-
-      const day1Games = dbService.exec(`SELECT COUNT(*) as count FROM games WHERE season = ? AND game_day = 1`, [currentYear]);
-      console.log(`Day 1 games in DB: ${day1Games[0]?.count || 0}`);
-
-      const sampleDay1 = dbService.exec(`SELECT game_id, game_day, home_team_id, away_team_id, date FROM games WHERE season = ? AND game_day = 1 LIMIT 3`, [currentYear]);
-      console.log(`Sample day 1 games from DB:`, sampleDay1);
-
-      const allGameDays = dbService.exec(`SELECT game_day, COUNT(*) as count FROM games WHERE season = ? GROUP BY game_day ORDER BY game_day LIMIT 10`, [currentYear]);
-      console.log(`Games by day (first 10 days):`, allGameDays);
-
       // Update calendar with games scheduled count
-      console.log('Updating calendar with games scheduled count...');
       for (const [gameDay, games] of gameDaySchedule) {
         if (games.length > 0) {
-          console.log(`Updating calendar for game day ${gameDay} with ${games.length} games`);
           await calendarService.updateGamesScheduled(currentYear, gameDay, games.length);
         }
       }
 
       // Update team schedules in database
-      console.log('Updating team schedules in database...');
       for (const [teamId, schedule] of teamSchedules) {
-        console.log(`Updating schedule for team ${teamId} with ${schedule.length} games`);
         
         // Validate game count per team
         if (schedule.length !== 82) {
@@ -391,6 +329,7 @@ export class LeagueService {
           player_id: player.player_id,
           name: `${player.first_name} ${player.last_name}`,
           position: player.position,
+          is_starter: player.is_starter,
           age: player.age,
           height: player.height,
           weight: player.weight,
@@ -488,16 +427,14 @@ export class LeagueService {
         await playerService.calculateCareerStats(player.player_id);
       }
 
-      // Generate new schedules
+      // Generate new schedules using V2 scheduler
       const currentYear = new Date().getFullYear() + 1;
-      const startDate = `${currentYear}-10-15`;
-      const endDate = `${currentYear + 1}-04-15`;
-
-      const { teamSchedules } = scheduleBuilder.generateSchedule(
+      const scheduleSeed = Date.now() + Math.floor(Math.random() * 10000);
+      
+      const { teamSchedules } = scheduleBuilderV2.generateScheduleWithCalendar(
         teams,
         currentYear,
-        startDate,
-        endDate
+        scheduleSeed
       );
 
       // Update team schedules

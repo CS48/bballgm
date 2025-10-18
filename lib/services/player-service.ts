@@ -42,11 +42,11 @@ export class PlayerService {
     try {
       const sql = `
         INSERT INTO players (
-          team_id, first_name, last_name, age, position, height, weight, years_pro,
+          team_id, first_name, last_name, age, position, is_starter, height, weight, years_pro,
           draft_info, speed, ball_iq, inside_shot, three_point_shot, pass, skill_move,
           on_ball_defense, stamina, block, steal, offensive_rebound, defensive_rebound,
           current_season_stats, historical_stats, career_stats
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const params = [
@@ -55,6 +55,7 @@ export class PlayerService {
         playerData.last_name,
         playerData.age,
         playerData.position,
+        playerData.is_starter,
         playerData.height,
         playerData.weight,
         playerData.years_pro,

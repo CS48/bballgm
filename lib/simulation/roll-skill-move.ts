@@ -33,8 +33,8 @@ export function rollSkillMove(
   // Calculate raw value from coefficients
   const rawValue = calculateSkillMoveRawValue(offensivePlayer, defensivePlayer, openness, context, config)
   
-  // Normalize to probability (0-1) - using a simplified approach for now
-  const normalizedProbability = Math.max(0, Math.min(1, rawValue / 100))
+  // Normalize to probability (0-1) - map to realistic 15-70% range for skill moves
+  const normalizedProbability = 0.15 + (Math.max(0, Math.min(100, rawValue)) / 100) * 0.55
   
   // Calculate outcome probabilities
   const successProb = normalizedProbability * 0.6 // 60% of success chance goes to success
@@ -253,7 +253,7 @@ export function getSkillMoveDebug(
 } {
   const config = getSkillMoveRollConfig()
   const rawValue = calculateSkillMoveRawValue(offensivePlayer, defensivePlayer, openness, context, config)
-  const normalizedProbability = Math.max(0, Math.min(1, rawValue / 100))
+  const normalizedProbability = 0.15 + (Math.max(0, Math.min(100, rawValue)) / 100) * 0.55
   
   const successProb = normalizedProbability * 0.6
   const neutralProb = normalizedProbability * 0.3

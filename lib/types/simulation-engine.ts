@@ -50,6 +50,7 @@ export interface PossessionState {
   passCount: number
   defensiveBreakdown: number
   shotClock: number
+  quarterTimeRemaining: number
   opennessScores: Map<string, number> // playerId -> openness score
   staminaDecay: Map<string, number> // playerId -> stamina penalty
 }
@@ -105,7 +106,15 @@ export interface ReboundRollResult extends RollResult {
 }
 
 /**
- * Ball handler decision
+ * System events that happen automatically (not player choices)
+ */
+export interface SystemEvent {
+  action: 'ball_advance' | 'violation'
+  reasoning: string
+}
+
+/**
+ * Ball handler decision (actual player choices)
  */
 export interface BallHandlerDecision {
   action: 'pass' | 'skill_move' | 'shoot'
@@ -120,7 +129,7 @@ export interface BallHandlerDecision {
 export interface PossessionLogEntry {
   step: number
   ballHandler: string
-  decision: BallHandlerDecision
+  decision: BallHandlerDecision | SystemEvent
   opennessScores: Record<string, number>
   rollResult?: RollResult
   stateUpdate?: Partial<PossessionState>
@@ -137,6 +146,7 @@ export interface PossessionResult {
   offensiveRebound: boolean
   newBallHandler?: SimulationPlayer
   possessionDuration: number
+  quarterTimeRemaining: number
 }
 
 /**
@@ -157,6 +167,20 @@ export interface SimulationConfig {
     caps: {
       max_faces: number
       min_faces: number
+    }
+  }
+  openness_calculator: {
+    coefficients: {
+      off_speed: number
+      off_ball_iq: number
+      off_skill_move: number
+      off_pass: number
+      def_speed: number
+      def_on_ball: number
+    }
+    normalization: {
+      base_value: number
+      scale_factor: number
     }
   }
   skill_move_roll: {
@@ -188,7 +212,6 @@ export interface SimulationConfig {
       off_pass: number
       target_openness: number
       ball_iq: number
-      def_openness: number
       def_steal: number
     }
     caps: {

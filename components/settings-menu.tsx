@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -23,10 +23,9 @@ import type { Team } from "@/lib/types/database"
 interface SettingsMenuProps {
   onResetGame: () => void
   onBackToMenu: () => void
-  onOpenDebugger?: () => void
 }
 
-export function SettingsMenu({ onResetGame, onBackToMenu, onOpenDebugger }: SettingsMenuProps) {
+export function SettingsMenu({ onResetGame, onBackToMenu }: SettingsMenuProps) {
   const { deleteLeague, teams, players } = useLeague()
   
   // Get user team from context (assuming first team is user team for now)
@@ -269,26 +268,6 @@ export function SettingsMenu({ onResetGame, onBackToMenu, onOpenDebugger }: Sett
         </CardContent>
       </Card>
 
-      {/* Development Tools */}
-      {onOpenDebugger && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Development Tools</CardTitle>
-            <CardDescription>Debug and test the simulation engine</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h4 className="font-medium text-blue-900 mb-2">Engine Tester</h4>
-              <p className="text-sm text-blue-700 mb-4">
-                Access the simulation engine testing tools to verify game mechanics, database integrity, and standings calculations.
-              </p>
-              <Button onClick={onOpenDebugger} variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-100">
-                Open Engine Tester
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* League Management */}
       <Card>

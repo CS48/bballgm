@@ -37,13 +37,14 @@ export class PlayerGenerator {
    * @param teamId Team ID to assign player to
    * @param position Player position
    * @param age Player age (optional, will be generated if not provided)
+   * @param isStarter Whether this player is a starter
    * @returns Generated player object
    */
-  public generatePlayer(teamId: number, position: PlayerPosition, age?: number): Omit<Player, 'player_id'> {
+  public generatePlayer(teamId: number, position: PlayerPosition, age?: number, isStarter: number = 0): Omit<Player, 'player_id'> {
     const playerAge = age || this.generateAge();
     const name = this.generateName();
     const physical = this.generatePhysicalAttributes(position);
-    const attributes = this.generateAttributes(position, playerAge);
+    const attributes = this.generateAttributes(position, playerAge, physical.height);
     const draftInfo = this.generateDraftInfo(playerAge);
     const initialStats = this.generateInitialStats();
 
@@ -53,6 +54,7 @@ export class PlayerGenerator {
       last_name: name.last,
       age: playerAge,
       position,
+      is_starter: isStarter,
       height: physical.height,
       weight: physical.weight,
       years_pro: Math.max(0, playerAge - 19), // Assume players start at 19
@@ -84,23 +86,42 @@ export class PlayerGenerator {
     const roster: Omit<Player, 'player_id'>[] = [];
     
     // Position distribution for a 15-player roster
-    const positionCounts = {
-      'PG': 3,  // 3 point guards
-      'SG': 3,  // 3 shooting guards
-      'SF': 3,  // 3 small forwards
-      'PF': 3,  // 3 power forwards
-      'C': 3    // 3 centers
-    };
+    const positions: PlayerPosition[] = ['PG', 'SG', 'SF', 'PF', 'C'];
+    const playersPerPosition = 3;
 
     // Generate players for each position
-    Object.entries(positionCounts).forEach(([position, count]) => {
-      for (let i = 0; i < count; i++) {
-        const player = this.generatePlayer(teamId, position as PlayerPosition);
-        roster.push(player);
+    positions.forEach(position => {
+      const positionPlayers: Omit<Player, 'player_id'>[] = [];
+      
+      // Generate 3 players per position
+      for (let i = 0; i < playersPerPosition; i++) {
+        const player = this.generatePlayer(teamId, position, undefined, 0);
+        positionPlayers.push(player);
       }
+      
+      // Calculate overall rating for each player
+      const playersWithRating = positionPlayers.map(player => ({
+        player,
+        overall: this.calculateOverallRating(player)
+      }));
+      
+      // Sort by overall rating (best first)
+      playersWithRating.sort((a, b) => b.overall - a.overall);
+      
+      // Mark the best player at this position as a starter
+      playersWithRating[0].player.is_starter = 1;
+      
+      // Add all players to roster
+      roster.push(...playersWithRating.map(p => p.player));
     });
 
-    return roster;
+    // Sort roster: starters first (in position order: PG, SG, SF, PF, C), then bench
+    const starters = roster.filter(p => p.is_starter).sort((a, b) => 
+      positions.indexOf(a.position) - positions.indexOf(b.position)
+    );
+    const bench = roster.filter(p => !p.is_starter);
+    
+    return [...starters, ...bench];
   }
 
   /**
@@ -200,16 +221,17 @@ export class PlayerGenerator {
   }
 
   /**
-   * Generate player attributes based on position and age
+   * Generate player attributes based on position, age, and height
    * @param position Player position
    * @param age Player age
+   * @param height Player height in inches
    * @returns Player attributes object
    */
-  private generateAttributes(position: PlayerPosition, age: number): PlayerAttributes {
+  private generateAttributes(position: PlayerPosition, age: number, height: number): PlayerAttributes {
     const baseAttributes = this.getPositionBaseAttributes(position);
     const ageModifier = this.getAgeModifier(age);
     
-    const attributes: PlayerAttributes = {
+    let attributes: PlayerAttributes = {
       speed: this.applyModifier(baseAttributes.speed, ageModifier.speed),
       ball_iq: this.applyModifier(baseAttributes.ball_iq, ageModifier.ball_iq),
       inside_shot: this.applyModifier(baseAttributes.inside_shot, ageModifier.inside_shot),
@@ -223,6 +245,9 @@ export class PlayerGenerator {
       offensive_rebound: this.applyModifier(baseAttributes.offensive_rebound, ageModifier.offensive_rebound),
       defensive_rebound: this.applyModifier(baseAttributes.defensive_rebound, ageModifier.defensive_rebound)
     };
+
+    // Apply height-based ceilings
+    attributes = this.applyHeightBasedCeilings(attributes, height, position);
 
     // Ensure all attributes are within 0-100 range
     Object.keys(attributes).forEach(key => {
@@ -318,6 +343,87 @@ export class PlayerGenerator {
   private applyModifier(base: number, modifier: number): number {
     const randomVariation = (Math.random() - 0.5) * 20; // ±10 random variation
     return Math.round(base + modifier + randomVariation);
+  }
+
+  /**
+   * Apply height-based ceilings to attributes
+   * Shorter players have lower ceilings for certain attributes
+   * @param attributes Base attributes
+   * @param height Player height in inches
+   * @param position Player position
+   * @returns Attributes with height-based ceilings applied
+   */
+  private applyHeightBasedCeilings(
+    attributes: PlayerAttributes,
+    height: number,
+    position: PlayerPosition
+  ): PlayerAttributes {
+    // Average height by position (in inches)
+    const positionAverageHeight = {
+      'PG': 74,  // 6'2"
+      'SG': 77,  // 6'5"
+      'SF': 81,  // 6'9"
+      'PF': 83,  // 6'11"
+      'C': 85    // 7'1"
+    }
+    
+    const avgHeight = positionAverageHeight[position]
+    const heightDiff = height - avgHeight // Negative if shorter, positive if taller
+    
+    // Apply ceilings based on height relative to position average
+    // Shorter players: reduced ceiling for on-ball defense, block, rebounds
+    // Taller players: reduced ceiling for speed, skill move, steal
+    
+    if (heightDiff < 0) {
+      // Shorter than average: reduce physical defense attributes
+      const penalty = Math.abs(heightDiff) * 2 // 2 points per inch below average
+      attributes.on_ball_defense = Math.min(attributes.on_ball_defense, 100 - penalty)
+      attributes.block = Math.min(attributes.block, 100 - penalty * 1.5)
+      attributes.offensive_rebound = Math.min(attributes.offensive_rebound, 100 - penalty)
+      attributes.defensive_rebound = Math.min(attributes.defensive_rebound, 100 - penalty)
+    } else if (heightDiff > 0) {
+      // Taller than average: reduce agility-based attributes
+      const penalty = heightDiff * 1.5 // 1.5 points per inch above average
+      attributes.speed = Math.min(attributes.speed, 100 - penalty)
+      attributes.skill_move = Math.min(attributes.skill_move, 100 - penalty * 0.8)
+      attributes.steal = Math.min(attributes.steal, 100 - penalty * 0.5)
+    }
+    
+    return attributes
+  }
+
+  /**
+   * Calculate overall rating for a player based on all attributes
+   * @param player Player object
+   * @returns Overall rating (0-100)
+   */
+  private calculateOverallRating(player: Omit<Player, 'player_id'>): number {
+    const weights = {
+      speed: 1.0,
+      ball_iq: 1.2,
+      inside_shot: 1.0,
+      three_point_shot: 1.0,
+      pass: 0.8,
+      skill_move: 0.8,
+      on_ball_defense: 1.0,
+      stamina: 0.6,
+      block: 0.8,
+      steal: 0.8,
+      offensive_rebound: 0.7,
+      defensive_rebound: 0.9
+    };
+    
+    let totalWeight = 0;
+    let weightedSum = 0;
+    
+    Object.keys(weights).forEach(attr => {
+      const value = player[attr as keyof Player] as number;
+      const weight = weights[attr as keyof typeof weights];
+      weightedSum += value * weight;
+      totalWeight += weight;
+    });
+    
+    return Math.round(weightedSum / totalWeight);
   }
 
   /**

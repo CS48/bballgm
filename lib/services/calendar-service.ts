@@ -65,8 +65,6 @@ export class CalendarService {
    */
   public async getCurrentGameDay(season: number): Promise<GameDay | null> {
     try {
-      console.log(`🔍 getCurrentGameDay: Looking for season ${season}`);
-      
       // Use a simpler query without subquery to avoid SQL.js issues
       const sql = `
         SELECT game_day, date_display, games_scheduled 
@@ -77,18 +75,8 @@ export class CalendarService {
       `;
       
       const results = dbService.exec(sql, [season]);
-      console.log('getCurrentGameDay query results:', results);
-      
-      // Debug: Check what's in the season_calendar table
-      const calendarSql = `SELECT season, game_day, games_scheduled FROM season_calendar WHERE season = ? ORDER BY game_day LIMIT 10`;
-      const calendarResults = dbService.exec(calendarSql, [season]);
-      console.log(`🔍 Calendar entries for season ${season}:`, calendarResults);
       
       if (results.length === 0) {
-        console.log('No current game day found - checking if calendar exists at all...');
-        const totalCalendarSql = `SELECT COUNT(*) as count FROM season_calendar WHERE season = ?`;
-        const totalCalendar = dbService.exec(totalCalendarSql, [season]);
-        console.log(`Total calendar entries for season:`, totalCalendar);
         return null;
       }
       
@@ -154,9 +142,6 @@ export class CalendarService {
    */
   public async getGamesByDay(season: number, gameDay: number): Promise<GameScheduleEntry[]> {
     try {
-      console.log(`🔍 getGamesByDay: Looking for games with season=${season}, gameDay=${gameDay}`);
-      
-      
       const sql = `
         SELECT g.game_id, g.home_team_id, g.away_team_id, g.home_score, g.away_score, g.completed,
                ht.city as home_city, ht.name as home_name,
@@ -169,12 +154,6 @@ export class CalendarService {
       `;
       
       const results = dbService.exec(sql, [season, gameDay]);
-      console.log(`🔍 getGamesByDay: Found ${results.length} games for season ${season}, day ${gameDay}`);
-      
-      // Debug: Check what games exist in the database
-      const allGamesSql = `SELECT season, game_day, COUNT(*) as count FROM games GROUP BY season, game_day ORDER BY season, game_day LIMIT 10`;
-      const allGames = dbService.exec(allGamesSql);
-      console.log(`🔍 Database games summary:`, allGames);
       
       return results.map(game => ({
         game_id: game.game_id,
@@ -217,7 +196,6 @@ export class CalendarService {
       `;
       dbService.run(updateSql, [season, currentDay.game_day]);
 
-      console.log(`Advanced from Game Day ${currentDay.game_day} (${currentDay.date_display})`);
     } catch (error) {
       console.error('Failed to advance game day:', error);
       throw new Error('Failed to advance game day');
@@ -391,8 +369,6 @@ export class CalendarService {
         `;
         dbService.run(sql, [season, day.game_day, day.date_display]);
       }
-      
-      console.log(`Initialized calendar for season ${season} with ${calendar.length} game days`);
     } catch (error) {
       console.error('Failed to initialize season calendar:', error);
       throw new Error('Failed to initialize season calendar');
@@ -407,14 +383,12 @@ export class CalendarService {
    */
   public async updateGamesScheduled(season: number, gameDay: number, gamesCount: number): Promise<void> {
     try {
-      console.log(`Updating games scheduled: season=${season}, gameDay=${gameDay}, gamesCount=${gamesCount}`);
       const sql = `
         UPDATE season_calendar 
         SET games_scheduled = ? 
         WHERE season = ? AND game_day = ?
       `;
       dbService.run(sql, [gamesCount, season, gameDay]);
-      console.log(`Successfully updated games scheduled for game day ${gameDay}`);
     } catch (error) {
       console.error('Failed to update games scheduled:', error);
       throw new Error('Failed to update games scheduled');

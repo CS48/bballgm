@@ -13,12 +13,12 @@ import type { SimulationConfig } from '../types/simulation-engine'
 const SIMULATION_CONFIG: SimulationConfig = {
   shot_roll: {
     coefficients: {
-      off_shot: 0.50,
-      openness: 0.30,
-      off_speed: 0.05,
-      stamina: 0.05,
-      def_onball: 0.40,
-      def_speed: 0.05,
+      off_shot: 0.75,
+      openness: 0.45,
+      off_speed: 0.10,
+      stamina: 0.10,
+      def_onball: 0.50,
+      def_speed: 0.10,
       shot_clock_pressure: 0.20,
       context_modifier: 0.0
     },
@@ -27,24 +27,38 @@ const SIMULATION_CONFIG: SimulationConfig = {
       min_faces: 1
     }
   },
+  openness_calculator: {
+    coefficients: {
+      off_speed: 0.4,
+      off_ball_iq: 0.3,
+      off_skill_move: 0.2,
+      off_pass: 0.1,
+      def_speed: 0.3,
+      def_on_ball: 0.5
+    },
+    normalization: {
+      base_value: 50,
+      scale_factor: 1.5
+    }
+  },
   skill_move_roll: {
     coefficients: {
       success: {
-        off_skill: 0.55,
-        off_speed: 0.20,
-        def_onball: 0.30,
-        def_speed: 0.05,
-        openness: 0.10
+        off_skill: 0.70,
+        off_speed: 0.25,
+        def_onball: 0.40,
+        def_speed: 0.10,
+        openness: 0.15
       },
       steal: {
-        def_steal: 0.60,
-        def_speed: 0.25,
-        off_skill: 0.30
+        def_steal: 0.40,
+        def_speed: 0.30,
+        off_skill: 0.35
       }
     },
     caps: {
-      steal_cap: 2,
-      max_faces: 18,
+      steal_cap: 1,
+      max_faces: 19,
       min_faces: 1
     },
     baseline: {
@@ -53,11 +67,10 @@ const SIMULATION_CONFIG: SimulationConfig = {
   },
   pass_roll: {
     coefficients: {
-      off_pass: 0.45,
-      target_openness: 0.35,
-      ball_iq: 0.10,
-      def_openness: 0.10,
-      def_steal: 0.35
+      off_pass: 0.80,
+      target_openness: 0.60,
+      ball_iq: 0.20,
+      def_steal: 0.05
     },
     caps: {
       steal_cap: 1,
@@ -156,6 +169,15 @@ export function getReboundRollConfig(): SimulationConfig['rebound_roll'] {
 export function getDecisionLogicConfig(): SimulationConfig['decision_logic'] {
   const config = loadConfig()
   return config.decision_logic
+}
+
+/**
+ * Get openness calculator configuration
+ * @returns Openness calculator configuration section
+ */
+export function getOpennessCalculatorConfig(): SimulationConfig['openness_calculator'] {
+  const config = loadConfig()
+  return config.openness_calculator
 }
 
 /**

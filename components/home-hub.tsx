@@ -14,9 +14,10 @@ interface HomeHubProps {
   onNavigateToRoster: () => void
   onNavigateToGameSelect: () => void
   onNavigateToSettings: () => void
+  onNavigateToWatchGame: (homeTeam: Team, awayTeam: Team) => void
 }
 
-export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, onNavigateToSettings }: HomeHubProps) {
+export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, onNavigateToSettings, onNavigateToWatchGame }: HomeHubProps) {
   const { teams, simulateGame, simulateMultipleGames, advanceToNextGameDay, currentGameDay } = useLeague()
   const standings = useStandings()
   const [selectedMatchup, setSelectedMatchup] = useState(0)
@@ -24,6 +25,7 @@ export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, 
   const [currentPage, setCurrentPage] = useState(0)
   const [gameResults, setGameResults] = useState<{[key: string]: {homeScore: number, awayScore: number}}>({})
   const [allGamesCompleted, setAllGamesCompleted] = useState(false)
+  const [simulatingGames, setSimulatingGames] = useState<Set<string>>(new Set())
   const [userTeamRoster, setUserTeamRoster] = useState<any>(null)
   const [teamRatings, setTeamRatings] = useState({
     overall: 0,
@@ -35,10 +37,7 @@ export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, 
 
   // Debug: Log when currentGameDay changes
   useEffect(() => {
-    console.log('HomeHub: currentGameDay updated:', currentGameDay)
-    if (currentGameDay?.games) {
-      console.log('HomeHub: Games for current day:', currentGameDay.games.length)
-    }
+    // Removed console logs for cleaner output
   }, [currentGameDay])
 
   // Fetch user team roster and calculate ratings
@@ -80,10 +79,6 @@ export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, 
   const matchups = useMemo(() => {
     if (currentGameDay && currentGameDay.games && currentGameDay.games.length > 0) {
       // Use real games from today's schedule
-      console.log(`🏀 HomeHub: Displaying ${currentGameDay.games.length} real games for today`);
-      console.log(`🏀 HomeHub: First 3 games:`, currentGameDay.games.slice(0, 3).map(g => 
-        `Team ${g.home_team_id} vs Team ${g.away_team_id}`
-      ));
       
       return currentGameDay.games.map(game => {
         const homeTeam = teams.find(t => t.team_id === game.home_team_id)
@@ -134,6 +129,12 @@ export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, 
 
   // Calculate total pages after matchups are defined
   const totalPages = Math.ceil(matchups.length / matchupsPerPage)
+
+  // Helper function to check if a game is currently simulating
+  const isGameSimulating = (matchup: any) => {
+    const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
+    return simulatingGames.has(gameKey)
+  }
 
   // Team abbreviations mapping for all 30 teams
   const teamAbbreviations: { [key: string]: string } = {
@@ -190,11 +191,29 @@ export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, 
     }
   ]
 
-  // Get starting 5 players from real roster data
+  // Get actual starters from roster data
   const starters = userTeamRoster?.players
-    ? userTeamRoster.players
-        .sort((a: any, b: any) => b.overall_rating - a.overall_rating)
-        .slice(0, 5)
+    ? (() => {
+        // Debug: Check if any players have is_starter set
+        const playersWithStarterFlag = userTeamRoster.players.filter((player: any) => player.is_starter === 1)
+        console.log('HomeHub Debug - Players with is_starter=1:', playersWithStarterFlag.length)
+        console.log('HomeHub Debug - All players is_starter values:', userTeamRoster.players.map((p: any) => ({ name: p.name, is_starter: p.is_starter })))
+        
+        // If no players are marked as starters, fall back to top 5 by overall rating
+        if (playersWithStarterFlag.length === 0) {
+          console.log('HomeHub Debug - No starters found, using top 5 by overall rating')
+          return userTeamRoster.players
+            .sort((a: any, b: any) => b.overall_rating - a.overall_rating)
+            .slice(0, 5)
+        }
+        
+        // Use actual starters
+        return playersWithStarterFlag.sort((a: any, b: any) => {
+          // Sort by position order: PG, SG, SF, PF, C
+          const positionOrder = ['PG', 'SG', 'SF', 'PF', 'C']
+          return positionOrder.indexOf(a.position) - positionOrder.indexOf(b.position)
+        })
+      })()
     : [
         { player_id: 1, name: "Player 1", position: "PG", overall_rating: 85, current_stats: { ppg: 0, apg: 0, rpg: 0 } },
         { player_id: 2, name: "Player 2", position: "SG", overall_rating: 82, current_stats: { ppg: 0, apg: 0, rpg: 0 } },
@@ -246,25 +265,35 @@ export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, 
   }
 
   const handleSimulateGame = async (matchup: any) => {
+    const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
+    
     try {
-      await simulateGame(matchup.homeTeamId, matchup.awayTeamId)
+      // Mark this game as simulating
+      setSimulatingGames(prev => new Set(prev).add(gameKey))
       
-      // Generate random scores for display (in real implementation, this would come from the simulation)
-      const homeScore = Math.floor(Math.random() * 30) + 85
-      const awayScore = Math.floor(Math.random() * 30) + 85
+      // Get actual simulation results
+      const result = await simulateGame(matchup.homeTeamId, matchup.awayTeamId)
       
-      const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
+      // Use actual scores from simulation
       setGameResults(prev => ({
         ...prev,
-        [gameKey]: { homeScore, awayScore }
+        [gameKey]: { 
+          homeScore: result.homeScore, 
+          awayScore: result.awayScore 
+        }
       }))
-      
-      console.log(`Simulated game: ${matchup.away} vs ${matchup.home}`)
       
       // Check if all games are completed
       checkAllGamesCompleted()
     } catch (error) {
       console.error('Failed to simulate game:', error)
+    } finally {
+      // Remove from simulating set
+      setSimulatingGames(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(gameKey)
+        return newSet
+      })
     }
   }
 
@@ -301,7 +330,6 @@ export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, 
       }
       
       setAllGamesCompleted(true)
-      console.log(`Simulated ${uncompletedGames.length} remaining games`)
     } catch (error) {
       console.error('Failed to simulate all games:', error)
     }
@@ -314,9 +342,6 @@ export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, 
   }
 
   const handleProceedToNextDay = async () => {
-    console.log('HomeHub: Proceeding to next day...')
-    console.log('HomeHub: Current game day before advance:', currentGameDay)
-    
     // Reset local UI state
     setGameResults({})
     setAllGamesCompleted(false)
@@ -326,7 +351,6 @@ export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, 
     // Advance to next game day in the database/calendar
     try {
       await advanceToNextGameDay()
-      console.log('HomeHub: Advanced to next game day successfully')
     } catch (error) {
       console.error('HomeHub: Failed to advance to next day:', error)
     }
@@ -682,21 +706,27 @@ export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, 
                         const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
                         const gameResult = gameResults[gameKey]
                         const isCompleted = !!gameResult
+                        const isSimulating = isGameSimulating(matchup)
                         
                         return (
                           <>
                             <div className="flex justify-between items-center">
                               <span className="font-medium">{teamAbbreviations[matchup.away] || matchup.away}</span>
                               <span className="text-muted-foreground">
-                                {isCompleted ? gameResult.awayScore : matchup.awayRecord}
+                                {isCompleted ? gameResult.awayScore : isSimulating ? '...' : matchup.awayRecord}
                               </span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="font-medium">{teamAbbreviations[matchup.home] || matchup.home}</span>
                               <span className="text-muted-foreground">
-                                {isCompleted ? gameResult.homeScore : matchup.homeRecord}
+                                {isCompleted ? gameResult.homeScore : isSimulating ? '...' : matchup.homeRecord}
                               </span>
                             </div>
+                            {isSimulating && (
+                              <div className="flex justify-center">
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-900"></div>
+                              </div>
+                            )}
                           </>
                         )
                       })()}
@@ -768,24 +798,48 @@ export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, 
                       </div>
                     )
                   } else {
+                    const isSimulating = isGameSimulating(selectedGame)
+                    
                     return (
                       <>
                         <Button 
                           onClick={() => {
-                            // Navigate to game simulation for this specific matchup
-                            console.log('Play game:', matchups[selectedMatchup])
-                            // This could navigate to a game simulation view
+                            // Navigate to watch game for this specific matchup
+                            const selectedGame = matchups[selectedMatchup]
+                            
+                            if (!selectedGame) {
+                              console.error('No selected game found')
+                              return
+                            }
+                            
+                            const homeTeam = teams.find(t => t.team_id === selectedGame.homeTeamId)
+                            const awayTeam = teams.find(t => t.team_id === selectedGame.awayTeamId)
+                            
+                            if (homeTeam && awayTeam) {
+                              onNavigateToWatchGame(homeTeam, awayTeam)
+                            } else {
+                              console.error('Could not find teams for watch game')
+                            }
                           }}
                           className="px-6 py-2"
+                          disabled={isSimulating}
                         >
-                          Play
+                          Watch
                         </Button>
                         <Button 
                           variant="outline"
                           onClick={() => handleSimulateGame(matchups[selectedMatchup])}
                           className="px-6 py-2"
+                          disabled={isSimulating}
                         >
-                          Sim
+                          {isSimulating ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2"></div>
+                              Simulating...
+                            </>
+                          ) : (
+                            'Sim'
+                          )}
                         </Button>
                       </>
                     )

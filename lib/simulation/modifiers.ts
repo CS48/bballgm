@@ -28,6 +28,7 @@ export function applyModifiers(
     passCount: state.passCount,
     defensiveBreakdown: state.defensiveBreakdown,
     shotClock: state.shotClock,
+    quarterTimeRemaining: state.quarterTimeRemaining,
     opennessScores: new Map(state.opennessScores),
     staminaDecay: new Map(state.staminaDecay)
   }
@@ -123,13 +124,15 @@ function applyStaminaDecay(
  */
 export function resetPossessionState(
   ballHandler: SimulationPlayer,
-  allPlayers: SimulationPlayer[]
+  allPlayers: SimulationPlayer[],
+  quarterTimeRemaining: number
 ): PossessionState {
   return {
     ballHandler,
     passCount: 0,
     defensiveBreakdown: 0,
     shotClock: 24, // Full shot clock
+    quarterTimeRemaining,
     opennessScores: new Map(),
     staminaDecay: new Map()
   }
@@ -146,6 +149,22 @@ export function updateShotClock(
   timeElapsed: number
 ): PossessionState {
   const newState = { ...state }
+  newState.shotClock = Math.max(0, state.shotClock - timeElapsed)
+  return newState
+}
+
+/**
+ * Update both shot clock and quarter time based on time elapsed
+ * @param state Current possession state
+ * @param timeElapsed Time elapsed in seconds
+ * @returns Updated possession state
+ */
+export function updateQuarterTime(
+  state: PossessionState,
+  timeElapsed: number
+): PossessionState {
+  const newState = { ...state }
+  newState.quarterTimeRemaining = Math.max(0, state.quarterTimeRemaining - timeElapsed)
   newState.shotClock = Math.max(0, state.shotClock - timeElapsed)
   return newState
 }
@@ -184,6 +203,15 @@ export function isShotClockViolation(state: PossessionState): boolean {
 }
 
 /**
+ * Check if quarter time has expired
+ * @param state Current possession state
+ * @returns True if quarter time has expired
+ */
+export function isQuarterExpired(state: PossessionState): boolean {
+  return state.quarterTimeRemaining <= 0
+}
+
+/**
  * Get possession duration in seconds
  * @param state Current possession state
  * @returns Possession duration
@@ -194,6 +222,30 @@ export function getPossessionDuration(state: PossessionState): number {
   const defensiveBreakdownPenalty = state.defensiveBreakdown * 5 // Defensive issues add time
   
   return Math.min(24, baseDuration + passCountBonus + defensiveBreakdownPenalty) // Using a fixed max duration for now
+}
+
+/**
+ * Get action duration based on decision and result
+ * @param decision Ball handler decision
+ * @param eventResult Result of the event
+ * @returns Duration in seconds
+ */
+export function getActionDuration(decision: any, eventResult: any): number {
+  if (decision.action === 'pass') {
+    // Quick passes take at least 1 second, intercepted passes take 1-2s, completed passes take 2-3s
+    return eventResult?.outcome === 'intercepted' ? 2 : 3
+  }
+  
+  if (decision.action === 'skill_move') {
+    // Failed skill moves take at least 2 seconds, successful moves take 3-5 seconds
+    return eventResult?.outcome === 'steal' ? 2 : 4
+  }
+  
+  if (decision.action === 'shoot') {
+    return 3
+  }
+  
+  return 2 // Default fallback
 }
 
 /**

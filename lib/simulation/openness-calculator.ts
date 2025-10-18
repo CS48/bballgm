@@ -7,7 +7,7 @@
  */
 
 import type { SimulationPlayer, PossessionState } from '../types/simulation-engine'
-import { getDecisionLogicConfig } from './config-loader'
+import { getDecisionLogicConfig, getOpennessCalculatorConfig } from './config-loader'
 
 /**
  * Calculate openness score for a single matchup
@@ -25,7 +25,7 @@ export function calculateOpenness(
   defensiveBreakdown: number,
   staminaDecay: number = 0
 ): number {
-  const config = getDecisionLogicConfig()
+  const config = getOpennessCalculatorConfig()
   
   // Apply stamina decay to offensive attributes
   const effectiveSpeed = Math.max(0, offensivePlayer.speed - staminaDecay)
@@ -33,17 +33,17 @@ export function calculateOpenness(
   const effectiveSkillMove = Math.max(0, offensivePlayer.skill_move - staminaDecay * 0.3)
   const effectivePass = Math.max(0, offensivePlayer.pass - staminaDecay * 0.2)
   
-  // Calculate offensive contribution using simplified coefficients
+  // Calculate offensive contribution using config coefficients
   const offensiveValue = 
-    effectiveSpeed * 0.3 +
-    effectiveBallIQ * 0.2 +
-    effectiveSkillMove * 0.15 +
-    effectivePass * 0.1
+    effectiveSpeed * config.coefficients.off_speed +
+    effectiveBallIQ * config.coefficients.off_ball_iq +
+    effectiveSkillMove * config.coefficients.off_skill_move +
+    effectivePass * config.coefficients.off_pass
   
-  // Calculate defensive contribution
+  // Calculate defensive contribution using config coefficients
   const defensiveValue = 
-    defensivePlayer.speed * 0.25 +
-    defensivePlayer.on_ball_defense * 0.4
+    defensivePlayer.speed * config.coefficients.def_speed +
+    defensivePlayer.on_ball_defense * config.coefficients.def_on_ball
   
   // Apply context modifiers
   const passCountBonus = passCount * 1.5
@@ -52,8 +52,10 @@ export function calculateOpenness(
   // Calculate raw openness value
   const rawValue = offensiveValue - defensiveValue + passCountBonus - defensiveBreakdownPenalty
   
-  // Normalize to 0-100 range using simplified approach
-  const normalized = Math.max(0, Math.min(100, rawValue))
+  // Normalize to 0-100 range using config-based scaling
+  const normalized = Math.max(0, Math.min(100, 
+    config.normalization.base_value + (rawValue * config.normalization.scale_factor)
+  ))
   
   return Math.round(normalized)
 }
@@ -231,7 +233,7 @@ export function getOpennessDebug(
   rawValue: number
   finalOpenness: number
 } {
-  const config = getDecisionLogicConfig()
+  const config = getOpennessCalculatorConfig()
   
   const effectiveSpeed = Math.max(0, offensivePlayer.speed - staminaDecay)
   const effectiveBallIQ = Math.max(0, offensivePlayer.ball_iq - staminaDecay * 0.5)
@@ -239,14 +241,14 @@ export function getOpennessDebug(
   const effectivePass = Math.max(0, offensivePlayer.pass - staminaDecay * 0.2)
   
   const offensiveValue = 
-    effectiveSpeed * 0.3 +
-    effectiveBallIQ * 0.2 +
-    effectiveSkillMove * 0.15 +
-    effectivePass * 0.1
+    effectiveSpeed * config.coefficients.off_speed +
+    effectiveBallIQ * config.coefficients.off_ball_iq +
+    effectiveSkillMove * config.coefficients.off_skill_move +
+    effectivePass * config.coefficients.off_pass
   
   const defensiveValue = 
-    defensivePlayer.speed * 0.25 +
-    defensivePlayer.on_ball_defense * 0.4
+    defensivePlayer.speed * config.coefficients.def_speed +
+    defensivePlayer.on_ball_defense * config.coefficients.def_on_ball
   
   const passCountBonus = passCount * 1.5
   const defensiveBreakdownPenalty = defensiveBreakdown * 2.0

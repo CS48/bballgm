@@ -35,8 +35,8 @@ export function rollPass(
   // Calculate raw value from coefficients
   const rawValue = calculatePassRawValue(passer, defender, targetOpenness, context, config)
   
-  // Normalize to probability (0-1) - using a simplified approach for now
-  const normalizedProbability = Math.max(0, Math.min(1, rawValue / 100))
+  // Normalize to probability (0-1) - map to realistic 20-80% range for passes
+  const normalizedProbability = 0.20 + (Math.max(0, Math.min(100, rawValue)) / 100) * 0.6
   
   // Calculate success probability (complete pass)
   const successProbability = normalizedProbability
@@ -111,9 +111,8 @@ function calculatePassRawValue(
     targetOpenness * config.coefficients.target_openness +
     effectiveBallIQ * config.coefficients.ball_iq
   
-  // Calculate defensive contribution
+  // Calculate defensive contribution (only steal attempts, defensive positioning already in targetOpenness)
   const defensiveValue = 
-    defender.on_ball_defense * config.coefficients.def_openness +
     defender.steal * config.coefficients.def_steal
   
   // Apply context modifiers
@@ -213,7 +212,7 @@ export function getPassDebug(
 } {
   const config = getPassRollConfig()
   const rawValue = calculatePassRawValue(passer, defender, targetOpenness, { ...context, targetPlayer: target }, config)
-  const normalizedProbability = Math.max(0, Math.min(1, rawValue / 100))
+  const normalizedProbability = 0.20 + (Math.max(0, Math.min(100, rawValue)) / 100) * 0.6
   
   const caps = createTwoOutcomeCaps(config.caps.min_faces, 20 - config.caps.steal_cap)
   const faces = allocateFaces([normalizedProbability, 1 - normalizedProbability], caps)

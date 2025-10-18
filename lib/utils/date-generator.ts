@@ -68,7 +68,6 @@ export class DateGenerator {
     day: number;        // 15
     month_index: number; // 0-6
   } {
-    console.log(`Generating date for game day ${gameDayNumber}`);
     if (gameDayNumber < 1 || gameDayNumber > this.config.total_game_days) {
       throw new Error(`Game day must be between 1 and ${this.config.total_game_days}`);
     }
@@ -116,7 +115,6 @@ export class DateGenerator {
       month_index: currentMonthIndex
     };
     
-    console.log(`Generated date for game day ${gameDayNumber}:`, result);
     return result;
   }
 

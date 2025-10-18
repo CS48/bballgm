@@ -5,11 +5,10 @@ import { GMCreation } from "@/components/gm-creation"
 import { TeamSelection } from "@/components/team-selection"
 import { MainMenu } from "@/components/main-menu"
 import { LeagueInitializer } from "@/components/league-initializer"
-import { LeagueTester } from "@/components/league-tester"
 import { useLeague, useLeagueReady } from "@/lib/context/league-context"
 import type { Team } from "@/lib/types/database"
 
-type GameState = "league-initialization" | "gm-creation" | "team-selection" | "main-game" | "testing"
+type GameState = "league-initialization" | "gm-creation" | "team-selection" | "main-game"
 
 export default function HomePage() {
   const { isLoading, error } = useLeague()
@@ -42,13 +41,6 @@ export default function HomePage() {
     setGameState("gm-creation")
   }
 
-  const handleOpenDebugger = () => {
-    setGameState("testing")
-  }
-
-  const handleBackFromDebugger = () => {
-    setGameState("main-game")
-  }
 
   // Show league initializer if no league exists
   if (gameState === "league-initialization") {
@@ -64,11 +56,7 @@ export default function HomePage() {
   }
 
   if (gameState === "main-game" && currentGM && userTeam) {
-    return <MainMenu userTeam={userTeam} onResetGame={handleResetGame} onOpenDebugger={handleOpenDebugger} />
-  }
-
-  if (gameState === "testing") {
-    return <LeagueTester onBackToGame={handleBackFromDebugger} />
+    return <MainMenu userTeam={userTeam} onResetGame={handleResetGame} />
   }
 
   return null

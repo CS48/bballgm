@@ -177,6 +177,8 @@ export interface Player {
   age: number;
   /** Player's position */
   position: PlayerPosition;
+  /** Whether this player is a starter (0 = bench, 1 = starter) */
+  is_starter: number;
   /** Player's height in inches */
   height: number;
   /** Player's weight in pounds */

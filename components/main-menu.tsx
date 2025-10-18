@@ -1,31 +1,83 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { TeamRoster } from "./team-roster"
 import { OpponentSelection } from "./opponent-selection"
-import { GameSimulation } from "./game-simulation"
 import { GameResultComponent } from "./game-result"
 import { SettingsMenu } from "./settings-menu"
 import { HomeHub } from "./home-hub"
+import { GameWatch } from "./game-watch"
+import { useLeague } from "@/lib/context/league-context"
+import { convertDatabaseTeamToGameTeam } from "@/lib/types/game-simulation"
 import type { Team } from "@/lib/types/database"
+import type { GameSimulationTeam } from "@/lib/types/game-simulation"
 
 interface MainMenuProps {
   userTeam: Team
   onResetGame: () => void
-  onOpenDebugger?: () => void
 }
 
-type MenuView = "main" | "roster" | "game-select" | "game-simulation" | "game-result" | "settings"
+type MenuView = "main" | "roster" | "game-select" | "game-result" | "settings" | "watch-game"
 
-export function MainMenu({ userTeam, onResetGame, onOpenDebugger }: MainMenuProps) {
+export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
+  const { simulateGame, teams, players } = useLeague()
+  const router = useRouter()
   const [currentView, setCurrentView] = useState<MenuView>("main")
   const [selectedOpponent, setSelectedOpponent] = useState<Team | null>(null)
   const [gameResult, setGameResult] = useState<any>(null)
+  const [isSimulating, setIsSimulating] = useState(false)
+  const [watchGameTeams, setWatchGameTeams] = useState<{ home: GameSimulationTeam; away: GameSimulationTeam } | null>(null)
 
-  const handleOpponentSelected = (opponent: Team) => {
+  const handleOpponentSelected = async (opponent: Team, gameMode: 'sim' | 'watch') => {
     setSelectedOpponent(opponent)
-    setCurrentView("game-simulation")
+    
+    if (gameMode === 'watch') {
+      // Prepare teams for watch mode (stay in same context)
+      try {
+        // Get players for both teams
+        const homeTeamPlayers = players.filter(p => p.team_id === userTeam.team_id)
+        const awayTeamPlayers = players.filter(p => p.team_id === opponent.team_id)
+        
+        // Convert to game simulation teams
+        const homeGameTeam = convertDatabaseTeamToGameTeam(userTeam, homeTeamPlayers)
+        const awayGameTeam = convertDatabaseTeamToGameTeam(opponent, awayTeamPlayers)
+        
+        setWatchGameTeams({ home: homeGameTeam, away: awayGameTeam })
+        setCurrentView("watch-game")
+      } catch (error) {
+        console.error('Failed to prepare watch game:', error)
+        setCurrentView("game-select")
+      }
+      return
+    }
+    
+    // Handle sim mode (existing logic)
+    setIsSimulating(true)
+    
+    try {
+      // Simulate game instantly using simulation service
+      const result = await simulateGame(userTeam.team_id, opponent.team_id)
+      
+      // Create game result object for the result component
+      const gameResult = {
+        homeScore: result.homeScore,
+        awayScore: result.awayScore,
+        homeTeam: userTeam,
+        awayTeam: opponent,
+        winner: result.homeScore > result.awayScore ? userTeam : opponent,
+        events: [] // No events needed for instant simulation
+      }
+      
+      handleGameComplete(gameResult)
+    } catch (error) {
+      console.error('Game simulation failed:', error)
+      // Reset to game selection on error
+      setCurrentView("game-select")
+    } finally {
+      setIsSimulating(false)
+    }
   }
 
   const handleGameComplete = (result: any) => {
@@ -57,26 +109,13 @@ export function MainMenu({ userTeam, onResetGame, onOpenDebugger }: MainMenuProp
             userTeam={userTeam}
             onOpponentSelected={handleOpponentSelected}
             onBackToMenu={() => setCurrentView("main")}
+            isSimulating={isSimulating}
           />
         </div>
       </div>
     )
   }
 
-  if (currentView === "game-simulation" && selectedOpponent) {
-    return (
-      <div className="min-h-screen bg-background p-4">
-        <div className="max-w-6xl mx-auto">
-          <GameSimulation
-            userTeam={userTeam}
-            opponent={selectedOpponent}
-            onGameComplete={handleGameComplete}
-            onBackToOpponentSelect={() => setCurrentView("game-select")}
-          />
-        </div>
-      </div>
-    )
-  }
 
   if (currentView === "game-result" && gameResult) {
     return (
@@ -100,10 +139,31 @@ export function MainMenu({ userTeam, onResetGame, onOpenDebugger }: MainMenuProp
           <SettingsMenu
             onResetGame={onResetGame}
             onBackToMenu={() => setCurrentView("main")}
-            onOpenDebugger={onOpenDebugger}
           />
         </div>
       </div>
+    )
+  }
+
+  if (currentView === "watch-game" && watchGameTeams) {
+    return (
+      <GameWatch
+        homeTeam={watchGameTeams.home}
+        awayTeam={watchGameTeams.away}
+        onGameComplete={(result) => {
+          // Convert watch game result to game result format
+          setGameResult({
+            homeScore: result.homeScore || 0,
+            awayScore: result.awayScore || 0,
+            homeTeam: userTeam,
+            awayTeam: selectedOpponent,
+            winner: (result.homeScore || 0) > (result.awayScore || 0) ? userTeam : selectedOpponent,
+            events: result.events || []
+          })
+          setCurrentView("game-result")
+        }}
+        onNavigateAway={() => setCurrentView("main")}
+      />
     )
   }
 
@@ -113,6 +173,22 @@ export function MainMenu({ userTeam, onResetGame, onOpenDebugger }: MainMenuProp
       onNavigateToRoster={() => setCurrentView("roster")}
       onNavigateToGameSelect={() => setCurrentView("game-select")}
       onNavigateToSettings={() => setCurrentView("settings")}
+      onNavigateToWatchGame={(homeTeam, awayTeam) => {
+        // Prepare teams for watch mode
+        try {
+          const homeTeamPlayers = players.filter(p => p.team_id === homeTeam.team_id)
+          const awayTeamPlayers = players.filter(p => p.team_id === awayTeam.team_id)
+          
+          const homeGameTeam = convertDatabaseTeamToGameTeam(homeTeam, homeTeamPlayers)
+          const awayGameTeam = convertDatabaseTeamToGameTeam(awayTeam, awayTeamPlayers)
+          
+          setSelectedOpponent(awayTeam)
+          setWatchGameTeams({ home: homeGameTeam, away: awayGameTeam })
+          setCurrentView("watch-game")
+        } catch (error) {
+          console.error('Failed to prepare watch game:', error)
+        }
+      }}
     />
   )
 }

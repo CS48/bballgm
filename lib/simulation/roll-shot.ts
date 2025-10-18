@@ -35,8 +35,8 @@ export function rollShot(
   // Calculate raw value from coefficients
   const rawValue = calculateShotRawValue(shooter, defender, openness, isThreePointer, context, config)
   
-  // Normalize to probability (0-1) - using a simplified approach for now
-  const normalizedProbability = Math.max(0, Math.min(1, rawValue / 100))
+  // Normalize to probability (0-1) - map to realistic 15-65% range
+  const normalizedProbability = 0.15 + (Math.max(0, Math.min(100, rawValue)) / 100) * 0.5
   
   // Calculate success probability
   const successProbability = normalizedProbability
@@ -243,7 +243,7 @@ export function getShotDebug(
 } {
   const config = getShotRollConfig()
   const rawValue = calculateShotRawValue(shooter, defender, openness, isThreePointer, context, config)
-  const normalizedProbability = Math.max(0, Math.min(1, rawValue / 100))
+  const normalizedProbability = 0.15 + (Math.max(0, Math.min(100, rawValue)) / 100) * 0.5
   
   const caps = createTwoOutcomeCaps(config.caps.min_faces, config.caps.max_faces)
   const faces = allocateFaces([normalizedProbability, 1 - normalizedProbability], caps)
