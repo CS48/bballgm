@@ -11,13 +11,11 @@ import type { Team } from "@/lib/types/database"
 
 interface HomeHubProps {
   userTeam: Team
-  onNavigateToRoster: () => void
   onNavigateToGameSelect: () => void
-  onNavigateToSettings: () => void
   onNavigateToWatchGame: (homeTeam: Team, awayTeam: Team) => void
 }
 
-export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, onNavigateToSettings, onNavigateToWatchGame }: HomeHubProps) {
+export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGame }: HomeHubProps) {
   const { teams, simulateGame, simulateMultipleGames, advanceToNextGameDay, currentGameDay } = useLeague()
   const standings = useStandings()
   const [selectedMatchup, setSelectedMatchup] = useState(0)
@@ -387,20 +385,20 @@ export function HomeHub({ userTeam, onNavigateToRoster, onNavigateToGameSelect, 
         {/* Header Navigation */}
         <div className="flex items-center justify-between mb-6">
           <nav className="flex items-center gap-6">
-            <a href="#" className="text-foreground font-medium border-b-2 border-primary pb-1">Home</a>
-            <button 
-              onClick={onNavigateToRoster}
+            <span className="text-foreground font-medium border-b-2 border-primary pb-1">Home</span>
+            <Link 
+              href={`/team/${userTeam.team_id}`}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
-              Roster
-            </button>
-            <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Schedule</a>
-            <button 
-              onClick={onNavigateToSettings}
+              My Team
+            </Link>
+            <span className="text-muted-foreground/50">Schedule</span>
+            <Link
+              href="/settings"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               Settings
-            </button>
+            </Link>
           </nav>
         </div>
 

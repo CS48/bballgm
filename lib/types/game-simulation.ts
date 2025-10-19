@@ -14,6 +14,7 @@ export interface GameSimulationPlayer {
   id: string
   name: string
   position: "PG" | "SG" | "SF" | "PF" | "C"
+  teamId?: string  // Optional but recommended
   is_starter: number
   attributes: {
     shooting: number
@@ -24,6 +25,19 @@ export interface GameSimulationPlayer {
   }
   overall: number
   descriptor: string
+  // Individual attributes for D20 simulation engine
+  speed?: number
+  ball_iq?: number
+  inside_shot?: number
+  three_point_shot?: number
+  pass?: number
+  skill_move?: number
+  on_ball_defense?: number
+  stamina?: number
+  block?: number
+  steal?: number
+  offensive_rebound?: number
+  defensive_rebound?: number
 }
 
 /**
@@ -143,6 +157,7 @@ export function convertDatabaseTeamToGameTeam(dbTeam: DatabaseTeam, players: Dat
     id: player.player_id.toString(),
     name: `${player.first_name} ${player.last_name}`,
     position: player.position as "PG" | "SG" | "SF" | "PF" | "C",
+    teamId: dbTeam.team_id.toString(), // Add teamId
     is_starter: player.is_starter,
     attributes: {
       shooting: Math.round((player.inside_shot + player.three_point_shot) / 2),
@@ -152,7 +167,20 @@ export function convertDatabaseTeamToGameTeam(dbTeam: DatabaseTeam, players: Dat
       athleticism: Math.round((player.speed + player.stamina) / 2)
     },
     overall: player.overall_rating,
-    descriptor: `${player.position} - ${player.overall_rating} OVR`
+    descriptor: `${player.position} - ${player.overall_rating} OVR`,
+    // Add individual attributes for D20 engine
+    speed: player.speed,
+    ball_iq: player.ball_iq,
+    inside_shot: player.inside_shot,
+    three_point_shot: player.three_point_shot,
+    pass: player.pass,
+    skill_move: player.skill_move,
+    on_ball_defense: player.on_ball_defense,
+    stamina: player.stamina,
+    block: player.block,
+    steal: player.steal,
+    offensive_rebound: player.offensive_rebound,
+    defensive_rebound: player.defensive_rebound
   }))
 
   return {

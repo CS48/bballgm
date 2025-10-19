@@ -50,9 +50,17 @@ export function simulatePossession(
   // Initialize RNG with seed
   initializeD20RNG(seed)
   
-  // Create initial possession state - only use first 5 players (starters) from each team
-  const activeOffensivePlayers = offensiveTeam.players.slice(0, 5)
-  const activeDefensivePlayers = defensiveTeam.players.slice(0, 5)
+  // Create initial possession state - use designated starters (is_starter === 1)
+  let activeOffensivePlayers = offensiveTeam.players.filter(p => p.is_starter === 1)
+  let activeDefensivePlayers = defensiveTeam.players.filter(p => p.is_starter === 1)
+  
+  // Fallback: if we don't have exactly 5 starters, use first 5 players
+  if (activeOffensivePlayers.length !== 5) {
+    activeOffensivePlayers = offensiveTeam.players.slice(0, 5)
+  }
+  if (activeDefensivePlayers.length !== 5) {
+    activeDefensivePlayers = defensiveTeam.players.slice(0, 5)
+  }
   let state = resetPossessionState(ballHandler, [...activeOffensivePlayers, ...activeDefensivePlayers], quarterTimeRemaining)
   
   const events: PossessionLogEntry[] = []
@@ -67,12 +75,7 @@ export function simulatePossession(
   const shouldLog = config.logging?.verbose_possession_logs !== false
   
   // Log possession start
-  if (shouldLog) {
-    console.log(`🏀 POSSESSION START - ${offensiveTeam.name} with ball`)
-    console.log(`  Ball Handler: ${ballHandler.name} (${ballHandler.position})`)
-    console.log(`  Shot Clock: ${state.shotClock}s`)
-    console.log('')
-  }
+  // Possession start logging removed for cleaner debug output
 
   // MANDATORY: Ball advance at start of possession
   // Player brings ball up court - this always happens and consumes time
@@ -80,9 +83,7 @@ export function simulatePossession(
     // Random time between 3-7 seconds for ball advance
     const ballAdvanceTime = Math.floor(Math.random() * 5) + 3 // 3-7 seconds
     
-    if (shouldLog) {
-      console.log(`🏃 BALL ADVANCE - ${state.ballHandler.name} brings ball up (${ballAdvanceTime}s)`)
-    }
+    // Ball advance logging removed for cleaner debug output
     
     // Update time BEFORE creating event (so stateUpdate has correct time)
     state = updateQuarterTime(state, ballAdvanceTime)
@@ -106,9 +107,7 @@ export function simulatePossession(
     
     // Check if ball advance consumed all remaining time
     if (state.quarterTimeRemaining <= 0) {
-      if (shouldLog) {
-        console.log(`⏰ Quarter time expired during ball advance`)
-      }
+      // Quarter time expired logging removed for cleaner debug output
       return {
         events,
         finalScore: 0,
@@ -147,14 +146,7 @@ export function simulatePossession(
     )
     
     // Log decision with detailed reasoning
-    if (shouldLog && config.logging?.show_decision_details !== false) {
-      console.log(`📋 DECISION - ${state.ballHandler.name} decides to ${decision.action.toUpperCase()}`)
-      console.log(`  Reasoning: ${decision.reasoning}`)
-      if (decision.target) {
-        const targetOpenness = opennessScores.get(decision.target.id) || 0
-        console.log(`  Target: ${decision.target.name} (openness: ${targetOpenness})`)
-      }
-    }
+    // Decision logging removed for cleaner debug output
     
     // Log decision
     const decisionLog: PossessionLogEntry = {
@@ -169,9 +161,7 @@ export function simulatePossession(
     const estimatedActionTime = decision.action === 'shoot' ? 3 : 
                                 decision.action === 'pass' ? 3 : 5
     if (state.quarterTimeRemaining < estimatedActionTime) {
-      if (shouldLog) {
-        console.log(`⏰ Quarter time expired - ending possession`)
-      }
+      // Quarter time expired logging removed for cleaner debug output
       changePossession = true
       break
     }
@@ -199,41 +189,17 @@ export function simulatePossession(
       // Log action outcome with details
       if (shouldLog && config.logging?.show_roll_details !== false) {
         if (decision.action === 'shoot') {
-          if (eventResult.outcome === 'success') {
-            console.log(`🎯 SHOT MADE - ${state.ballHandler.name} (${eventResult.points} pts)`)
-            console.log(`  Roll: ${eventResult.roll} (Faces: [${eventResult.faces.join(',')}])`)
-            console.log(`  Success probability: ${(eventResult.normalizedProbability * 100).toFixed(1)}%`)
-          } else {
-            console.log(`⛔ SHOT MISSED - ${state.ballHandler.name}`)
-            console.log(`  Roll: ${eventResult.roll} (Faces: [${eventResult.faces.join(',')}])`)
-            console.log(`  Success probability: ${(eventResult.normalizedProbability * 100).toFixed(1)}%`)
-          }
+          // Shot result logging removed for cleaner debug output
         } else if (decision.action === 'pass') {
-          if (eventResult.outcome === 'success') {
-            console.log(`✅ PASS COMPLETE to ${decision.target?.name}`)
-            console.log(`  Roll: ${eventResult.roll} (Faces: [${eventResult.faces.join(',')}])`)
-            console.log(`  Success probability: ${(eventResult.normalizedProbability * 100).toFixed(1)}%`)
-          } else if (eventResult.outcome === 'intercepted') {
-            console.log(`🚫 PASS INTERCEPTED by defense`)
-            console.log(`  Roll: ${eventResult.roll} (Faces: [${eventResult.faces.join(',')}])`)
-          }
+          // Pass result logging removed for cleaner debug output
         } else if (decision.action === 'skill_move') {
-          if (eventResult.outcome === 'success') {
-            console.log(`🔥 SKILL MOVE SUCCESS - ${state.ballHandler.name}`)
-            console.log(`  Roll: ${eventResult.roll} (Faces: [${eventResult.faces.join(',')}])`)
-            console.log(`  Success probability: ${(eventResult.normalizedProbability * 100).toFixed(1)}%`)
-          } else {
-            console.log(`❌ SKILL MOVE FAILED - ${state.ballHandler.name}`)
-            console.log(`  Roll: ${eventResult.roll} (Faces: [${eventResult.faces.join(',')}])`)
-          }
+          // Skill move result logging removed for cleaner debug output
         }
       }
       
       // Check for possession change
       if (eventResult.outcome === 'intercepted' || eventResult.outcome === 'steal') {
-        if (shouldLog) {
-          console.log(`🚨 TURNOVER - ${eventResult.outcome === 'intercepted' ? 'Pass intercepted!' : 'Ball stolen!'}`)
-        }
+        // Turnover logging removed for cleaner debug output
         changePossession = true
       } else if (eventResult.outcome === 'success' && eventResult.points) {
         finalScore = eventResult.points
@@ -241,11 +207,7 @@ export function simulatePossession(
       } else if (eventResult.outcome === 'failure' && eventResult.reboundResult) {
         // Handle rebound
         const reboundResult = eventResult.reboundResult
-        if (shouldLog && config.logging?.show_roll_details !== false) {
-          console.log(`🏀 REBOUND BATTLE`)
-          console.log(`  Rebounder: ${reboundResult.rebounder.name} (${reboundResult.isOffensive ? 'Offensive' : 'Defensive'})`)
-          console.log(`  Roll: ${reboundResult.roll} (Faces: [${reboundResult.faces.join(',')}])`)
-        }
+        // Rebound logging removed for cleaner debug output
         
         if (reboundResult.isOffensive) {
           offensiveRebound = true
@@ -262,7 +224,7 @@ export function simulatePossession(
     
     // Update both shot clock and quarter time with realistic action duration
     const timeElapsed = getActionDuration(decision, eventResult)
-    console.log(`⏱️ Action: ${decision.action}, Time elapsed: ${timeElapsed}s, Shot clock: ${state.shotClock}s → ${state.shotClock - timeElapsed}s, Quarter time: ${state.quarterTimeRemaining}s → ${state.quarterTimeRemaining - timeElapsed}s`)
+    // Action timing logging removed for cleaner debug output
     state = updateQuarterTime(state, timeElapsed)
     
     // Update state snapshot AFTER time update
@@ -291,15 +253,7 @@ export function simulatePossession(
   }
   
   // Log possession end
-  if (shouldLog) {
-    console.log(`🔄 POSSESSION END - ${getPossessionDuration(state)}s elapsed, ${state.passCount} passes, ${finalScore} points`)
-    if (changePossession) {
-      console.log(`  Possession changed to ${offensiveTeam.name === offensiveTeam.name ? 'defense' : 'offense'}`)
-    } else if (offensiveRebound) {
-      console.log(`  Offensive rebound - possession continues`)
-    }
-    console.log('')
-  }
+  // Possession end logging removed for cleaner debug output
   
   return {
     events,

@@ -18,19 +18,19 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useLeague } from "@/lib/context/league-context"
 import { leagueService } from "@/lib/services/league-service"
+import { storage } from "@/lib/utils/storage"
 import type { Team } from "@/lib/types/database"
 
 interface SettingsMenuProps {
+  userTeam: Team
   onResetGame: () => void
   onBackToMenu: () => void
 }
 
-export function SettingsMenu({ onResetGame, onBackToMenu }: SettingsMenuProps) {
+export function SettingsMenu({ userTeam, onResetGame, onBackToMenu }: SettingsMenuProps) {
   const { deleteLeague, teams, players } = useLeague()
-  
-  // Get user team from context (assuming first team is user team for now)
-  const userTeam = teams[0] || null
   const [showResetDialog, setShowResetDialog] = useState(false)
+  const [showResetGMDialog, setShowResetGMDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [teamRatings, setTeamRatings] = useState<Map<string, number>>(new Map())
 
@@ -94,12 +94,20 @@ export function SettingsMenu({ onResetGame, onBackToMenu }: SettingsMenuProps) {
     onResetGame()
   }
 
+  const handleResetGM = () => {
+    // Clear session only, keep league
+    storage.clearSession()
+    setShowResetGMDialog(false)
+    onResetGame()  // This will redirect to /onboarding
+  }
+
   const handleDeleteLeague = async () => {
     try {
       await deleteLeague()
+      storage.clearAll()  // Clear both session and league state
       setShowDeleteDialog(false)
-      // The league context will handle clearing the state
-      console.log('League deleted successfully')
+      // Call the parent's reset callback instead of router.push
+      onResetGame()  // This will redirect to /onboarding in the route component
     } catch (error) {
       console.error('Failed to delete league:', error)
     }
@@ -230,88 +238,61 @@ export function SettingsMenu({ onResetGame, onBackToMenu }: SettingsMenuProps) {
           <CardDescription>Reset your progress or start over</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/20">
-            <h4 className="font-medium text-destructive mb-2">Reset Game</h4>
+          {/* Reset GM & Team (keep league) */}
+          <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+            <h4 className="font-medium text-orange-800 mb-2">Reset GM & Team</h4>
             <p className="text-sm text-muted-foreground mb-4">
-              This will permanently delete your current GM profile, league, and all progress. You'll start over from the
-              beginning with GM creation.
+              Choose a different team. Your league progress will be preserved.
             </p>
 
-            <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+            <AlertDialog open={showResetGMDialog} onOpenChange={setShowResetGMDialog}>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive">Reset Game</Button>
+                <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-100">
+                  Reset GM & Team
+                </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure you want to reset?</AlertDialogTitle>
+                  <AlertDialogTitle>Reset GM and Team?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete:
-                    <br />
-                    <br />• Your GM profile (General Manager)
-                    <br />• Your current league (Basketball League)
-                    <br />• Your team ({userTeam?.name || 'No Team'})
-                    <br />• All game progress and statistics
-                    <br />
-                    <br />
-                    You will need to create a new GM and league from scratch.
+                    You'll be able to choose a different team. Your league and game progress will be preserved.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleResetConfirm} className="bg-destructive hover:bg-destructive/90">
-                    Yes, Reset Game
+                  <AlertDialogAction onClick={handleResetGM}>
+                    Reset
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           </div>
-        </CardContent>
-      </Card>
 
-
-      {/* League Management */}
-      <Card>
-        <CardHeader>
-          <CardTitle>League Management</CardTitle>
-          <CardDescription>Manage your current league</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* League Info */}
-          <div className="space-y-2">
-            <h4 className="font-semibold">Current League</h4>
-            <div className="text-sm space-y-1">
-              <div>Teams: {teams.length}</div>
-              <div>Players: {players.length}</div>
-              <div>Games Played: {leagueStats.totalGames / 2}</div>
-            </div>
-          </div>
-          
-          <Separator />
-          
-          {/* Danger Zone */}
-          <div className="space-y-2">
-            <h4 className="font-semibold text-red-600">Danger Zone</h4>
-            <p className="text-sm text-muted-foreground">
-              Irreversible actions that will delete data
+          {/* Delete League (nuclear option) */}
+          <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/20">
+            <h4 className="font-medium text-destructive mb-2">Delete League</h4>
+            <p className="text-sm text-muted-foreground mb-4">
+              Permanently delete this league. All teams, players, and game history will be lost.
             </p>
-            
+
             <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="w-full">
-                  Delete League
-                </Button>
+                <Button variant="destructive">Delete League</Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete League</AlertDialogTitle>
+                  <AlertDialogTitle>Delete League Permanently?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete your entire league including all teams, players, and game data. 
+                    This will permanently delete your entire league, including all teams, players, and game history. 
                     This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteLeague} className="bg-red-600 hover:bg-red-700">
+                  <AlertDialogAction 
+                    onClick={handleDeleteLeague}
+                    className="bg-destructive hover:bg-destructive/90"
+                  >
                     Delete League
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -320,6 +301,8 @@ export function SettingsMenu({ onResetGame, onBackToMenu }: SettingsMenuProps) {
           </div>
         </CardContent>
       </Card>
+
+
 
       {/* About */}
       <Card>

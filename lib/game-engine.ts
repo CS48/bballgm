@@ -242,8 +242,17 @@ export class GameEngine {
     const seed = Math.floor(gameClock.getTotalGameTime() * 1000) + startEventId
     initializeD20RNG(seed)
     
-    // Start with point guard as ball handler
-    const ballHandler = simOffensiveTeam.players.find(p => p.position === 'PG') || simOffensiveTeam.players[0]
+    // Filter for active starters (5 players) BEFORE selecting ball handler
+    let activeOffensivePlayers = simOffensiveTeam.players.filter(p => p.is_starter === 1)
+    
+    // Fallback: if we don't have exactly 5 starters, use first 5 players
+    if (activeOffensivePlayers.length !== 5) {
+      console.warn('⚠️ Game Engine - Using slice(0,5) for ball handler selection. Found', activeOffensivePlayers.length, 'starters')
+      activeOffensivePlayers = simOffensiveTeam.players.slice(0, 5)
+    }
+    
+    // Start with point guard as ball handler FROM ACTIVE STARTERS
+    const ballHandler = activeOffensivePlayers.find(p => p.position === 'PG') || activeOffensivePlayers[0]
     
     // Simulate possession using D20 engine
     const possessionResult = simulatePossession(

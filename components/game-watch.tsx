@@ -95,7 +95,7 @@ export function GameWatch({ homeTeam, awayTeam, onGameComplete, onNavigateAway }
   const getRosterTableData = (team: GameSimulationTeam) => {
     return team.players.map(player => {
       const stats = gameState.playerStats.get(player.id)
-      return {
+      const result = {
         player_id: parseInt(player.id),
         name: player.name,
         position: player.position,
@@ -151,6 +151,8 @@ export function GameWatch({ homeTeam, awayTeam, onGameComplete, onNavigateAway }
           plus_minus: 0
         }
       }
+      
+      return result
     })
   }
 
@@ -165,10 +167,9 @@ export function GameWatch({ homeTeam, awayTeam, onGameComplete, onNavigateAway }
             </Button>
           </div>
           <nav className="flex items-center space-x-6 text-sm font-medium">
-            <Button variant="ghost" onClick={handleNavigationAttempt}>Home</Button>
-            <Button variant="ghost" onClick={handleNavigationAttempt}>Roster</Button>
-            <Button variant="ghost" onClick={handleNavigationAttempt}>Schedule</Button>
-            <Button variant="ghost" onClick={handleNavigationAttempt}>Settings</Button>
+            <span className="text-muted-foreground">
+              {homeTeam.name} vs {awayTeam.name}
+            </span>
           </nav>
         </div>
       </div>

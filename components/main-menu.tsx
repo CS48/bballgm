@@ -3,23 +3,63 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { TeamRoster } from "./team-roster"
 import { OpponentSelection } from "./opponent-selection"
 import { GameResultComponent } from "./game-result"
-import { SettingsMenu } from "./settings-menu"
 import { HomeHub } from "./home-hub"
 import { GameWatch } from "./game-watch"
 import { useLeague } from "@/lib/context/league-context"
+import { leagueService } from "@/lib/services/league-service"
 import { convertDatabaseTeamToGameTeam } from "@/lib/types/game-simulation"
 import type { Team } from "@/lib/types/database"
-import type { GameSimulationTeam } from "@/lib/types/game-simulation"
+import type { GameSimulationTeam, GameSimulationPlayer } from "@/lib/types/game-simulation"
 
 interface MainMenuProps {
   userTeam: Team
   onResetGame: () => void
 }
 
-type MenuView = "main" | "roster" | "game-select" | "game-result" | "settings" | "watch-game"
+type MenuView = "main" | "game-select" | "game-result" | "watch-game"
+
+// Helper to convert roster from getTeamRoster to GameSimulationTeam
+function convertRosterToGameTeam(roster: any, team: Team): GameSimulationTeam {
+  const gamePlayers: GameSimulationPlayer[] = roster.players.map((player: any) => ({
+    id: player.player_id.toString(),
+    name: player.name,
+    position: player.position as "PG" | "SG" | "SF" | "PF" | "C",
+    teamId: roster.team.team_id.toString(),
+    is_starter: player.is_starter,
+    attributes: {
+      shooting: Math.round((player.inside_shot + player.three_point_shot) / 2),
+      defense: Math.round((player.on_ball_defense + player.block + player.steal) / 3),
+      rebounding: Math.round((player.offensive_rebound + player.defensive_rebound) / 2),
+      passing: player.pass,
+      athleticism: Math.round((player.speed + player.stamina) / 2)
+    },
+    overall: player.overall_rating,  // This is now calculated by getTeamRoster!
+    descriptor: `${player.position} - ${player.overall_rating} OVR`,
+    // Individual attributes for D20 engine
+    speed: player.speed,
+    ball_iq: player.ball_iq,
+    inside_shot: player.inside_shot,
+    three_point_shot: player.three_point_shot,
+    pass: player.pass,
+    skill_move: player.skill_move,
+    on_ball_defense: player.on_ball_defense,
+    stamina: player.stamina,
+    block: player.block,
+    steal: player.steal,
+    offensive_rebound: player.offensive_rebound,
+    defensive_rebound: player.defensive_rebound
+  }))
+
+  return {
+    id: roster.team.team_id.toString(),
+    name: roster.team.name,
+    city: roster.team.city,
+    players: gamePlayers,
+    record: { wins: team.wins, losses: team.losses }
+  }
+}
 
 export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
   const { simulateGame, teams, players } = useLeague()
@@ -36,13 +76,15 @@ export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
     if (gameMode === 'watch') {
       // Prepare teams for watch mode (stay in same context)
       try {
-        // Get players for both teams
-        const homeTeamPlayers = players.filter(p => p.team_id === userTeam.team_id)
-        const awayTeamPlayers = players.filter(p => p.team_id === opponent.team_id)
+        // Get full rosters with calculated overall ratings
+        const [homeRoster, awayRoster] = await Promise.all([
+          leagueService.getTeamRoster(userTeam.team_id),
+          leagueService.getTeamRoster(opponent.team_id)
+        ])
         
         // Convert to game simulation teams
-        const homeGameTeam = convertDatabaseTeamToGameTeam(userTeam, homeTeamPlayers)
-        const awayGameTeam = convertDatabaseTeamToGameTeam(opponent, awayTeamPlayers)
+        const homeGameTeam = convertRosterToGameTeam(homeRoster, userTeam)
+        const awayGameTeam = convertRosterToGameTeam(awayRoster, opponent)
         
         setWatchGameTeams({ home: homeGameTeam, away: awayGameTeam })
         setCurrentView("watch-game")
@@ -91,15 +133,6 @@ export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
     setCurrentView("game-select")
   }
 
-  if (currentView === "roster") {
-    return (
-      <div className="min-h-screen bg-background p-4">
-        <div className="max-w-7xl mx-auto">
-          <TeamRoster team={userTeam} onBackToMenu={() => setCurrentView("main")} />
-        </div>
-      </div>
-    )
-  }
 
   if (currentView === "game-select") {
     return (
@@ -132,18 +165,6 @@ export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
     )
   }
 
-  if (currentView === "settings") {
-    return (
-      <div className="min-h-screen bg-background p-4">
-        <div className="max-w-6xl mx-auto">
-          <SettingsMenu
-            onResetGame={onResetGame}
-            onBackToMenu={() => setCurrentView("main")}
-          />
-        </div>
-      </div>
-    )
-  }
 
   if (currentView === "watch-game" && watchGameTeams) {
     return (
@@ -170,17 +191,19 @@ export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
   return (
     <HomeHub
       userTeam={userTeam}
-      onNavigateToRoster={() => setCurrentView("roster")}
       onNavigateToGameSelect={() => setCurrentView("game-select")}
-      onNavigateToSettings={() => setCurrentView("settings")}
-      onNavigateToWatchGame={(homeTeam, awayTeam) => {
+      onNavigateToWatchGame={async (homeTeam, awayTeam) => {
         // Prepare teams for watch mode
         try {
-          const homeTeamPlayers = players.filter(p => p.team_id === homeTeam.team_id)
-          const awayTeamPlayers = players.filter(p => p.team_id === awayTeam.team_id)
+          // Get full rosters with calculated overall ratings
+          const [homeRoster, awayRoster] = await Promise.all([
+            leagueService.getTeamRoster(homeTeam.team_id),
+            leagueService.getTeamRoster(awayTeam.team_id)
+          ])
           
-          const homeGameTeam = convertDatabaseTeamToGameTeam(homeTeam, homeTeamPlayers)
-          const awayGameTeam = convertDatabaseTeamToGameTeam(awayTeam, awayTeamPlayers)
+          // Convert to game simulation teams
+          const homeGameTeam = convertRosterToGameTeam(homeRoster, homeTeam)
+          const awayGameTeam = convertRosterToGameTeam(awayRoster, awayTeam)
           
           setSelectedOpponent(awayTeam)
           setWatchGameTeams({ home: homeGameTeam, away: awayGameTeam })

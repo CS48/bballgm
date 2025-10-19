@@ -47,7 +47,8 @@ function formatShotEvent(
   
   const isThreePointer = rollResult.isThreePointer
   const shotType = isThreePointer ? '3pt' : '2pt'
-  const contested = rollResult.openness < 50 ? 'contested' : 'open'
+  const openness = decision.opennessScore || 0
+  const contested = openness < 50 ? 'contested' : 'open'
   
   if (rollResult.outcome === 'success' && rollResult.made) {
     return `${ballHandler} shoots ${contested} ${shotType} jumper - makes it! (+${rollResult.points})`

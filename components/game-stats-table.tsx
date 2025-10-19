@@ -77,7 +77,7 @@ export function GameStatsTable({ players }: GameStatsTableProps) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
-              <th className="text-left p-2">Player</th>
+              <th className="text-left p-2" style={{ minWidth: '11.5rem' }}>Player</th>
               <th className="text-left p-2">MIN</th>
               <th className="text-left p-2">PTS</th>
               <th className="text-left p-2">FGM</th>
@@ -101,9 +101,16 @@ export function GameStatsTable({ players }: GameStatsTableProps) {
             </tr>
           </thead>
           <tbody>
-            {sortedPlayers.map((player) => (
-              <tr key={player.player_id} className="border-b border-gray-200">
-                <td className="p-2">
+            {sortedPlayers.map((player, index) => (
+              <tr 
+                key={player.player_id} 
+                className={
+                  index === 5 && sortedPlayers.length > 5 
+                    ? 'border-t-2 border-t-gray-800 dark:border-t-gray-200' 
+                    : 'border-b border-gray-200'
+                }
+              >
+                <td className="p-2" style={{ minWidth: '11.5rem' }}>
                   <div>
                     <p className="font-medium">{player.name}</p>
                     <p className="text-sm text-muted-foreground">

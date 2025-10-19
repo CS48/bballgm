@@ -163,10 +163,17 @@ export default function TeamPage({ params }: TeamPageProps) {
         {/* Header Navigation */}
         <div className="flex items-center justify-between mb-6">
           <nav className="flex items-center gap-6">
-            <Link href="/" className="text-foreground font-medium border-b-2 border-primary pb-1">Home</Link>
-            <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Roster</a>
-            <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Schedule</a>
-            <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Settings</a>
+            <Link href="/home" className="text-muted-foreground hover:text-foreground transition-colors">
+              ← Back to Home
+            </Link>
+            <span className="text-foreground font-medium border-b-2 border-primary pb-1">Team</span>
+            <span className="text-muted-foreground/50">Schedule</span>
+            <Link 
+              href="/settings"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Settings
+            </Link>
           </nav>
         </div>
 

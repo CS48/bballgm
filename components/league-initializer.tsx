@@ -15,20 +15,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Checkbox } from './ui/checkbox';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Loader2, Users, Calendar, Trophy, Circle, AlertTriangle } from 'lucide-react';
+
+interface LeagueInitializerProps {
+  onComplete?: () => void
+}
 
 /**
  * League Initializer Component
  */
-export function LeagueInitializer() {
+export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
   const { initializeLeague, isLoading, error, isInitialized, teams, players } = useLeague();
   const [leagueName, setLeagueName] = useState('My Basketball League');
   const [startSeason, setStartSeason] = useState(new Date().getFullYear());
-  const [generateRosters, setGenerateRosters] = useState(true);
-  const [generateSchedule, setGenerateSchedule] = useState(true);
-  const [useV2Scheduler, setUseV2Scheduler] = useState(true);
+  // Generation options are now hardcoded for optimal experience
+  const generateRosters = true;
+  const generateSchedule = true;
+  const useV2Scheduler = true;
   const [isCreating, setIsCreating] = useState(false);
   const [existingLeague, setExistingLeague] = useState<{
     teams: number;
@@ -89,6 +93,11 @@ export function LeagueInitializer() {
 
       await initializeLeague(options);
       console.log('League created successfully!');
+      
+      // Call onComplete callback if provided
+      if (onComplete) {
+        onComplete();
+      }
     } catch (err) {
       console.error('Failed to create league:', err);
     } finally {
@@ -251,45 +260,6 @@ export function LeagueInitializer() {
               </div>
             </div>
 
-            {/* Generation Options */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Generation Options</h3>
-              
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="generateRosters"
-                    checked={generateRosters}
-                    onCheckedChange={(checked) => setGenerateRosters(checked as boolean)}
-                  />
-                  <Label htmlFor="generateRosters" className="text-sm">
-                    Generate realistic player rosters
-                  </Label>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="generateSchedule"
-                    checked={generateSchedule}
-                    onCheckedChange={(checked) => setGenerateSchedule(checked as boolean)}
-                  />
-                  <Label htmlFor="generateSchedule" className="text-sm">
-                    Generate 82-game season schedule
-                  </Label>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="useV2Scheduler"
-                    checked={useV2Scheduler}
-                    onCheckedChange={(checked) => setUseV2Scheduler(checked as boolean)}
-                  />
-                  <Label htmlFor="useV2Scheduler" className="text-sm">
-                    Use balanced scheduler (prevents wide record variance)
-                  </Label>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Create League Button */}
@@ -306,8 +276,8 @@ export function LeagueInitializer() {
           <div className="text-center text-sm text-muted-foreground">
             <p>
               This will create a complete basketball league with 30 teams, 450 players, 
-              and a full 82-game schedule. The balanced scheduler ensures teams progress 
-              at similar rates, preventing wide variance in records. You can start playing immediately!
+              and a full 82-game schedule. Realistic player rosters and balanced scheduling 
+              ensure competitive gameplay. You can start playing immediately!
             </p>
           </div>
         </CardContent>

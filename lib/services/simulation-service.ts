@@ -196,6 +196,7 @@ export class SimulationService {
         name: `${player.first_name} ${player.last_name}`,
         position: player.position,
         teamId: team.team_id.toString(), // Add teamId for D20 engine
+        is_starter: player.is_starter,
         attributes: {
           shooting: Math.round((player.inside_shot + player.three_point_shot) / 2),
           defense: Math.round((player.on_ball_defense + player.block + player.steal) / 3),

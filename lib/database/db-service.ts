@@ -389,6 +389,62 @@ export class DatabaseService {
   }
 
   /**
+   * Export database to Uint8Array for persistence
+   * @returns Uint8Array representation of database or null if failed
+   */
+  public async exportDatabase(): Promise<Uint8Array | null> {
+    if (!this.db) return null
+    
+    try {
+      return this.db.export()
+    } catch (error) {
+      console.error('Failed to export database:', error)
+      return null
+    }
+  }
+
+  /**
+   * Import database from Uint8Array
+   * @param data Uint8Array containing database data
+   * @returns Promise that resolves to true if successful
+   */
+  public async importDatabase(data: Uint8Array): Promise<boolean> {
+    try {
+      const SQL = await initSqlJs({
+        locateFile: (file) => `https://sql.js.org/dist/${file}`
+      })
+      
+      this.db = new SQL.Database(data)
+      this.isInitialized = true
+      
+      console.log('Database imported successfully')
+      return true
+    } catch (error) {
+      console.error('Failed to import database:', error)
+      return false
+    }
+  }
+
+  /**
+   * Check if database has data (league exists)
+   * @returns Promise that resolves to true if league data exists
+   */
+  public async hasLeagueData(): Promise<boolean> {
+    if (!this.db) return false
+    
+    try {
+      const result = this.db.exec('SELECT COUNT(*) as count FROM teams')
+      if (result.length > 0 && result[0].values.length > 0) {
+        const count = result[0].values[0][0] as number
+        return count > 0
+      }
+      return false
+    } catch (error) {
+      return false
+    }
+  }
+
+  /**
    * Check if database is initialized
    * @returns True if database is ready for use
    */

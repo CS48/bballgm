@@ -17,6 +17,7 @@ export interface SimulationPlayer {
   name: string
   position: "PG" | "SG" | "SF" | "PF" | "C"
   teamId: string
+  is_starter?: number
   speed: number
   ball_iq: number
   inside_shot: number
@@ -331,6 +332,7 @@ export function convertToSimulationTeam(team: GameSimulationTeam): SimulationTea
         name: player.name,
         position: player.position,
         teamId: (player as any).teamId || team.id, // Use player's teamId or fallback to team.id
+        is_starter: player.is_starter,
         speed: (player as any).speed || 50,
         ball_iq: (player as any).ball_iq || 50,
         inside_shot: (player as any).inside_shot || 50,

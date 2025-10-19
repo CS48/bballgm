@@ -7,11 +7,12 @@
  * league, including teams, players, standings, and game simulation functionality.
  */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { dbService } from '../database/db-service';
 import { leagueService } from '../services/league-service';
 import { simulationService } from '../services/simulation-service';
 import { calendarService } from '../services/calendar-service';
+import { storage } from '../utils/storage';
 import { Team, Player } from '../types/database';
 import { LeagueState, SeasonInfo, LeagueConfig, LeagueInitOptions } from '../types/league';
 import { GameDay, SeasonProgress, TeamSeasonProgress } from '../types/calendar';
@@ -95,6 +96,16 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
   const [teamProgress, setTeamProgress] = useState<TeamSeasonProgress | null>(null);
 
   /**
+   * Save database to localStorage
+   */
+  const saveDatabase = useCallback(async () => {
+    const exported = await dbService.exportDatabase()
+    if (exported) {
+      storage.saveDatabase(exported)
+    }
+  }, [])
+
+  /**
    * Initialize the database and load league data
    */
   const initializeDatabase = async (): Promise<void> => {
@@ -102,11 +113,36 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       setIsLoading(true);
       setError(null);
       
-      // Initialize database
-      await dbService.initialize();
-      console.log('Database initialized successfully');
+      // Check if we have a saved database
+      const savedDb = storage.loadDatabase()
       
-      setIsInitialized(true);
+      if (savedDb) {
+        console.log('Restoring database from localStorage...')
+        const imported = await dbService.importDatabase(savedDb)
+        
+        if (imported) {
+          // Database restored successfully
+          const hasData = await dbService.hasLeagueData()
+          
+          if (hasData) {
+            console.log('Database restored with league data')
+            setIsInitialized(true)
+            // Load the restored league data into React state
+            await loadLeagueData()
+            setIsLoading(false)
+            return
+          }
+        }
+      }
+      
+      // No saved database or import failed - initialize fresh
+      console.log('Initializing fresh database...')
+      await dbService.initialize()
+      setIsInitialized(true)
+      
+      // Load league data (will be empty arrays if no league created yet)
+      // This is safe - getAllTeams(), getAllPlayers() etc return [] for empty DB
+      await loadLeagueData()
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to initialize database';
       setError(errorMessage);
@@ -186,6 +222,10 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       // Generate new league
       await leagueService.generateLeague(options);
       
+      // After successful creation, save database
+      await saveDatabase()
+      storage.markLeagueExists()
+      
       // Load the new league data
       await loadLeagueData();
       
@@ -210,6 +250,10 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       
       await leagueService.deleteLeague();
       
+      // Clear database from localStorage
+      storage.clearDatabase()
+      storage.clearLeague()
+      
       // Clear local state
       setTeams([]);
       setPlayers([]);
@@ -222,7 +266,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       setLeagueState(null);
       setCurrentSeason(null);
       
-      console.log('✅ League deleted successfully');
+      console.log('✅ League and database deleted successfully');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete league';
       setError(errorMessage);
@@ -245,6 +289,9 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       
       // Refresh data after simulation
       await refreshData();
+      
+      // Auto-save database after game simulation
+      await saveDatabase()
       
       console.log(`Game simulated: Team ${homeTeamId} vs Team ${awayTeamId}`);
       
@@ -402,45 +449,39 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
   };
 
   /**
-   * Initialize database on component mount with timeout
+   * Initialize database on component mount
    */
   useEffect(() => {
+    let mounted = true
+    
     const initialize = async () => {
       try {
-        console.log('Starting database initialization...');
-        await initializeDatabase();
-        console.log('Database initialized, checking for existing league...');
+        console.log('🚀 Starting database initialization...')
+        await initializeDatabase()
         
-        // Check if league data exists
-        const isLeagueReady = await leagueService.isLeagueReady();
-        console.log('League ready check result:', isLeagueReady);
+        if (!mounted) return
         
-        if (isLeagueReady) {
-          console.log('Loading existing league data...');
-          await loadLeagueData();
-          console.log('League data loaded successfully');
+        // Check if we have league data after initialization
+        if (teams.length > 0) {
+          console.log('✅ League data loaded successfully')
         } else {
-          console.log('No existing league found, ready for new league creation');
+          console.log('ℹ️ No existing league found, ready for new league creation')
         }
       } catch (err) {
-        console.error('Initialization failed:', err);
-        setError(`Initialization failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-        // Don't set error state here as this is expected for new installations
+        console.error('❌ Initialization failed:', err)
+        if (mounted) {
+          setError(`Initialization failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        }
       }
-    };
+    }
 
-    // Add timeout to detect stuck initialization
-    const timeoutId = setTimeout(() => {
-      if (!isInitialized) {
-        console.warn('Initialization is taking longer than expected...');
-        setError('Initialization is taking longer than expected. Please refresh the page.');
-      }
-    }, 10000); // 10 second timeout
-
-    initialize().finally(() => {
-      clearTimeout(timeoutId);
-    });
-  }, []);
+    initialize()
+    
+    // Cleanup
+    return () => {
+      mounted = false
+    }
+  }, []) // Empty deps - only run once on mount
 
   /**
    * Context value
