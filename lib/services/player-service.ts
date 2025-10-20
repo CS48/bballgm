@@ -343,69 +343,44 @@ export class PlayerService {
   /**
    * Calculate a player's overall rating based on their attributes
    * @param player Player to calculate rating for
-   * @returns Overall rating (0-100)
+   * @returns Overall rating (50-99, never 100)
    */
   public calculateOverallRating(player: Player): number {
-    const attributes: PlayerAttributes = {
-      speed: player.speed,
-      ball_iq: player.ball_iq,
-      inside_shot: player.inside_shot,
-      three_point_shot: player.three_point_shot,
-      pass: player.pass,
-      skill_move: player.skill_move,
-      on_ball_defense: player.on_ball_defense,
-      stamina: player.stamina,
-      block: player.block,
-      steal: player.steal,
-      offensive_rebound: player.offensive_rebound,
-      defensive_rebound: player.defensive_rebound
+    const weights = {
+      speed: 1.0,
+      ball_iq: 1.2,
+      inside_shot: 1.0,
+      three_point_shot: 1.0,
+      pass: 0.8,
+      skill_move: 0.8,
+      on_ball_defense: 1.0,
+      stamina: 0.6,
+      block: 0.8,
+      steal: 0.8,
+      offensive_rebound: 0.7,
+      defensive_rebound: 0.9
     };
-
-    // Calculate weighted average based on position
-    const weights = this.getPositionWeights(player.position);
-    const weightedSum = Object.keys(attributes).reduce((sum, key) => {
-      return sum + (attributes[key as keyof PlayerAttributes] * weights[key as keyof typeof weights]);
-    }, 0);
-
-    return Math.round(weightedSum);
+    
+    let totalWeight = 0;
+    let weightedSum = 0;
+    
+    Object.keys(weights).forEach(attr => {
+      const value = player[attr as keyof Player] as number;
+      const weight = weights[attr as keyof typeof weights];
+      weightedSum += value * weight;
+      totalWeight += weight;
+    });
+    
+    const rawOverall = weightedSum / totalWeight;
+    
+    // No random variation here - this is for display/calculation of existing players
+    // Random variation only happens during generation
+    const finalOverall = Math.round(rawOverall);
+    
+    // Clamp to 50-99 range (100 is impossible)
+    return Math.max(50, Math.min(99, finalOverall));
   }
 
-  /**
-   * Get attribute weights for calculating overall rating by position
-   * @param position Player position
-   * @returns Object with attribute weights
-   */
-  private getPositionWeights(position: string): Record<string, number> {
-    const weights: Record<string, Record<string, number>> = {
-      'PG': {
-        speed: 0.15, ball_iq: 0.20, inside_shot: 0.05, three_point_shot: 0.10,
-        pass: 0.20, skill_move: 0.15, on_ball_defense: 0.10, stamina: 0.05,
-        block: 0.00, steal: 0.10, offensive_rebound: 0.00, defensive_rebound: 0.05
-      },
-      'SG': {
-        speed: 0.10, ball_iq: 0.15, inside_shot: 0.10, three_point_shot: 0.20,
-        pass: 0.10, skill_move: 0.15, on_ball_defense: 0.10, stamina: 0.05,
-        block: 0.05, steal: 0.10, offensive_rebound: 0.05, defensive_rebound: 0.05
-      },
-      'SF': {
-        speed: 0.10, ball_iq: 0.15, inside_shot: 0.15, three_point_shot: 0.15,
-        pass: 0.10, skill_move: 0.10, on_ball_defense: 0.10, stamina: 0.05,
-        block: 0.10, steal: 0.10, offensive_rebound: 0.05, defensive_rebound: 0.10
-      },
-      'PF': {
-        speed: 0.05, ball_iq: 0.10, inside_shot: 0.20, three_point_shot: 0.05,
-        pass: 0.05, skill_move: 0.05, on_ball_defense: 0.10, stamina: 0.05,
-        block: 0.15, steal: 0.05, offensive_rebound: 0.15, defensive_rebound: 0.15
-      },
-      'C': {
-        speed: 0.05, ball_iq: 0.10, inside_shot: 0.20, three_point_shot: 0.00,
-        pass: 0.05, skill_move: 0.05, on_ball_defense: 0.10, stamina: 0.05,
-        block: 0.20, steal: 0.05, offensive_rebound: 0.20, defensive_rebound: 0.20
-      }
-    };
-
-    return weights[position] || weights['SF'];
-  }
 
   /**
    * Delete a player from the database

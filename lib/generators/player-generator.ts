@@ -265,29 +265,29 @@ export class PlayerGenerator {
   private getPositionBaseAttributes(position: PlayerPosition): PlayerAttributes {
     const positionAttributes = {
       'PG': {
-        speed: 75, ball_iq: 80, inside_shot: 60, three_point_shot: 70,
-        pass: 85, skill_move: 80, on_ball_defense: 70, stamina: 75,
-        block: 30, steal: 75, offensive_rebound: 40, defensive_rebound: 50
+        speed: 58, ball_iq: 62, inside_shot: 48, three_point_shot: 56,
+        pass: 64, skill_move: 60, on_ball_defense: 56, stamina: 58,
+        block: 40, steal: 60, offensive_rebound: 44, defensive_rebound: 48
       },
       'SG': {
-        speed: 70, ball_iq: 75, inside_shot: 70, three_point_shot: 80,
-        pass: 70, skill_move: 75, on_ball_defense: 70, stamina: 70,
-        block: 40, steal: 70, offensive_rebound: 45, defensive_rebound: 55
+        speed: 56, ball_iq: 60, inside_shot: 54, three_point_shot: 62,
+        pass: 56, skill_move: 58, on_ball_defense: 56, stamina: 56,
+        block: 44, steal: 58, offensive_rebound: 46, defensive_rebound: 50
       },
       'SF': {
-        speed: 65, ball_iq: 70, inside_shot: 75, three_point_shot: 75,
-        pass: 65, skill_move: 70, on_ball_defense: 75, stamina: 70,
-        block: 60, steal: 65, offensive_rebound: 60, defensive_rebound: 70
+        speed: 54, ball_iq: 58, inside_shot: 58, three_point_shot: 58,
+        pass: 54, skill_move: 56, on_ball_defense: 58, stamina: 56,
+        block: 52, steal: 56, offensive_rebound: 54, defensive_rebound: 58
       },
       'PF': {
-        speed: 55, ball_iq: 65, inside_shot: 80, three_point_shot: 60,
-        pass: 55, skill_move: 60, on_ball_defense: 70, stamina: 65,
-        block: 75, steal: 55, offensive_rebound: 80, defensive_rebound: 85
+        speed: 48, ball_iq: 56, inside_shot: 62, three_point_shot: 50,
+        pass: 50, skill_move: 52, on_ball_defense: 58, stamina: 54,
+        block: 60, steal: 52, offensive_rebound: 62, defensive_rebound: 64
       },
       'C': {
-        speed: 45, ball_iq: 60, inside_shot: 85, three_point_shot: 40,
-        pass: 50, skill_move: 50, on_ball_defense: 75, stamina: 60,
-        block: 85, steal: 45, offensive_rebound: 85, defensive_rebound: 90
+        speed: 44, ball_iq: 54, inside_shot: 64, three_point_shot: 44,
+        pass: 48, skill_move: 48, on_ball_defense: 60, stamina: 52,
+        block: 64, steal: 48, offensive_rebound: 64, defensive_rebound: 66
       }
     };
 
@@ -341,8 +341,13 @@ export class PlayerGenerator {
    * @returns Modified attribute value
    */
   private applyModifier(base: number, modifier: number): number {
-    const randomVariation = (Math.random() - 0.5) * 20; // ±10 random variation
-    return Math.round(base + modifier + randomVariation);
+    // Box-Muller transform for normal distribution
+    const u1 = Math.random();
+    const u2 = Math.random();
+    const standardNormal = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+    const normalVariation = standardNormal * 2.5; // ±2.5 std dev (covers ~95% within ±5)
+    
+    return Math.round(base + modifier + normalVariation);
   }
 
   /**
@@ -395,7 +400,7 @@ export class PlayerGenerator {
   /**
    * Calculate overall rating for a player based on all attributes
    * @param player Player object
-   * @returns Overall rating (0-100)
+   * @returns Overall rating (50-99, never 100)
    */
   private calculateOverallRating(player: Omit<Player, 'player_id'>): number {
     const weights = {
@@ -423,7 +428,16 @@ export class PlayerGenerator {
       totalWeight += weight;
     });
     
-    return Math.round(weightedSum / totalWeight);
+    const rawOverall = weightedSum / totalWeight;
+    
+    // Apply slight normal variation to overall rating for bell curve distribution
+    const u1 = Math.random();
+    const u2 = Math.random();
+    const standardNormal = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+    const finalOverall = Math.round(rawOverall + standardNormal * 1.5);
+    
+    // Clamp to 50-99 range (100 is impossible)
+    return Math.max(50, Math.min(99, finalOverall));
   }
 
   /**
