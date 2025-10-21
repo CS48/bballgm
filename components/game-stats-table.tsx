@@ -106,7 +106,7 @@ export function GameStatsTable({ players }: GameStatsTableProps) {
                 key={player.player_id} 
                 className={
                   index === 5 && sortedPlayers.length > 5 
-                    ? 'border-t-2 border-t-gray-800 dark:border-t-gray-200' 
+                    ? 'border-t-2 border-t-gray-600 dark:border-t-gray-500' 
                     : 'border-b border-gray-200'
                 }
               >

@@ -232,17 +232,18 @@ export function getPossessionDuration(state: PossessionState): number {
  */
 export function getActionDuration(decision: any, eventResult: any): number {
   if (decision.action === 'pass') {
-    // Quick passes take at least 1 second, intercepted passes take 1-2s, completed passes take 2-3s
-    return eventResult?.outcome === 'intercepted' ? 2 : 3
+    // Passes are quick - 1-2s for ball movement
+    return Math.floor(Math.random() * 2) + 1 // 1-2s
   }
   
   if (decision.action === 'skill_move') {
-    // Failed skill moves take at least 2 seconds, successful moves take 3-5 seconds
-    return eventResult?.outcome === 'steal' ? 2 : 4
+    // Skill moves take time - 4-6s (probing, creating space)
+    return Math.floor(Math.random() * 3) + 4 // 4-6s
   }
   
   if (decision.action === 'shoot') {
-    return 3
+    // Shots take 3-4s (preparation, release, follow-through)
+    return Math.floor(Math.random() * 2) + 3 // 3-4s
   }
   
   return 2 // Default fallback

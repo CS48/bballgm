@@ -23,6 +23,24 @@ for (let teamId = 1; teamId <= 30; teamId++) {
   });
 }
 
+// Calculate age statistics
+const ages = testPlayers.map(player => player.age);
+const ageMin = Math.min(...ages);
+const ageMax = Math.max(...ages);
+const ageMean = ages.reduce((sum, val) => sum + val, 0) / ages.length;
+const sortedAges = [...ages].sort((a, b) => a - b);
+const ageMedian = sortedAges[Math.floor(sortedAges.length / 2)];
+
+// Create age histogram
+const ageHistogram: Record<string, number> = {};
+for (let i = 19; i <= 40; i++) {
+  ageHistogram[i.toString()] = 0;
+}
+
+ages.forEach(age => {
+  ageHistogram[age.toString()]++;
+});
+
 // Calculate overall ratings
 const overallRatings = testPlayers.map(player => {
   const weights = {
@@ -85,7 +103,7 @@ console.log('══════════════════════�
 console.log('           PLAYER RATING DISTRIBUTION             ');
 console.log('═══════════════════════════════════════════════════\n');
 
-console.log('Statistics:');
+console.log('Rating Statistics:');
 console.log(`  Total Players: ${overallRatings.length}`);
 console.log(`  Min:           ${min}`);
 console.log(`  Max:           ${max}`);
@@ -93,10 +111,32 @@ console.log(`  Mean:          ${mean.toFixed(2)}`);
 console.log(`  Median:        ${median}`);
 console.log(`  Std Dev:       ${stdDev.toFixed(2)}`);
 
-console.log('\nValidation:');
+console.log('\nAge Statistics:');
+console.log(`  Min Age:       ${ageMin}`);
+console.log(`  Max Age:       ${ageMax}`);
+console.log(`  Mean Age:      ${ageMean.toFixed(2)}`);
+console.log(`  Median Age:    ${ageMedian}`);
+
+console.log('\nRating Validation:');
 console.log(`  ✓ No players > 99:     ${max <= 99 ? '✓ PASS' : '✗ FAIL'}`);
 console.log(`  ✓ Mean ≈ 75 ± 2:       ${Math.abs(mean - 75) <= 2 ? '✓ PASS' : '✗ FAIL'} (${mean.toFixed(2)})`);
 console.log(`  ✓ Std Dev ≈ 7-8:       ${stdDev >= 6 && stdDev <= 9 ? '✓ PASS' : '✗ FAIL'} (${stdDev.toFixed(2)})`);
+
+console.log('\nAge Validation:');
+console.log(`  ✓ Mean Age ≈ 26:       ${Math.abs(ageMean - 26) <= 1 ? '✓ PASS' : '✗ FAIL'} (${ageMean.toFixed(2)})`);
+console.log(`  ✓ Age Range 19-40:     ${ageMin >= 19 && ageMax <= 40 ? '✓ PASS' : '✗ FAIL'} (${ageMin}-${ageMax})`);
+
+// Calculate age group percentages
+const youngPlayers = ages.filter(age => age >= 19 && age <= 22).length;
+const primePlayers = ages.filter(age => age >= 23 && age <= 27).length;
+const veteranPlayers = ages.filter(age => age >= 28 && age <= 32).length;
+const lateCareerPlayers = ages.filter(age => age >= 33).length;
+
+console.log('\nAge Distribution:');
+console.log(`  Young (19-22):     ${youngPlayers} (${((youngPlayers/ages.length)*100).toFixed(1)}%) - Target: ~23%`);
+console.log(`  Prime (23-27):     ${primePlayers} (${((primePlayers/ages.length)*100).toFixed(1)}%) - Target: ~57%`);
+console.log(`  Veterans (28-32):  ${veteranPlayers} (${((veteranPlayers/ages.length)*100).toFixed(1)}%) - Target: ~17%`);
+console.log(`  Late Career (33+): ${lateCareerPlayers} (${((lateCareerPlayers/ages.length)*100).toFixed(1)}%) - Target: ~3%`);
 
 console.log('\nHistogram (5-point buckets):');
 Object.entries(histogram).forEach(([bucket, count]) => {

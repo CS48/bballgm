@@ -27,20 +27,20 @@ const SIMULATION_CONFIG: SimulationConfig = {
       min_faces: 1
     }
   },
-  openness_calculator: {
-    coefficients: {
-      off_speed: 0.4,
-      off_ball_iq: 0.3,
-      off_skill_move: 0.2,
-      off_pass: 0.1,
-      def_speed: 0.3,
-      def_on_ball: 0.5
+    openness_calculator: {
+      coefficients: {
+        off_speed: 1.0,      // was 0.32 (3.1x increase)
+        off_ball_iq: 0.8,    // was 0.26 (3.1x increase)
+        off_skill_move: 0.6, // was 0.16 (3.75x increase)
+        off_pass: 0.3,       // was 0.08 (3.75x increase)
+        def_speed: 0.9,      // was 0.30 (3x increase)
+        def_on_ball: 1.65    // was 0.55 (3x increase)
+      },
+      normalization: {
+        base_value: 50,      // keep same
+        scale_factor: 1.0    // reduce from 2.0 to 1.0 since raw values will be larger
+      }
     },
-    normalization: {
-      base_value: 50,
-      scale_factor: 1.5
-    }
-  },
   skill_move_roll: {
     coefficients: {
       success: {
@@ -73,8 +73,9 @@ const SIMULATION_CONFIG: SimulationConfig = {
       def_steal: 0.05
     },
     caps: {
-      steal_cap: 1,
-      max_faces: 19,
+      steal_cap: 0,        // Minimum steal faces (unchanged)
+      steal_cap_max: 4,   // NEW: Maximum steal faces (caps at 20% interception rate)
+      max_faces: 19,      // Maximum total faces
       min_faces: 1
     }
   },

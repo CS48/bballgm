@@ -110,7 +110,26 @@ function calculateShootWeight(
     weight += 20
   }
   
+  // Apply position-based multiplier
+  weight *= getShootPositionMultiplier(ballHandler.position)
+  
   return Math.max(0, weight)
+}
+
+/**
+ * Get position-based shooting multiplier
+ * @param position Player position
+ * @returns Multiplier for shooting tendency
+ */
+function getShootPositionMultiplier(position: string): number {
+  switch (position) {
+    case 'PG': return 0.3   // Point guards are facilitators
+    case 'SG': return 1.2   // Shooting guards are primary scorers
+    case 'SF': return 1.1   // Small forwards are versatile scorers
+    case 'PF': return 0.9   // Power forwards focus on inside game
+    case 'C':  return 0.7   // Centers get fewer perimeter touches
+    default:   return 1.0
+  }
 }
 
 /**
@@ -127,25 +146,35 @@ function calculateSkillMoveWeight(
 ): number {
   const ballHandlerOpenness = opennessScores.get(ballHandler.id) || 0
   
-  // Base weight from ball handler's openness
-  let weight = ballHandlerOpenness * 0.3
+  // Base weight from ball handler's openness - REDUCED from 0.3 to 0.2
+  let weight = ballHandlerOpenness * 0.2
   
-  // Bonus for high skill move attribute
-  weight += ballHandler.skill_move * 0.4
+  // Bonus for high skill move attribute - REDUCED from 0.4 to 0.3
+  weight += ballHandler.skill_move * 0.3
   
-  // Bonus for high speed (helps with skill moves)
-  weight += ballHandler.speed * 0.2
+  // Bonus for high speed - REDUCED from 0.2 to 0.15
+  weight += ballHandler.speed * 0.15
   
   // Penalty for low openness
   if (ballHandlerOpenness < 20) {
     weight *= 0.3
   }
   
-  // Bonus if teammates are not very open
+  // Bonus if teammates are not very open - REDUCED from +15 to +8
   const teamAverageOpenness = getTeamAverageOpenness(opennessScores)
   if (teamAverageOpenness < 40) {
-    weight += 15
+    weight += 8  // Changed from 15
   }
+  
+  // Penalty for high openness - should shoot/pass instead of skill move
+  if (ballHandlerOpenness > 70) {
+    weight *= 0.5  // Reduce by 50% when very open
+  } else if (ballHandlerOpenness > 50) {
+    weight *= 0.7  // Reduce by 30% when moderately open
+  }
+  
+  // Apply position-based multiplier
+  weight *= getSkillMovePositionMultiplier(ballHandler.position)
   
   return Math.max(0, weight)
 }
@@ -188,7 +217,39 @@ function calculatePassWeight(
     weight += 10
   }
   
+  // Apply position-based multiplier
+  weight *= getPassPositionMultiplier(ballHandler.position)
+  
   return Math.max(0, weight)
+}
+
+/**
+ * Get position-based passing multiplier
+ * @param position Player position
+ * @returns Multiplier for passing tendency
+ */
+function getPassPositionMultiplier(position: string): number {
+  switch (position) {
+    case 'PG': return 1.8   // Point guards are primary distributors
+    case 'C':  return 0.7   // Centers have limited passing range
+    default:   return 1.0   // Other positions unchanged
+  }
+}
+
+/**
+ * Get position-based skill move multiplier
+ * @param position Player position
+ * @returns Multiplier for skill move tendency
+ */
+function getSkillMovePositionMultiplier(position: string): number {
+  switch (position) {
+    case 'PG': return 0.7   // Ball handlers use skill moves moderately
+    case 'SG': return 1.0   // Wing players have balanced usage
+    case 'SF': return 0.9   // Balanced
+    case 'PF': return 0.5   // Big men rarely use skill moves
+    case 'C':  return 0.4   // Centers almost never use skill moves
+    default:   return 1.0
+  }
 }
 
 /**
@@ -239,11 +300,25 @@ function selectPassTarget(
   // Calculate weighted scores for each teammate
   const weightedScores = teammates.map(teammate => {
     const openness = opennessScores.get(teammate.id) || 0
-    const ballIQ = teammate.ball_iq
-    const passAbility = teammate.pass
     
-    // Weighted score: openness * ball IQ * pass ability
-    const score = openness * ballIQ * passAbility / 10000
+    // Calculate target's scoring ability (average of inside and three-point shooting)
+    const scoringAbility = (teammate.inside_shot + teammate.three_point_shot) / 2
+    
+    // Passer's Ball IQ determines how much they value scoring ability vs openness
+    // High IQ passers (90+) will pass to good scorers even if less open
+    // Low IQ passers (50-) will just pass to whoever is most open
+    const ballIQFactor = ballHandler.ball_iq / 100 // 0.5 to 1.0
+    
+    // Formula:
+    // - Openness weighted by (1.0 - ballIQFactor * 0.4)
+    // - Scoring ability weighted by (ballIQFactor * 0.4)
+    // This means:
+    //   - Low IQ (50): openness 80%, scoring 20%
+    //   - High IQ (100): openness 60%, scoring 40%
+    const opennessWeight = 1.0 - (ballIQFactor * 0.4)
+    const scoringWeight = ballIQFactor * 0.4
+    
+    const score = (openness * opennessWeight) + (scoringAbility * scoringWeight)
     
     return { player: teammate, score }
   })
@@ -251,12 +326,21 @@ function selectPassTarget(
   // Sort by weighted score (highest first)
   weightedScores.sort((a, b) => b.score - a.score)
   
-  // Select from top candidates (top 3 or all if less than 3)
-  const topCandidates = weightedScores.slice(0, Math.min(3, weightedScores.length))
+  // Randomly select from all teammates, with probability weighted by score
+  // This gives better targets higher chance but doesn't exclude anyone
+  const totalScore = weightedScores.reduce((sum, ws) => sum + ws.score, 0)
+  const rand = Math.random() * totalScore
   
-  // Random selection from top candidates
-  const randomIndex = Math.floor(Math.random() * topCandidates.length)
-  return topCandidates[randomIndex].player
+  let cumulative = 0
+  for (const ws of weightedScores) {
+    cumulative += ws.score
+    if (rand <= cumulative) {
+      return ws.player
+    }
+  }
+  
+  // Fallback (should never reach here)
+  return weightedScores[0].player
 }
 
 /**

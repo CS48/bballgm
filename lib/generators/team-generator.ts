@@ -34,15 +34,18 @@ export class TeamGenerator {
 
   /**
    * Generate all 30 NBA teams with complete rosters
+   * @param teamQualities Map of team ID to quality tier
    * @returns Array of generated teams with their rosters
    */
-  public generateAllTeams(): { team: Omit<Team, 'team_id'>; players: Omit<any, 'player_id'>[] }[] {
+  public generateAllTeams(teamQualities?: Map<number, string>): { team: Omit<Team, 'team_id'>; players: Omit<any, 'player_id'>[] }[] {
     const teams = this.getNBATeams();
     const generatedTeams: { team: Omit<Team, 'team_id'>; players: Omit<any, 'player_id'>[] }[] = [];
 
     teams.forEach((teamData, index) => {
       const team = this.generateTeam(teamData.city, teamData.name, teamData.conference);
-      const players = playerGenerator.generateRoster(index + 1); // team_id will be index + 1
+      const teamId = index + 1;
+      const teamQuality = teamQualities?.get(teamId) || 'mid-tier';
+      const players = playerGenerator.generateRoster(teamId, teamQuality);
       
       generatedTeams.push({ team, players });
     });
@@ -60,10 +63,12 @@ export class TeamGenerator {
   public generateTeam(city: string, name: string, conference: Conference): Omit<Team, 'team_id'> {
     const initialStats = this.generateInitialTeamStats();
     const initialSchedule = this.generateInitialSchedule();
+    const abbreviation = this.getTeamAbbreviation(city, name);
 
     return {
       city,
       name,
+      abbreviation,
       conference,
       wins: 0,
       losses: 0,
@@ -317,6 +322,38 @@ export class TeamGenerator {
       isValid: issues.length === 0,
       issues
     };
+  }
+
+  /**
+   * Assign team quality tiers to all 30 teams
+   * @returns Map of team ID to quality tier
+   */
+  public assignTeamQualities(): Map<number, string> {
+    const qualities: string[] = [
+      // 3 championship contenders
+      'championship', 'championship', 'championship',
+      // 8 playoff teams
+      'playoff', 'playoff', 'playoff', 'playoff', 
+      'playoff', 'playoff', 'playoff', 'playoff',
+      // 10 mid-tier teams
+      'mid-tier', 'mid-tier', 'mid-tier', 'mid-tier', 'mid-tier',
+      'mid-tier', 'mid-tier', 'mid-tier', 'mid-tier', 'mid-tier',
+      // 6 rebuilding teams
+      'rebuilding', 'rebuilding', 'rebuilding', 
+      'rebuilding', 'rebuilding', 'rebuilding',
+      // 3 lottery teams
+      'lottery', 'lottery', 'lottery'
+    ];
+    
+    // Shuffle to randomize which teams get which tier
+    const shuffled = qualities.sort(() => Math.random() - 0.5);
+    
+    const teamQualities = new Map<number, string>();
+    for (let i = 0; i < 30; i++) {
+      teamQualities.set(i + 1, shuffled[i]);
+    }
+    
+    return teamQualities;
   }
 
   /**

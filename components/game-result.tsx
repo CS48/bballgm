@@ -68,6 +68,15 @@ export function GameResultComponent({ result, userTeam, onPlayAgain, onBackToMen
     teamName,
     isMVPTeam,
   }: { players: PlayerGameStats[]; teamName: string; isMVPTeam: boolean }) => {
+    // Safety check for undefined players
+    if (!players || !Array.isArray(players)) {
+      return (
+        <div className="text-center text-muted-foreground py-8">
+          No player stats available
+        </div>
+      )
+    }
+    
     const totals = players.reduce(
       (acc, player) => ({
         points: acc.points + player.points,

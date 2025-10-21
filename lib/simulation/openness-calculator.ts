@@ -8,6 +8,7 @@
 
 import type { SimulationPlayer, PossessionState } from '../types/simulation-engine'
 import { getDecisionLogicConfig, getOpennessCalculatorConfig } from './config-loader'
+import { getD20RNG } from './d20-rng'
 
 /**
  * Calculate openness score for a single matchup
@@ -57,7 +58,56 @@ export function calculateOpenness(
     config.normalization.base_value + (rawValue * config.normalization.scale_factor)
   ))
   
-  return Math.round(normalized)
+  // Add random variance for dynamic gameplay (±10 points)
+  const rng = getD20RNG()
+  const variance = (rng.next() * 20) - 10  // Range: -10 to +10
+  const withVariance = Math.max(0, Math.min(100, normalized + variance))
+  
+  // Debug logging for openness calculation
+  console.log(`\n--- Openness Calculation ---`)
+  console.log(`Offensive: ${offensivePlayer.name} (Speed: ${effectiveSpeed}, BallIQ: ${effectiveBallIQ}, Skill: ${effectiveSkillMove})`)
+  console.log(`Defensive: ${defensivePlayer.name} (Speed: ${defensivePlayer.speed}, OnBall: ${defensivePlayer.on_ball_defense})`)
+  console.log(`Offensive Value: ${offensiveValue.toFixed(2)}`)
+  console.log(`Defensive Value: ${defensiveValue.toFixed(2)}`)
+  console.log(`Raw Value: ${rawValue.toFixed(2)}`)
+  console.log(`Base: ${config.normalization.base_value}, Scale: ${config.normalization.scale_factor}`)
+  console.log(`Normalized: ${normalized.toFixed(1)}, Variance: ${variance.toFixed(1)}`)
+  console.log(`Final Openness: ${Math.round(withVariance)}`)
+  
+  return Math.round(withVariance)
+}
+
+/**
+ * Find the defender assigned to guard an offensive player (position-based)
+ * @param offensivePlayer Offensive player to find matchup for
+ * @param defensiveTeam All defensive players
+ * @returns Assigned defender
+ */
+function findPositionMatchup(
+  offensivePlayer: SimulationPlayer,
+  defensiveTeam: SimulationPlayer[]
+): SimulationPlayer {
+  // First, try to find exact position match
+  const exactMatch = defensiveTeam.find(d => d.position === offensivePlayer.position)
+  if (exactMatch) return exactMatch
+  
+  // Fallback: find closest position match
+  const positionOrder = ['PG', 'SG', 'SF', 'PF', 'C']
+  const offIndex = positionOrder.indexOf(offensivePlayer.position)
+  
+  // Try adjacent positions
+  for (let distance = 1; distance < positionOrder.length; distance++) {
+    const checkIndices = [offIndex - distance, offIndex + distance]
+    for (const checkIndex of checkIndices) {
+      if (checkIndex >= 0 && checkIndex < positionOrder.length) {
+        const match = defensiveTeam.find(d => d.position === positionOrder[checkIndex])
+        if (match) return match
+      }
+    }
+  }
+  
+  // Ultimate fallback: return first defender
+  return defensiveTeam[0]
 }
 
 /**
@@ -74,28 +124,21 @@ export function calculateAllOpennessScores(
 ): Map<string, number> {
   const opennessScores = new Map<string, number>()
   
-  // Calculate openness for each offensive player against each defensive player
+  // Calculate openness for each offensive player vs their position matchup
   for (const offensivePlayer of offensiveTeam) {
-    let totalOpenness = 0
-    let matchupCount = 0
+    // Find the defender assigned to this offensive player
+    const defender = findPositionMatchup(offensivePlayer, defensiveTeam)
     
-    for (const defensivePlayer of defensiveTeam) {
-      const staminaDecay = state.staminaDecay.get(offensivePlayer.id) || 0
-      const openness = calculateOpenness(
-        offensivePlayer,
-        defensivePlayer,
-        state.passCount,
-        state.defensiveBreakdown,
-        staminaDecay
-      )
-      
-      totalOpenness += openness
-      matchupCount++
-    }
+    const staminaDecay = state.staminaDecay.get(offensivePlayer.id) || 0
+    const openness = calculateOpenness(
+      offensivePlayer,
+      defender,
+      state.passCount,
+      state.defensiveBreakdown,
+      staminaDecay
+    )
     
-    // Average openness across all defensive matchups
-    const averageOpenness = totalOpenness / matchupCount
-    opennessScores.set(offensivePlayer.id, averageOpenness)
+    opennessScores.set(offensivePlayer.id, openness)
   }
   
   return opennessScores

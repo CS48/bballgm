@@ -8,6 +8,7 @@ import { useLeague, useStandings } from "@/lib/context/league-context"
 import { leagueService } from "@/lib/services/league-service"
 import { playerService } from "@/lib/services/player-service"
 import { RosterTable } from "@/components/roster-table"
+import { PageNavigation } from "@/components/page-navigation"
 import type { Team } from "@/lib/types/database"
 
 interface TeamPageProps {
@@ -161,21 +162,7 @@ export default function TeamPage({ params }: TeamPageProps) {
     <div className="min-h-screen bg-background" style={{ paddingLeft: '6vw', paddingRight: '6vw', paddingTop: '3vh', paddingBottom: '3vh' }}>
       <div className="max-w-7xl mx-auto">
         {/* Header Navigation */}
-        <div className="flex items-center justify-between mb-6">
-          <nav className="flex items-center gap-6">
-            <Link href="/home" className="text-muted-foreground hover:text-foreground transition-colors">
-              ← Back to Home
-            </Link>
-            <span className="text-foreground font-medium border-b-2 border-primary pb-1">Team</span>
-            <span className="text-muted-foreground/50">Schedule</span>
-            <Link 
-              href="/settings"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Settings
-            </Link>
-          </nav>
-        </div>
+        <PageNavigation userTeam={team} currentPage="team" />
 
         {/* Team Info and Ratings Section */}
         <div className="flex gap-6 mb-8">

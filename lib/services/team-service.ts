@@ -42,14 +42,15 @@ export class TeamService {
     try {
       const sql = `
         INSERT INTO teams (
-          city, name, conference, wins, losses, 
+          city, name, abbreviation, conference, wins, losses, 
           current_season_stats, historical_records, schedule
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const params = [
         teamData.city,
         teamData.name,
+        teamData.abbreviation,
         teamData.conference,
         teamData.wins,
         teamData.losses,

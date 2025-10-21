@@ -30,50 +30,32 @@ export function rollPass(
     targetPlayer: SimulationPlayer
   }
 ): PassRollResult {
-  const config = getPassRollConfig()
-  
-  // Calculate raw value from coefficients
-  const rawValue = calculatePassRawValue(passer, defender, targetOpenness, context, config)
-  
-  // Normalize to probability (0-1) - map to realistic 20-80% range for passes
-  const normalizedProbability = 0.20 + (Math.max(0, Math.min(100, rawValue)) / 100) * 0.6
-  
-  // Calculate success probability (complete pass)
-  const successProbability = normalizedProbability
-  
-  // Create face allocation caps
-  const caps = createTwoOutcomeCaps(config.caps.min_faces, 20 - config.caps.steal_cap)
-  
-  // Allocate faces for complete/intercepted
-  const faces = allocateFaces([successProbability, 1 - successProbability], caps)
+  // Flat 19:1 ratio - 95% completion, 5% steal
+  const faces = [19, 1] // Complete: 19, Intercepted: 1
   
   // Roll D20
   const roll = rollD20()
   
-  // Determine outcome
-  const outcomeIndex = getOutcomeFromRoll(roll, faces)
-  const complete = outcomeIndex === 0 // First outcome is complete
+  // Determine outcome (rolls 1-19 = complete, roll 20 = intercepted)
+  const complete = roll <= 19
   const intercepted = !complete
-  
-  // Create debug information
-  const debug = {
-    coefficients: {
-      pass: config.pass_coef,
-      ball_iq: config.ball_iq_coef,
-      target_openness: config.target_openness_coef,
-      defender_on_ball: config.defender_on_ball_coef,
-      defender_steal: config.defender_steal_coef
-    },
-    calculation: `Raw: ${rawValue.toFixed(2)}, Normalized: ${normalizedProbability.toFixed(3)}, Faces: [${faces.join(', ')}]`
-  }
   
   return {
     outcome: complete ? 'complete' : 'intercepted',
     roll,
     faces,
-    rawValue,
-    normalizedProbability,
-    debug,
+    rawValue: 95, // Fixed value for display purposes
+    normalizedProbability: 0.95,
+    debug: {
+      coefficients: {
+        pass: 0,
+        ball_iq: 0,
+        target_openness: 0,
+        defender_on_ball: 0,
+        defender_steal: 0
+      },
+      calculation: 'Flat 19:1 ratio (95% completion)'
+    },
     complete,
     intercepted,
     newBallHandler: complete ? context.targetPlayer : undefined
@@ -88,7 +70,11 @@ export function rollPass(
  * @param context Pass context
  * @param config Pass configuration
  * @returns Raw value
+ * 
+ * NOTE: This function is no longer used with the flat 19:1 pass ratio.
+ * Kept for reference but commented out.
  */
+/*
 function calculatePassRawValue(
   passer: SimulationPlayer,
   defender: SimulationPlayer,
@@ -127,6 +113,7 @@ function calculatePassRawValue(
   
   return Math.max(0, rawValue)
 }
+*/
 
 /**
  * Get pass attempt description

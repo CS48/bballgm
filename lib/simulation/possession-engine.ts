@@ -15,7 +15,7 @@ import type {
 } from '../types/simulation-engine'
 import { initializeD20RNG } from './d20-rng'
 import { calculateAllOpennessScores } from './openness-calculator'
-import { decideAction } from './decision-maker'
+import { decideAction, getDecisionDebug } from './decision-maker'
 import { rollShot, shouldAttemptThreePointer } from './roll-shot'
 import { rollSkillMove } from './roll-skill-move'
 import { rollPass } from './roll-pass'
@@ -69,6 +69,7 @@ export function simulatePossession(
   let changePossession = false
   let offensiveRebound = false
   let newBallHandler: SimulationPlayer | undefined
+  let needsOpennessRecalculation = true // Flag to track when openness scores need recalculation
   
   // Get logging configuration
   const config = getConfig()
@@ -126,34 +127,66 @@ export function simulatePossession(
     step = stepCounter
     stepCounter++
     
-    // Calculate openness scores for all matchups
-    const opennessScores = calculateAllOpennessScores(
-      activeOffensivePlayers,
-      activeDefensivePlayers,
-      state
-    )
-    
-    // Update state with new openness scores
-    state.opennessScores = opennessScores
+    // Only recalculate openness scores when needed
+    // (i.e., at possession start or after a pass when defensive assignments shift)
+    if (needsOpennessRecalculation) {
+      const opennessScores = calculateAllOpennessScores(
+        activeOffensivePlayers,
+        activeDefensivePlayers,
+        state
+      )
+      state.opennessScores = opennessScores
+      needsOpennessRecalculation = false // Reset flag after recalculation
+    }
     
     // Make decision for ball handler
     const decision = decideAction(
       state.ballHandler,
       activeOffensivePlayers.filter(p => p.id !== state.ballHandler.id),
       state.shotClock,
-      opennessScores,
+      state.opennessScores, // Use state.opennessScores instead of local variable
       state
     )
     
-    // Log decision with detailed reasoning
-    // Decision logging removed for cleaner debug output
+    // Log decision details
+    console.log('\n=== DECISION ===')
+    console.log(`Ball Handler: ${state.ballHandler.name} (${state.ballHandler.position})`)
+    console.log(`Shot Clock: ${state.shotClock}s | Quarter Time: ${state.quarterTimeRemaining}s`)
+    console.log(`Pass Count: ${state.passCount}`)
+
+    // Log all openness scores
+    console.log('\nOpenness Scores:')
+    for (const player of activeOffensivePlayers) {
+      const openness = state.opennessScores.get(player.id) || 0
+      console.log(`  ${player.name} (${player.position}): ${openness}`)
+    }
+
+    // Log decision weights using the debug function
+    const decisionDebug = getDecisionDebug(
+      state.ballHandler,
+      activeOffensivePlayers.filter(p => p.id !== state.ballHandler.id),
+      state.shotClock,
+      state.opennessScores,
+      state
+    )
+
+    console.log('\nDecision Weights:')
+    console.log(`  Shoot:  ${decisionDebug.shootWeight.toFixed(2)} (${(decisionDebug.shootProb * 100).toFixed(1)}%)`)
+    console.log(`  Pass:   ${decisionDebug.passWeight.toFixed(2)} (${(decisionDebug.passProb * 100).toFixed(1)}%)`)
+    console.log(`  Skill:  ${decisionDebug.skillMoveWeight.toFixed(2)} (${(decisionDebug.skillMoveProb * 100).toFixed(1)}%)`)
+    console.log(`  Total:  ${decisionDebug.totalWeight.toFixed(2)}`)
+
+    console.log(`\nDecision: ${decision.action.toUpperCase()}`)
+    if (decision.target) {
+      console.log(`  Target: ${decision.target.name}`)
+    }
     
     // Log decision
     const decisionLog: PossessionLogEntry = {
       step,
       ballHandler: state.ballHandler.name,
       decision,
-      opennessScores: Object.fromEntries(opennessScores),
+      opennessScores: Object.fromEntries(state.opennessScores),
       description: `${state.ballHandler.name} decides to ${decision.action}${decision.target ? ` to ${decision.target.name}` : ''}`
     }
     
@@ -186,6 +219,15 @@ export function simulatePossession(
       decisionLog.rollResult = eventResult
       decisionLog.description += ` - ${eventResult.outcome}`
       
+      console.log('\n--- Roll Result ---')
+      console.log(`Outcome: ${eventResult.outcome}`)
+      if (eventResult.roll !== undefined) {
+        console.log(`Roll: ${eventResult.roll} of ${eventResult.faces?.length || 'N/A'} faces`)
+      }
+      if (eventResult.points) {
+        console.log(`Points: ${eventResult.points}`)
+      }
+      
       // Log action outcome with details
       if (shouldLog && config.logging?.show_roll_details !== false) {
         if (decision.action === 'shoot') {
@@ -205,21 +247,31 @@ export function simulatePossession(
         finalScore = eventResult.points
         changePossession = true
       } else if (eventResult.outcome === 'failure' && eventResult.reboundResult) {
-        // Handle rebound
+        // Handle rebound - store result for later processing
         const reboundResult = eventResult.reboundResult
-        // Rebound logging removed for cleaner debug output
         
         if (reboundResult.isOffensive) {
           offensiveRebound = true
           newBallHandler = reboundResult.rebounder
           state.ballHandler = reboundResult.rebounder
+          // Reset shot clock for offensive rebound (14 seconds if below 14)
+          if (state.shotClock < 14) {
+            state.shotClock = 14
+          }
         } else {
           changePossession = true
         }
       }
       
-      // Apply modifiers
-      state = applyModifiers(state, eventResult, [...activeOffensivePlayers, ...activeDefensivePlayers])
+      // Apply modifiers (skip rebound since we handled it above)
+      if (eventResult.outcome !== 'failure' || !eventResult.reboundResult) {
+        state = applyModifiers(state, eventResult, [...activeOffensivePlayers, ...activeDefensivePlayers])
+      }
+      
+      // Mark openness scores for recalculation after successful pass (new ball handler, defensive assignments shift)
+      if (eventResult.outcome === 'complete' && eventResult.newBallHandler) {
+        needsOpennessRecalculation = true
+      }
     }
     
     // Update both shot clock and quarter time with realistic action duration
@@ -238,14 +290,55 @@ export function simulatePossession(
     // Add event to log
     events.push(decisionLog)
     
-    // Check for shot clock violation
-    if (isShotClockViolation(state)) {
+    // Add rebound event if there was a missed shot with rebound
+    if (eventResult && eventResult.outcome === 'failure' && eventResult.reboundResult) {
+      const reboundResult = eventResult.reboundResult
+      
+      // Deduct 1 second for the rebound action
+      const reboundTime = 1
+      const updatedState = updateQuarterTime(state, reboundTime)
+      
+      // Add rebound event to log AFTER shot time has been deducted
+      const reboundLog: PossessionLogEntry = {
+        step: step + 0.5, // Use fractional step to show it happened after the shot
+        ballHandler: reboundResult.rebounder.name,
+        decision: { action: 'rebound' as any, reasoning: 'Rebound' },
+        opennessScores: Object.fromEntries(state.opennessScores),
+        description: reboundResult.isOffensive 
+          ? `${reboundResult.rebounder.name} grabs the offensive rebound!`
+          : `${reboundResult.rebounder.name} secures the defensive rebound`,
+        rollResult: {
+          outcome: reboundResult.isOffensive ? 'offensive' : 'defensive',
+          rebounder: reboundResult.rebounder.name,
+          isOffensive: reboundResult.isOffensive
+        },
+        stateUpdate: {
+          passCount: state.passCount,
+          defensiveBreakdown: state.defensiveBreakdown,
+          shotClock: Math.max(0, state.shotClock - reboundTime), // Subtract rebound time from shot clock
+          quarterTimeRemaining: updatedState.quarterTimeRemaining // Use updated time (1 second later)
+        }
+      }
+      events.push(reboundLog)
+      
+      // Update state with rebound time
+      state = updatedState
+    }
+    
+    // Check for shot clock violation (only if possession hasn't already ended)
+    if (!changePossession && isShotClockViolation(state)) {
       const violationLog: PossessionLogEntry = {
         step: step + 1,
         ballHandler: state.ballHandler.name,
         decision: { action: 'violation', reasoning: 'Shot clock violation' },
-        opennessScores: Object.fromEntries(opennessScores),
-        description: 'Shot clock violation - possession ends'
+        opennessScores: Object.fromEntries(state.opennessScores),
+        description: 'Shot clock violation - possession ends',
+        stateUpdate: {
+          passCount: state.passCount,
+          defensiveBreakdown: state.defensiveBreakdown,
+          shotClock: state.shotClock,
+          quarterTimeRemaining: state.quarterTimeRemaining
+        }
       }
       events.push(violationLog)
       changePossession = true
@@ -381,6 +474,17 @@ function executePass(
     staminaDecay: state.staminaDecay.get(passer.id) || 0,
     targetPlayer: target
   })
+  
+  // Log pass outcome probabilities
+  console.log('\n--- Pass Outcome Probabilities ---')
+  console.log(`Passer: ${passer.name} → Target: ${target.name}`)
+  console.log(`Target Openness: ${targetOpenness}`)
+  console.log(`Raw Value: ${passResult.rawValue.toFixed(2)}`)
+  console.log(`Normalized Probability: ${(passResult.normalizedProbability * 100).toFixed(1)}%`)
+  console.log(`Faces: [${passResult.faces.join(', ')}] (Complete: ${passResult.faces[0]}, Intercepted: ${passResult.faces[1]})`)
+  console.log(`Complete Probability: ${(passResult.faces[0] / 20 * 100).toFixed(1)}%`)
+  console.log(`Intercepted Probability: ${(passResult.faces[1] / 20 * 100).toFixed(1)}%`)
+  console.log(`Roll: ${passResult.roll} → ${passResult.outcome.toUpperCase()}`)
   
   return passResult
 }

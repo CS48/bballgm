@@ -217,6 +217,7 @@ export interface SimulationConfig {
     }
     caps: {
       steal_cap: number
+      steal_cap_max: number
       max_faces: number
       min_faces: number
     }

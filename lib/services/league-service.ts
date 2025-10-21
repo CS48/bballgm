@@ -46,18 +46,18 @@ export class LeagueService {
    */
   public async generateLeague(options: LeagueInitOptions): Promise<void> {
     try {
-      console.log('Starting league generation...');
 
-      // Generate all teams with rosters
-      const generatedTeams = teamGenerator.generateAllTeams();
-      console.log(`Generated ${generatedTeams.length} teams`);
+      // Assign team quality tiers
+      const teamQualities = teamGenerator.assignTeamQualities();
+
+      // Generate all teams with rosters using team qualities
+      const generatedTeams = teamGenerator.generateAllTeams(teamQualities);
 
       // Insert teams into database
       const teamIds: number[] = [];
       for (const { team } of generatedTeams) {
         const teamId = await teamService.createTeam(team);
         teamIds.push(teamId);
-        console.log(`Created team: ${team.city} ${team.name} (ID: ${teamId})`);
       }
 
       // Insert players into database
@@ -71,10 +71,8 @@ export class LeagueService {
           await playerService.createPlayer(playerWithTeamId);
           totalPlayers++;
         }
-        console.log(`Created ${players.length} players for ${generatedTeams[i].team.city} ${generatedTeams[i].team.name}`);
       }
 
-      console.log(`Total players created: ${totalPlayers}`);
 
       // Initialize calendar for the season
       const currentYear = new Date().getFullYear();

@@ -46,7 +46,8 @@ interface LeagueContextType {
   initializeLeague: (options: LeagueInitOptions) => Promise<void>;
   deleteLeague: () => Promise<void>;
   simulateGame: (homeTeamId: number, awayTeamId: number) => Promise<{ homeScore: number; awayScore: number }>;
-  simulateMultipleGames: (games: Array<{ homeTeamId: number; awayTeamId: number }>) => Promise<void>;
+  simulateMultipleGames: (games: Array<{ homeTeamId: number; awayTeamId: number }>) => Promise<Array<{ homeTeamId: number; awayTeamId: number; homeScore: number; awayScore: number }>>;
+  logWatchGame: (homeTeamId: number, awayTeamId: number, gameResult: any) => Promise<void>;
   advanceToNextGameDay: () => Promise<void>;
   simulateToGameDay: (gameDay: number) => Promise<void>;
   refreshData: () => Promise<void>;
@@ -117,7 +118,6 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       const savedDb = storage.loadDatabase()
       
       if (savedDb) {
-        console.log('Restoring database from localStorage...')
         const imported = await dbService.importDatabase(savedDb)
         
         if (imported) {
@@ -125,7 +125,6 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
           const hasData = await dbService.hasLeagueData()
           
           if (hasData) {
-            console.log('Database restored with league data')
             setIsInitialized(true)
             // Load the restored league data into React state
             await loadLeagueData()
@@ -136,7 +135,6 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       }
       
       // No saved database or import failed - initialize fresh
-      console.log('Initializing fresh database...')
       await dbService.initialize()
       setIsInitialized(true)
       
@@ -195,7 +193,6 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       setCurrentGameDay(gameDay);
       setSeasonProgress(progress);
       
-      console.log('League data loaded successfully');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load league data';
       setError(errorMessage);
@@ -313,21 +310,66 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
   /**
    * Simulate multiple games
    */
-  const simulateMultipleGames = async (games: Array<{ homeTeamId: number; awayTeamId: number }>): Promise<void> => {
+  const simulateMultipleGames = async (
+    games: Array<{ homeTeamId: number; awayTeamId: number }>
+  ): Promise<Array<{ homeTeamId: number; awayTeamId: number; homeScore: number; awayScore: number }>> => {
     try {
       setIsLoading(true);
       setError(null);
       
-      await simulationService.simulateMultipleGames(games);
+      const results = await simulationService.simulateMultipleGames(games);
       
       // Refresh data after simulations
       await refreshData();
       
       console.log(`${games.length} games simulated successfully`);
+      return results  // Return the actual results
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Multiple game simulation failed';
       setError(errorMessage);
       console.error('Multiple game simulation failed:', err);
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Log a completed watch game to the database
+   */
+  const logWatchGame = async (homeTeamId: number, awayTeamId: number, gameResult: any): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Convert watch game result to the format expected by simulation service
+      const simulationResult = {
+        home_score: gameResult.homeScore,
+        away_score: gameResult.awayScore,
+        box_score: {
+          home_team: {
+            players: gameResult.homePlayerStats
+          },
+          away_team: {
+            players: gameResult.awayPlayerStats
+          }
+        }
+      };
+      
+      // Use the simulation service's updateGameResults method
+      await simulationService.updateGameResults(homeTeamId, awayTeamId, simulationResult);
+      
+      // Refresh data after logging
+      await refreshData();
+      
+      // Auto-save database after game logging
+      await saveDatabase()
+      
+      console.log(`Watch game logged: Team ${homeTeamId} vs Team ${awayTeamId}`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to log watch game';
+      setError(errorMessage);
+      console.error('Failed to log watch game:', err);
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -465,7 +507,6 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
         if (teams.length > 0) {
           console.log('✅ League data loaded successfully')
         } else {
-          console.log('ℹ️ No existing league found, ready for new league creation')
         }
       } catch (err) {
         console.error('❌ Initialization failed:', err)
@@ -513,6 +554,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     deleteLeague,
     simulateGame,
     simulateMultipleGames,
+    logWatchGame,
     advanceToNextGameDay,
     simulateToGameDay,
     refreshData,

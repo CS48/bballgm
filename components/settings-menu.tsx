@@ -24,10 +24,9 @@ import type { Team } from "@/lib/types/database"
 interface SettingsMenuProps {
   userTeam: Team
   onResetGame: () => void
-  onBackToMenu: () => void
 }
 
-export function SettingsMenu({ userTeam, onResetGame, onBackToMenu }: SettingsMenuProps) {
+export function SettingsMenu({ userTeam, onResetGame }: SettingsMenuProps) {
   const { deleteLeague, teams, players } = useLeague()
   const [showResetDialog, setShowResetDialog] = useState(false)
   const [showResetGMDialog, setShowResetGMDialog] = useState(false)
@@ -115,14 +114,9 @@ export function SettingsMenu({ userTeam, onResetGame, onBackToMenu }: SettingsMe
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold text-primary">Settings</h2>
-          <p className="text-muted-foreground">Manage your game preferences and data</p>
-        </div>
-        <Button variant="secondary" onClick={onBackToMenu}>
-          Back to Menu
-        </Button>
+      <div>
+        <h2 className="text-3xl font-bold text-primary">Settings</h2>
+        <p className="text-muted-foreground">Manage your game preferences and data</p>
       </div>
 
       {/* GM Information */}

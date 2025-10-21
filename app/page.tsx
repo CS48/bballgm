@@ -33,7 +33,6 @@ export default function LandingPage() {
     
     if (teams.length > 0 && session) {
       // Has league + session → auto-redirect to home (user was playing)
-      console.log('User has league and session, redirecting to home')
       router.push('/home')
       return
     }

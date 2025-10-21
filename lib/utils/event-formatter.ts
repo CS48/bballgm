@@ -121,6 +121,10 @@ export function getEventColorClass(rollResult: any): string {
     case 'intercepted':
     case 'steal':
       return 'text-orange-600' // Turnover
+    case 'offensive':
+      return 'text-purple-600' // Offensive rebound
+    case 'defensive':
+      return 'text-blue-500' // Defensive rebound
     default:
       return 'text-gray-600'
   }

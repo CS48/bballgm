@@ -56,13 +56,14 @@ function convertRosterToGameTeam(roster: any, team: Team): GameSimulationTeam {
     id: roster.team.team_id.toString(),
     name: roster.team.name,
     city: roster.team.city,
+    abbreviation: team.abbreviation,
     players: gamePlayers,
     record: { wins: team.wins, losses: team.losses }
   }
 }
 
 export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
-  const { simulateGame, teams, players } = useLeague()
+  const { simulateGame, logWatchGame, teams, players } = useLeague()
   const router = useRouter()
   const [currentView, setCurrentView] = useState<MenuView>("main")
   const [selectedOpponent, setSelectedOpponent] = useState<Team | null>(null)
@@ -171,17 +172,38 @@ export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
       <GameWatch
         homeTeam={watchGameTeams.home}
         awayTeam={watchGameTeams.away}
-        onGameComplete={(result) => {
-          // Convert watch game result to game result format
-          setGameResult({
-            homeScore: result.homeScore || 0,
-            awayScore: result.awayScore || 0,
-            homeTeam: userTeam,
-            awayTeam: selectedOpponent,
-            winner: (result.homeScore || 0) > (result.awayScore || 0) ? userTeam : selectedOpponent,
-            events: result.events || []
-          })
-          setCurrentView("game-result")
+        onGameComplete={async (result) => {
+          try {
+            // Log the completed watch game to the database
+            await logWatchGame(
+              parseInt(watchGameTeams.home.id),
+              parseInt(watchGameTeams.away.id),
+              result
+            )
+            
+            // Convert watch game result to game result format
+            setGameResult({
+              homeScore: result.homeScore || 0,
+              awayScore: result.awayScore || 0,
+              homeTeam: userTeam,
+              awayTeam: selectedOpponent,
+              winner: (result.homeScore || 0) > (result.awayScore || 0) ? userTeam : selectedOpponent,
+              events: result.events || []
+            })
+            setCurrentView("game-result")
+          } catch (error) {
+            console.error('Failed to log watch game:', error)
+            // Still show the result even if logging failed
+            setGameResult({
+              homeScore: result.homeScore || 0,
+              awayScore: result.awayScore || 0,
+              homeTeam: userTeam,
+              awayTeam: selectedOpponent,
+              winner: (result.homeScore || 0) > (result.awayScore || 0) ? userTeam : selectedOpponent,
+              events: result.events || []
+            })
+            setCurrentView("game-result")
+          }
         }}
         onNavigateAway={() => setCurrentView("main")}
       />

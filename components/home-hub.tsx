@@ -134,40 +134,10 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
     return simulatingGames.has(gameKey)
   }
 
-  // Team abbreviations mapping for all 30 teams
-  const teamAbbreviations: { [key: string]: string } = {
-    // Eastern Conference
-    "Boston Celtics": "BOS",
-    "Brooklyn Nets": "BKN",
-    "New York Knicks": "NYK",
-    "Philadelphia 76ers": "PHI",
-    "Toronto Raptors": "TOR",
-    "Chicago Bulls": "CHI",
-    "Cleveland Cavaliers": "CLE",
-    "Detroit Pistons": "DET",
-    "Indiana Pacers": "IND",
-    "Milwaukee Bucks": "MIL",
-    "Atlanta Hawks": "ATL",
-    "Charlotte Hornets": "CHA",
-    "Miami Heat": "MIA",
-    "Orlando Magic": "ORL",
-    "Washington Wizards": "WAS",
-    // Western Conference
-    "Dallas Mavericks": "DAL",
-    "Houston Rockets": "HOU",
-    "Memphis Grizzlies": "MEM",
-    "New Orleans Pelicans": "NOP",
-    "San Antonio Spurs": "SAS",
-    "Denver Nuggets": "DEN",
-    "Minnesota Timberwolves": "MIN",
-    "Oklahoma City Thunder": "OKC",
-    "Portland Trail Blazers": "POR",
-    "Utah Jazz": "UTA",
-    "Golden State Warriors": "GSW",
-    "Los Angeles Clippers": "LAC",
-    "Los Angeles Lakers": "LAL",
-    "Phoenix Suns": "PHX",
-    "Sacramento Kings": "SAC"
+  // Helper function to get team abbreviation
+  const getTeamAbbreviation = (teamId: number) => {
+    const team = teams.find(t => t.team_id === teamId)
+    return team?.abbreviation || 'UNK'
   }
 
   // Sample news data
@@ -194,12 +164,9 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
     ? (() => {
         // Debug: Check if any players have is_starter set
         const playersWithStarterFlag = userTeamRoster.players.filter((player: any) => player.is_starter === 1)
-        console.log('HomeHub Debug - Players with is_starter=1:', playersWithStarterFlag.length)
-        console.log('HomeHub Debug - All players is_starter values:', userTeamRoster.players.map((p: any) => ({ name: p.name, is_starter: p.is_starter })))
         
         // If no players are marked as starters, fall back to top 5 by overall rating
         if (playersWithStarterFlag.length === 0) {
-          console.log('HomeHub Debug - No starters found, using top 5 by overall rating')
           return userTeamRoster.players
             .sort((a: any, b: any) => b.overall_rating - a.overall_rating)
             .slice(0, 5)
@@ -309,15 +276,18 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
           homeTeamId: matchup.homeTeamId,
           awayTeamId: matchup.awayTeamId
         }))
-        await simulateMultipleGames(games)
         
-        // Generate scores only for uncompleted games
+        // Get actual results from simulations
+        const results = await simulateMultipleGames(games)
+        
+        // Convert to UI format
         const newResults: {[key: string]: {homeScore: number, awayScore: number}} = {}
-        uncompletedGames.forEach(matchup => {
-          const homeScore = Math.floor(Math.random() * 30) + 85
-          const awayScore = Math.floor(Math.random() * 30) + 85
-          const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
-          newResults[gameKey] = { homeScore, awayScore }
+        results.forEach(result => {
+          const gameKey = `${result.homeTeamId}-${result.awayTeamId}`
+          newResults[gameKey] = {
+            homeScore: result.homeScore,
+            awayScore: result.awayScore
+          }
         })
         
         // Merge with existing results instead of replacing
@@ -419,7 +389,10 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                   <>
                     <span>({updatedRecord.wins}-{updatedRecord.losses})</span>
                     <span> | </span>
-                    <span>#{standings.overall?.findIndex(t => t.team_id === userTeam.team_id) + 1 || 1} in League</span>
+                    <span>#{(() => {
+                      const conferenceStandings = userTeam.conference === 'Eastern' ? standings.eastern : standings.western
+                      return conferenceStandings?.findIndex(t => t.team_id === userTeam.team_id) + 1 || 1
+                    })()} in {userTeam.conference}ern Conference</span>
                   </>
                 )
               })()}
@@ -437,131 +410,6 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                 
                 <TabsContent value="starters" className="mt-4 flex-1 h-full">
                   <div className="tab-content tab-content--transparent">
-                    {/* Team Stats Rings */}
-                    <div className="team-stats-rings">
-                      <div className="stat-ring">
-                        <div className="relative w-16 h-16 mx-auto mb-2">
-                          <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
-                            <path
-                              className="text-gray-300"
-                              stroke="currentColor"
-                              strokeWidth="3"
-                              fill="none"
-                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            />
-                            <path
-                              stroke="#333333"
-                              strokeWidth="3"
-                              fill="none"
-                              strokeDasharray={`${teamRatings.overall}, 100`}
-                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-sm font-bold text-gray-800">
-                              {teamRatings.overall}
-                            </span>
-                          </div>
-                        </div>
-                        <p className="stat-ring-label">Overall</p>
-                      </div>
-                      <div className="stat-ring">
-                        <div className="relative w-16 h-16 mx-auto mb-2">
-                          <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
-                            <path
-                              className="text-gray-300"
-                              stroke="currentColor"
-                              strokeWidth="3"
-                              fill="none"
-                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            />
-                            <path
-                              stroke="#333333"
-                              strokeWidth="3"
-                              fill="none"
-                              strokeDasharray={`${teamRatings.interiorShooting}, 100`}
-                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-sm font-bold text-gray-800">{teamRatings.interiorShooting}</span>
-                          </div>
-                        </div>
-                        <p className="stat-ring-label">Interior Shooting</p>
-                      </div>
-                      <div className="stat-ring">
-                        <div className="relative w-16 h-16 mx-auto mb-2">
-                          <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
-                            <path
-                              className="text-gray-300"
-                              stroke="currentColor"
-                              strokeWidth="3"
-                              fill="none"
-                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            />
-                            <path
-                              stroke="#333333"
-                              strokeWidth="3"
-                              fill="none"
-                              strokeDasharray={`${teamRatings.threePointShooting}, 100`}
-                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-sm font-bold text-gray-800">{teamRatings.threePointShooting}</span>
-                          </div>
-                        </div>
-                        <p className="stat-ring-label">3P Shooting</p>
-                      </div>
-                      <div className="stat-ring">
-                        <div className="relative w-16 h-16 mx-auto mb-2">
-                          <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
-                            <path
-                              className="text-gray-300"
-                              stroke="currentColor"
-                              strokeWidth="3"
-                              fill="none"
-                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            />
-                            <path
-                              stroke="#333333"
-                              strokeWidth="3"
-                              fill="none"
-                              strokeDasharray={`${teamRatings.passing}, 100`}
-                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-sm font-bold text-gray-800">{teamRatings.passing}</span>
-                          </div>
-                        </div>
-                        <p className="stat-ring-label">Passing</p>
-                      </div>
-                      <div className="stat-ring">
-                        <div className="relative w-16 h-16 mx-auto mb-2">
-                          <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
-                            <path
-                              className="text-gray-300"
-                              stroke="currentColor"
-                              strokeWidth="3"
-                              fill="none"
-                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            />
-                            <path
-                              stroke="#333333"
-                              strokeWidth="3"
-                              fill="none"
-                              strokeDasharray={`${teamRatings.onBallDefense}, 100`}
-                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-sm font-bold text-gray-800">{teamRatings.onBallDefense}</span>
-                          </div>
-                        </div>
-                        <p className="stat-ring-label">On-Ball Defense</p>
-                      </div>
-                    </div>
 
                     {/* Starting Lineup */}
                     <div className="starters-table-container">
@@ -613,39 +461,85 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                   <div className="tab-content tab-content--transparent">
                     <div className="space-y-4 h-full max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                       <div>
-                        <h4 className="font-semibold text-sm mb-2">Eastern Conference</h4>
-                        <div className="space-y-1">
-                          {easternStandings.map((team, index) => (
-                            <div key={team.team_id} className={`flex justify-between items-center p-2 rounded ${team.team_id === userTeam.team_id ? 'bg-primary/10' : 'bg-muted'}`}>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold">#{index + 1}</span>
-                                <Link href={`/team/${team.team_id}`} className="font-medium hover:text-primary transition-colors">
-                                  {team.city} {team.name}
-                                </Link>
-                              </div>
-                              <span className="text-sm text-muted-foreground">
-                                {team.wins}-{team.losses}
-                              </span>
+                        <div className="border-t border-b border-gray-200 rounded-lg overflow-hidden">
+                          {/* Table Header */}
+                          <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+                            <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                              <div className="col-span-1">#</div>
+                              <div className="col-span-7">Eastern</div>
+                              <div className="col-span-2 text-center">W</div>
+                              <div className="col-span-2 text-center">L</div>
                             </div>
-                          ))}
+                          </div>
+                          {/* Table Body */}
+                          <div className="divide-y divide-gray-100">
+                            {easternStandings.map((team, index) => (
+                              <div key={team.team_id} className="px-3 py-2 hover:bg-gray-50 transition-colors">
+                                <div className="grid grid-cols-12 gap-2 items-center">
+                                  <div className="col-span-1 text-sm font-bold text-gray-700">
+                                    {index + 1}
+                                  </div>
+                                  <div className="col-span-7">
+                                    <Link href={`/team/${team.team_id}`} className="font-medium hover:text-primary transition-colors text-sm flex items-center gap-2">
+                                      {team.city} {team.name}
+                                      {team.team_id === userTeam.team_id && (
+                                        <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                        </svg>
+                                      )}
+                                    </Link>
+                                  </div>
+                                  <div className="col-span-2 text-center text-sm font-medium text-gray-700">
+                                    {team.wins}
+                                  </div>
+                                  <div className="col-span-2 text-center text-sm font-medium text-gray-700">
+                                    {team.losses}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
                       <div>
-                        <h4 className="font-semibold text-sm mb-2">Western Conference</h4>
-                        <div className="space-y-1">
-                          {westernStandings.map((team, index) => (
-                            <div key={team.team_id} className={`flex justify-between items-center p-2 rounded ${team.team_id === userTeam.team_id ? 'bg-primary/10' : 'bg-muted'}`}>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold">#{index + 1}</span>
-                                <Link href={`/team/${team.team_id}`} className="font-medium hover:text-primary transition-colors">
-                                  {team.city} {team.name}
-                                </Link>
-                              </div>
-                              <span className="text-sm text-muted-foreground">
-                                {team.wins}-{team.losses}
-                              </span>
+                        <div className="border-t border-b border-gray-200 rounded-lg overflow-hidden">
+                          {/* Table Header */}
+                          <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+                            <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                              <div className="col-span-1">#</div>
+                              <div className="col-span-7">Western</div>
+                              <div className="col-span-2 text-center">W</div>
+                              <div className="col-span-2 text-center">L</div>
                             </div>
-                          ))}
+                          </div>
+                          {/* Table Body */}
+                          <div className="divide-y divide-gray-100">
+                            {westernStandings.map((team, index) => (
+                              <div key={team.team_id} className="px-3 py-2 hover:bg-gray-50 transition-colors">
+                                <div className="grid grid-cols-12 gap-2 items-center">
+                                  <div className="col-span-1 text-sm font-bold text-gray-700">
+                                    {index + 1}
+                                  </div>
+                                  <div className="col-span-7">
+                                    <Link href={`/team/${team.team_id}`} className="font-medium hover:text-primary transition-colors text-sm flex items-center gap-2">
+                                      {team.city} {team.name}
+                                      {team.team_id === userTeam.team_id && (
+                                        <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                        </svg>
+                                      )}
+                                    </Link>
+                                  </div>
+                                  <div className="col-span-2 text-center text-sm font-medium text-gray-700">
+                                    {team.wins}
+                                  </div>
+                                  <div className="col-span-2 text-center text-sm font-medium text-gray-700">
+                                    {team.losses}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -709,13 +603,13 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                         return (
                           <>
                             <div className="flex justify-between items-center">
-                              <span className="font-medium">{teamAbbreviations[matchup.away] || matchup.away}</span>
+                              <span className="font-medium">{getTeamAbbreviation(matchup.awayTeamId)}</span>
                               <span className="text-muted-foreground">
                                 {isCompleted ? gameResult.awayScore : isSimulating ? '...' : matchup.awayRecord}
                               </span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="font-medium">{teamAbbreviations[matchup.home] || matchup.home}</span>
+                              <span className="font-medium">{getTeamAbbreviation(matchup.homeTeamId)}</span>
                               <span className="text-muted-foreground">
                                 {isCompleted ? gameResult.homeScore : isSimulating ? '...' : matchup.homeRecord}
                               </span>

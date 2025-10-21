@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
 
 interface Player {
   player_id: number
@@ -13,6 +14,7 @@ interface Player {
   weight: number
   years_pro: number
   overall_rating: number
+  is_starter?: number
   current_stats?: {
     games?: number
     minutes?: number
@@ -166,7 +168,14 @@ export function RosterTable({ players }: RosterTableProps) {
                 </td>
                 <td className="p-2">
                   <div>
-                    <p className="font-medium">{player.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{player.name}</p>
+                      {player.is_starter === 1 && (
+                        <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200">
+                          Starter
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       {player.position} | {player.overall_rating} ovr
                     </p>

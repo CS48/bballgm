@@ -151,8 +151,17 @@ export class WatchGameEngine {
       const seed = Date.now() + this.currentPossessionIndex
       initializeD20RNG(seed)
 
-      // Start with point guard as ball handler
-      const ballHandler = simOffensiveTeam.players.find(p => p.position === 'PG') || simOffensiveTeam.players[0]
+      // Filter for active starters (5 players) BEFORE selecting ball handler
+      let activeOffensivePlayers = simOffensiveTeam.players.filter(p => p.is_starter === 1)
+      
+      // Fallback: if we don't have exactly 5 starters, use first 5 players
+      if (activeOffensivePlayers.length !== 5) {
+        // console.warn('⚠️ Watch Game Engine - Using slice(0,5) for ball handler selection. Found', activeOffensivePlayers.length, 'starters')
+        activeOffensivePlayers = simOffensiveTeam.players.slice(0, 5)
+      }
+      
+      // Start with point guard as ball handler FROM ACTIVE STARTERS
+      const ballHandler = activeOffensivePlayers.find(p => p.position === 'PG') || activeOffensivePlayers[0]
 
       // Simulate possession
       const possessionResult = simulatePossession(
@@ -197,6 +206,10 @@ export class WatchGameEngine {
       // Use the updated quarter time from the possession event if available
       const eventQuarterTime = possessionEvent.stateUpdate?.quarterTimeRemaining ?? this.state.quarterTimeRemaining
       
+      // Determine which team this event belongs to
+      const isDefensiveRebound = possessionEvent.rollResult?.outcome === 'defensive'
+      const eventTeamId = isDefensiveRebound ? defensiveTeam.id : offensiveTeam.id
+      
       const gameEvent: GameEvent = {
         id: `event-${Date.now()}-${Math.random()}`,
         quarter: this.state.currentQuarter,
@@ -206,7 +219,7 @@ export class WatchGameEngine {
         awayScore: this.state.currentPossession === 'home' ? this.state.awayScore : this.state.homeScore,
         eventType: this.mapEventType(possessionEvent),
         playerId: this.findPlayerIdByName(possessionEvent.ballHandler, offensiveTeam),
-        teamId: offensiveTeam.id,
+        teamId: eventTeamId,
         gameTimeSeconds: (4 - this.state.currentQuarter) * 12 * 60 + eventQuarterTime,
         ballHandler: {
           id: this.findPlayerIdByName(possessionEvent.ballHandler, offensiveTeam) || '',
@@ -254,12 +267,6 @@ export class WatchGameEngine {
     if (possessionResult.changePossession) {
       this.state.currentPossession = this.state.currentPossession === 'home' ? 'away' : 'home'
     }
-
-    // Check for game completion
-    if (this.state.currentQuarter >= 4 && this.state.quarterTimeRemaining <= 0) {
-      this.state.isComplete = true
-      this.state.isPlaying = false
-    }
   }
 
   /**
@@ -297,6 +304,10 @@ export class WatchGameEngine {
       }
       
       this.state.events.push(quarterStartEvent)
+    } else {
+      // Game is over after Q4
+      this.state.isComplete = true
+      this.state.isPlaying = false
     }
   }
 
@@ -355,7 +366,7 @@ export class WatchGameEngine {
    * Get event animation delay based on speed
    */
   private getEventDelay(): number {
-    const baseDelay = 2000 // 2 seconds base
+    const baseDelay = 3000 // 3 seconds base
     return baseDelay / this.state.animationSpeed
   }
 
@@ -383,5 +394,41 @@ export class WatchGameEngine {
     
     // Add remaining events
     this.state.events.push(...gameResult.events.slice(this.state.currentEventIndex))
+  }
+
+  /**
+   * Build complete game result for database logging
+   */
+  buildGameResult(): any {
+    // Convert player stats to the format expected by the database
+    const homePlayerStatsArray = this.state.homeTeam.players.map((player) => ({
+      ...player,
+      ...this.state.playerStats.get(player.id)!,
+    }))
+
+    const awayPlayerStatsArray = this.state.awayTeam.players.map((player) => ({
+      ...player,
+      ...this.state.playerStats.get(player.id)!,
+    }))
+
+    // Calculate MVP (player with highest impact score)
+    const allPlayerStats = [...homePlayerStatsArray, ...awayPlayerStatsArray]
+    const mvp = allPlayerStats.reduce((best, player) => {
+      const playerScore = player.points + player.rebounds * 0.5 + player.assists * 0.7
+      const bestScore = best.points + best.rebounds * 0.5 + best.assists * 0.7
+      return playerScore > bestScore ? player : best
+    })
+
+    return {
+      homeTeam: this.state.homeTeam,
+      awayTeam: this.state.awayTeam,
+      homeScore: this.state.homeScore,
+      awayScore: this.state.awayScore,
+      events: this.state.events,
+      winner: this.state.homeScore > this.state.awayScore ? this.state.homeTeam.name : this.state.awayTeam.name,
+      homePlayerStats: homePlayerStatsArray,
+      awayPlayerStats: awayPlayerStatsArray,
+      mvp,
+    }
   }
 }

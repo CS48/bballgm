@@ -141,7 +141,6 @@ export const storage = {
         bytes[i] = binaryString.charCodeAt(i)
       }
       
-      console.log('Database loaded from localStorage')
       return bytes
     } catch (error) {
       console.error('Failed to load database:', error)

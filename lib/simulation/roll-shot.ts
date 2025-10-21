@@ -145,22 +145,55 @@ export function shouldAttemptThreePointer(
     defensiveBreakdown: number
   }
 ): boolean {
-  // Base three-point attempt rate from player attributes
-  const baseThreePointRate = shooter.three_point_shot / 100
+  // Base three-point attempt rate (reduced from /150 to /200)
+  const baseThreePointRate = shooter.three_point_shot / 200
   
-  // Bonus for high openness (easier to get open for three)
-  const opennessBonus = openness > 60 ? 0.2 : 0
+  // Bonus for high openness (reduced)
+  const opennessBonus = openness > 60 ? 0.08 : 0
   
-  // Bonus for early shot clock (more time to set up three)
-  const shotClockBonus = context.shotClock > 15 ? 0.1 : 0
+  // Removed shot clock bonus entirely
+  const shotClockBonus = 0
   
-  // Bonus for ball movement (passing creates open threes)
-  const passCountBonus = context.passCount > 2 ? 0.15 : 0
+  // Bonus for ball movement (reduced)
+  const passCountBonus = context.passCount > 2 ? 0.05 : 0
+  
+  // Position-based multiplier for three-point attempts
+  const positionMultiplier = getThreePointPositionMultiplier(shooter.position)
   
   // Calculate final three-point attempt probability
-  const threePointProb = Math.min(0.8, baseThreePointRate + opennessBonus + shotClockBonus + passCountBonus)
+  const threePointProb = Math.min(0.50, (baseThreePointRate + opennessBonus + shotClockBonus + passCountBonus) * positionMultiplier)
   
-  return Math.random() < threePointProb
+  const willAttemptThree = Math.random() < threePointProb
+
+  console.log('\n--- Shot Type Decision ---')
+  console.log(`Shooter: ${shooter.name} (${shooter.position})`)
+  console.log(`3PT Rating: ${shooter.three_point_shot}`)
+  console.log(`Openness: ${openness}`)
+  console.log(`Base Rate: ${baseThreePointRate.toFixed(3)}`)
+  console.log(`Openness Bonus: ${opennessBonus.toFixed(3)}`)
+  console.log(`Shot Clock Bonus: ${shotClockBonus.toFixed(3)}`)
+  console.log(`Pass Count Bonus: ${passCountBonus.toFixed(3)}`)
+  console.log(`Position Multiplier: ${positionMultiplier.toFixed(2)}`)
+  console.log(`Final 3PT Probability: ${(threePointProb * 100).toFixed(1)}%`)
+  console.log(`Result: ${willAttemptThree ? '3-POINTER' : '2-POINTER'}`)
+
+  return willAttemptThree
+}
+
+/**
+ * Get position-based three-point multiplier
+ * @param position Player position
+ * @returns Multiplier for three-point attempt rate
+ */
+function getThreePointPositionMultiplier(position: string): number {
+  switch (position) {
+    case 'PG': return 0.7   // Facilitators take fewer threes
+    case 'SG': return 1.3   // Primary three-point shooters
+    case 'SF': return 1.0   // Balanced
+    case 'PF': return 0.8   // More inside-focused
+    case 'C':  return 0.5   // Rarely shoot threes
+    default:   return 1.0
+  }
 }
 
 /**

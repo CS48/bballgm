@@ -40,11 +40,11 @@ export class PlayerGenerator {
    * @param isStarter Whether this player is a starter
    * @returns Generated player object
    */
-  public generatePlayer(teamId: number, position: PlayerPosition, age?: number, isStarter: number = 0): Omit<Player, 'player_id'> {
+  public generatePlayer(teamId: number, position: PlayerPosition, age?: number, isStarter: number = 0, talentTier?: { name: string; baseModifier: number }): Omit<Player, 'player_id'> {
     const playerAge = age || this.generateAge();
     const name = this.generateName();
     const physical = this.generatePhysicalAttributes(position);
-    const attributes = this.generateAttributes(position, playerAge, physical.height);
+    const attributes = this.generateAttributes(position, playerAge, physical.height, talentTier);
     const draftInfo = this.generateDraftInfo(playerAge);
     const initialStats = this.generateInitialStats();
 
@@ -80,9 +80,10 @@ export class PlayerGenerator {
   /**
    * Generate a complete roster for a team
    * @param teamId Team ID to assign players to
+   * @param teamQuality Team quality tier (championship, playoff, mid-tier, rebuilding, lottery)
    * @returns Array of generated players
    */
-  public generateRoster(teamId: number): Omit<Player, 'player_id'>[] {
+  public generateRoster(teamId: number, teamQuality: string = 'mid-tier'): Omit<Player, 'player_id'>[] {
     const roster: Omit<Player, 'player_id'>[] = [];
     
     // Position distribution for a 15-player roster
@@ -95,7 +96,9 @@ export class PlayerGenerator {
       
       // Generate 3 players per position
       for (let i = 0; i < playersPerPosition; i++) {
-        const player = this.generatePlayer(teamId, position, undefined, 0);
+        // Generate talent tier based on team quality
+        const talentTier = this.generateTalentTier(teamQuality);
+        const player = this.generatePlayer(teamId, position, undefined, 0, talentTier);
         positionPlayers.push(player);
       }
       
@@ -122,6 +125,50 @@ export class PlayerGenerator {
     const bench = roster.filter(p => !p.is_starter);
     
     return [...starters, ...bench];
+  }
+
+  /**
+   * Generate talent tier for a player based on team quality
+   * @param teamQuality Team quality tier (championship, playoff, mid-tier, rebuilding, lottery)
+   * @returns Talent tier object with name and base modifier
+   */
+  private generateTalentTier(teamQuality?: string): { name: string; baseModifier: number } {
+    // Get weighted random based on team quality
+    const random = Math.random();
+    
+    // Adjust probabilities based on team quality
+    let superstarThreshold = 0.05;
+    let starThreshold = 0.15;
+    let starterThreshold = 0.35;
+    let rotationThreshold = 0.65;
+    
+    if (teamQuality === 'championship') {
+      superstarThreshold = 0.15;  // 15% chance
+      starThreshold = 0.35;        // 20% chance
+      starterThreshold = 0.60;     // 25% chance
+    } else if (teamQuality === 'playoff') {
+      superstarThreshold = 0.03;   // 3% chance
+      starThreshold = 0.20;         // 17% chance
+      starterThreshold = 0.50;      // 30% chance
+    } else if (teamQuality === 'lottery') {
+      superstarThreshold = 0.00;   // 0% chance
+      starThreshold = 0.02;         // 2% chance
+      starterThreshold = 0.10;      // 8% chance
+    }
+    
+    if (random < superstarThreshold) {
+      return { name: 'superstar', baseModifier: 15 + Math.floor(Math.random() * 6) }; // 15-20
+    }
+    if (random < starThreshold) {
+      return { name: 'star', baseModifier: 10 + Math.floor(Math.random() * 4) }; // 10-13
+    }
+    if (random < starterThreshold) {
+      return { name: 'starter', baseModifier: 5 + Math.floor(Math.random() * 4) }; // 5-8
+    }
+    if (random < rotationThreshold) {
+      return { name: 'rotation', baseModifier: Math.floor(Math.random() * 4) }; // 0-3
+    }
+    return { name: 'bench', baseModifier: -5 + Math.floor(Math.random() * 4) }; // -5 to -2
   }
 
   /**
@@ -160,30 +207,30 @@ export class PlayerGenerator {
    * @returns Player age (19-40)
    */
   private generateAge(): number {
-    // Weighted distribution: more young players, fewer old players
+    // Weighted distribution: mirror NBA demographics
     const weights = [
-      { age: 19, weight: 5 },
-      { age: 20, weight: 8 },
-      { age: 21, weight: 10 },
-      { age: 22, weight: 12 },
-      { age: 23, weight: 15 },
-      { age: 24, weight: 15 },
-      { age: 25, weight: 12 },
-      { age: 26, weight: 10 },
-      { age: 27, weight: 8 },
-      { age: 28, weight: 5 },
-      { age: 29, weight: 3 },
-      { age: 30, weight: 2 },
-      { age: 31, weight: 1 },
-      { age: 32, weight: 1 },
-      { age: 33, weight: 1 },
-      { age: 34, weight: 1 },
-      { age: 35, weight: 1 },
-      { age: 36, weight: 1 },
-      { age: 37, weight: 1 },
-      { age: 38, weight: 1 },
-      { age: 39, weight: 1 },
-      { age: 40, weight: 1 }
+      { age: 19, weight: 3 },   // Rookies (rare)
+      { age: 20, weight: 5 },   // Young rookies
+      { age: 21, weight: 8 },   // 2nd year
+      { age: 22, weight: 12 },  // 3rd year
+      { age: 23, weight: 15 },  // Most common age
+      { age: 24, weight: 16 },  // Most minutes played
+      { age: 25, weight: 14 },  // Prime approaching
+      { age: 26, weight: 12 },  // Average NBA age
+      { age: 27, weight: 10 },  // Peak performance
+      { age: 28, weight: 8 },   // Late prime
+      { age: 29, weight: 6 },   // Veteran
+      { age: 30, weight: 4 },   // Veteran
+      { age: 31, weight: 3 },   // Veteran
+      { age: 32, weight: 2 },   // Veteran
+      { age: 33, weight: 1.5 }, // Late career
+      { age: 34, weight: 1 },   // Late career
+      { age: 35, weight: 0.5 }, // Rare veteran
+      { age: 36, weight: 0.3 }, // Very rare
+      { age: 37, weight: 0.2 }, // Very rare
+      { age: 38, weight: 0.1 }, // Extremely rare
+      { age: 39, weight: 0.1 }, // Extremely rare
+      { age: 40, weight: 0.1 }  // Extremely rare (LeBron territory)
     ];
 
     const totalWeight = weights.reduce((sum, w) => sum + w.weight, 0);
@@ -221,29 +268,31 @@ export class PlayerGenerator {
   }
 
   /**
-   * Generate player attributes based on position, age, and height
+   * Generate player attributes based on position, age, height, and talent tier
    * @param position Player position
    * @param age Player age
    * @param height Player height in inches
+   * @param talentTier Talent tier with base modifier
    * @returns Player attributes object
    */
-  private generateAttributes(position: PlayerPosition, age: number, height: number): PlayerAttributes {
+  private generateAttributes(position: PlayerPosition, age: number, height: number, talentTier?: { name: string; baseModifier: number }): PlayerAttributes {
     const baseAttributes = this.getPositionBaseAttributes(position);
     const ageModifier = this.getAgeModifier(age);
+    const talentModifier = talentTier?.baseModifier || 0;
     
     let attributes: PlayerAttributes = {
-      speed: this.applyModifier(baseAttributes.speed, ageModifier.speed),
-      ball_iq: this.applyModifier(baseAttributes.ball_iq, ageModifier.ball_iq),
-      inside_shot: this.applyModifier(baseAttributes.inside_shot, ageModifier.inside_shot),
-      three_point_shot: this.applyModifier(baseAttributes.three_point_shot, ageModifier.three_point_shot),
-      pass: this.applyModifier(baseAttributes.pass, ageModifier.pass),
-      skill_move: this.applyModifier(baseAttributes.skill_move, ageModifier.skill_move),
-      on_ball_defense: this.applyModifier(baseAttributes.on_ball_defense, ageModifier.on_ball_defense),
-      stamina: this.applyModifier(baseAttributes.stamina, ageModifier.stamina),
-      block: this.applyModifier(baseAttributes.block, ageModifier.block),
-      steal: this.applyModifier(baseAttributes.steal, ageModifier.steal),
-      offensive_rebound: this.applyModifier(baseAttributes.offensive_rebound, ageModifier.offensive_rebound),
-      defensive_rebound: this.applyModifier(baseAttributes.defensive_rebound, ageModifier.defensive_rebound)
+      speed: this.applyModifier(baseAttributes.speed + talentModifier, ageModifier.speed),
+      ball_iq: this.applyModifier(baseAttributes.ball_iq + talentModifier, ageModifier.ball_iq),
+      inside_shot: this.applyModifier(baseAttributes.inside_shot + talentModifier, ageModifier.inside_shot),
+      three_point_shot: this.applyModifier(baseAttributes.three_point_shot + talentModifier, ageModifier.three_point_shot),
+      pass: this.applyModifier(baseAttributes.pass + talentModifier, ageModifier.pass),
+      skill_move: this.applyModifier(baseAttributes.skill_move + talentModifier, ageModifier.skill_move),
+      on_ball_defense: this.applyModifier(baseAttributes.on_ball_defense + talentModifier, ageModifier.on_ball_defense),
+      stamina: this.applyModifier(baseAttributes.stamina + talentModifier, ageModifier.stamina),
+      block: this.applyModifier(baseAttributes.block + talentModifier, ageModifier.block),
+      steal: this.applyModifier(baseAttributes.steal + talentModifier, ageModifier.steal),
+      offensive_rebound: this.applyModifier(baseAttributes.offensive_rebound + talentModifier, ageModifier.offensive_rebound),
+      defensive_rebound: this.applyModifier(baseAttributes.defensive_rebound + talentModifier, ageModifier.defensive_rebound)
     };
 
     // Apply height-based ceilings
@@ -265,29 +314,29 @@ export class PlayerGenerator {
   private getPositionBaseAttributes(position: PlayerPosition): PlayerAttributes {
     const positionAttributes = {
       'PG': {
-        speed: 58, ball_iq: 62, inside_shot: 48, three_point_shot: 56,
-        pass: 64, skill_move: 60, on_ball_defense: 56, stamina: 58,
-        block: 40, steal: 60, offensive_rebound: 44, defensive_rebound: 48
+        speed: 76, ball_iq: 80, inside_shot: 66, three_point_shot: 74,
+        pass: 82, skill_move: 78, on_ball_defense: 74, stamina: 76,
+        block: 58, steal: 78, offensive_rebound: 62, defensive_rebound: 66
       },
       'SG': {
-        speed: 56, ball_iq: 60, inside_shot: 54, three_point_shot: 62,
-        pass: 56, skill_move: 58, on_ball_defense: 56, stamina: 56,
-        block: 44, steal: 58, offensive_rebound: 46, defensive_rebound: 50
+        speed: 74, ball_iq: 78, inside_shot: 72, three_point_shot: 80,
+        pass: 74, skill_move: 76, on_ball_defense: 74, stamina: 74,
+        block: 62, steal: 76, offensive_rebound: 64, defensive_rebound: 68
       },
       'SF': {
-        speed: 54, ball_iq: 58, inside_shot: 58, three_point_shot: 58,
-        pass: 54, skill_move: 56, on_ball_defense: 58, stamina: 56,
-        block: 52, steal: 56, offensive_rebound: 54, defensive_rebound: 58
+        speed: 72, ball_iq: 76, inside_shot: 76, three_point_shot: 76,
+        pass: 72, skill_move: 74, on_ball_defense: 76, stamina: 74,
+        block: 70, steal: 74, offensive_rebound: 72, defensive_rebound: 76
       },
       'PF': {
-        speed: 48, ball_iq: 56, inside_shot: 62, three_point_shot: 50,
-        pass: 50, skill_move: 52, on_ball_defense: 58, stamina: 54,
-        block: 60, steal: 52, offensive_rebound: 62, defensive_rebound: 64
+        speed: 66, ball_iq: 74, inside_shot: 80, three_point_shot: 68,
+        pass: 68, skill_move: 70, on_ball_defense: 76, stamina: 72,
+        block: 78, steal: 70, offensive_rebound: 80, defensive_rebound: 82
       },
       'C': {
-        speed: 44, ball_iq: 54, inside_shot: 64, three_point_shot: 44,
-        pass: 48, skill_move: 48, on_ball_defense: 60, stamina: 52,
-        block: 64, steal: 48, offensive_rebound: 64, defensive_rebound: 66
+        speed: 62, ball_iq: 72, inside_shot: 82, three_point_shot: 62,
+        pass: 66, skill_move: 66, on_ball_defense: 78, stamina: 70,
+        block: 82, steal: 66, offensive_rebound: 82, defensive_rebound: 84
       }
     };
 
@@ -430,11 +479,8 @@ export class PlayerGenerator {
     
     const rawOverall = weightedSum / totalWeight;
     
-    // Apply slight normal variation to overall rating for bell curve distribution
-    const u1 = Math.random();
-    const u2 = Math.random();
-    const standardNormal = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-    const finalOverall = Math.round(rawOverall + standardNormal * 1.5);
+    // Round the weighted average to get final overall
+    const finalOverall = Math.round(rawOverall);
     
     // Clamp to 50-99 range (100 is impossible)
     return Math.max(50, Math.min(99, finalOverall));

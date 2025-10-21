@@ -293,6 +293,8 @@ export interface Team {
   city: string;
   /** Team name */
   name: string;
+  /** Team abbreviation (3 letters) */
+  abbreviation: string;
   /** Conference (East or West) */
   conference: Conference;
   /** Current season wins */

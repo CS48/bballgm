@@ -65,7 +65,6 @@ export class DatabaseService {
       await this.createTables();
 
       this.isInitialized = true;
-      console.log('Database initialized successfully');
     } catch (error) {
       console.error('Failed to initialize database:', error);
       throw new Error('Database initialization failed');
@@ -139,6 +138,7 @@ export class DatabaseService {
           team_id INTEGER PRIMARY KEY AUTOINCREMENT,
           city TEXT NOT NULL,
           name TEXT NOT NULL,
+          abbreviation TEXT NOT NULL, -- 3-letter team abbreviation
           conference TEXT NOT NULL, -- 'East' or 'West'
           
           -- Current Season Record
@@ -188,7 +188,6 @@ export class DatabaseService {
       // Create indexes for performance optimization
       this.createIndexes();
 
-      console.log('Database tables created successfully');
     } catch (error) {
       console.error('Failed to create database tables:', error);
       throw error;
@@ -222,7 +221,6 @@ export class DatabaseService {
       this.db.exec('CREATE INDEX IF NOT EXISTS idx_calendar_season ON season_calendar(season);');
       this.db.exec('CREATE INDEX IF NOT EXISTS idx_calendar_game_day ON season_calendar(season, game_day);');
 
-      console.log('Database indexes created successfully');
     } catch (error) {
       console.error('Failed to create database indexes:', error);
       throw error;
@@ -381,7 +379,6 @@ export class DatabaseService {
         }
       }
       
-      console.log('Database imported successfully');
     } catch (error) {
       console.error('Failed to import database:', error);
       throw error;
@@ -417,7 +414,6 @@ export class DatabaseService {
       this.db = new SQL.Database(data)
       this.isInitialized = true
       
-      console.log('Database imported successfully')
       return true
     } catch (error) {
       console.error('Failed to import database:', error)
@@ -461,7 +457,6 @@ export class DatabaseService {
       this.db.close();
       this.db = null;
       this.isInitialized = false;
-      console.log('Database connection closed');
     }
   }
 }

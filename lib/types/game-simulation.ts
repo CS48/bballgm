@@ -47,6 +47,7 @@ export interface GameSimulationTeam {
   id: string
   name: string
   city: string
+  abbreviation: string
   players: GameSimulationPlayer[]
   record: { wins: number; losses: number }
 }

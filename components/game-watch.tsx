@@ -26,11 +26,18 @@ export function GameWatch({ homeTeam, awayTeam, onGameComplete, onNavigateAway }
   // Update game state periodically
   useEffect(() => {
     const interval = setInterval(() => {
-      setGameState(gameEngine.getState())
+      const newState = gameEngine.getState()
+      setGameState(newState)
+      
+      // Check if game is complete and trigger callback
+      if (newState.isComplete && !gameState.isComplete) {
+        const gameResult = gameEngine.buildGameResult()
+        onGameComplete(gameResult)
+      }
     }, 100)
 
     return () => clearInterval(interval)
-  }, [gameEngine])
+  }, [gameEngine, gameState.isComplete, onGameComplete])
 
   // Auto-scroll event feed to bottom
   useEffect(() => {
@@ -159,7 +166,7 @@ export function GameWatch({ homeTeam, awayTeam, onGameComplete, onNavigateAway }
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation Header */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="border-b border-black bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 items-center">
           <div className="mr-4 flex">
             <Button variant="ghost" onClick={handleNavigationAttempt}>
@@ -175,7 +182,7 @@ export function GameWatch({ homeTeam, awayTeam, onGameComplete, onNavigateAway }
       </div>
 
       {/* Flexbox 1: Scoreboard & Controls */}
-      <div className="w-full px-[10vw] py-3 border-b">
+      <div className="w-full px-[10vw] py-3 border-b border-black">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           {/* Sub-flexbox 1: Scoreboard */}
           <div className="flex items-center justify-center lg:justify-start gap-8">
@@ -229,7 +236,7 @@ export function GameWatch({ homeTeam, awayTeam, onGameComplete, onNavigateAway }
       {/* Flexbox 2: Stats & Event Log */}
       <div className="flex flex-col lg:flex-row h-[calc(100vh-140px)]">
         {/* Sub-flexbox 1: Team Stats */}
-        <div className="flex-1 lg:w-[66.67%] p-4 overflow-hidden">
+        <div className="flex-[2] min-w-[50vw] p-4 overflow-hidden">
           <Tabs defaultValue="away" className="h-full flex flex-col">
             <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="away">Away stats</TabsTrigger>
@@ -251,7 +258,7 @@ export function GameWatch({ homeTeam, awayTeam, onGameComplete, onNavigateAway }
         </div>
 
         {/* Sub-flexbox 2: Event Log */}
-        <div className="flex-1 lg:w-[33.33%] p-4 border-l">
+        <div className="flex-[1] p-4 border-l border-black">
           <div className="h-full flex flex-col">
             <h3 className="text-lg font-semibold mb-4 text-center text-muted-foreground">Event feed</h3>
             <div className="flex-1 overflow-y-auto scroll-smooth" ref={eventFeedRef}>
@@ -261,16 +268,25 @@ export function GameWatch({ homeTeam, awayTeam, onGameComplete, onNavigateAway }
                     Game will start when you click Play
                   </div>
                 ) : (
-                  gameState.events.map((event, index) => (
-                    <div key={event.id} className="flex items-start space-x-2 text-sm">
-                      <div className="text-muted-foreground text-xs w-16 flex-shrink-0">
-                        {event.time}
+                  gameState.events.map((event, index) => {
+                    // Determine which team took the action
+                    const isHomeTeam = event.teamId === homeTeam.id
+                    const teamAbbrev = isHomeTeam ? homeTeam.abbreviation : awayTeam.abbreviation
+                    
+                    return (
+                      <div key={event.id} className="flex items-start space-x-2 text-sm font-mono">
+                        <div className="text-muted-foreground font-semibold text-xs w-8 flex-shrink-0">
+                          {teamAbbrev}
+                        </div>
+                        <div className="text-muted-foreground text-xs w-12 flex-shrink-0">
+                          {event.time}
+                        </div>
+                        <div className="flex-1">
+                          {event.description}
+                        </div>
                       </div>
-                      <div className={`flex-1 ${getEventColorClass(event.rollDetails)}`}>
-                        {event.description}
-                      </div>
-                    </div>
-                  ))
+                    )
+                  })
                 )}
               </div>
             </div>

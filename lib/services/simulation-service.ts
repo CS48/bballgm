@@ -789,19 +789,29 @@ export class SimulationService {
   /**
    * Simulate multiple games in sequence
    * @param games Array of game matchups
-   * @returns Promise that resolves when all games are simulated
+   * @returns Promise that resolves with simulation results
    */
-  public async simulateMultipleGames(games: Array<{ homeTeamId: number; awayTeamId: number }>): Promise<void> {
+  public async simulateMultipleGames(
+    games: Array<{ homeTeamId: number; awayTeamId: number }>
+  ): Promise<Array<{ homeTeamId: number; awayTeamId: number; homeScore: number; awayScore: number }>> {
     try {
       console.log(`Simulating ${games.length} games...`);
-
+      
+      const results = []
       for (const game of games) {
-        await this.simulateGame(game.homeTeamId, game.awayTeamId);
+        const result = await this.simulateGame(game.homeTeamId, game.awayTeamId);
+        results.push({
+          homeTeamId: game.homeTeamId,
+          awayTeamId: game.awayTeamId,
+          homeScore: result.home_score,
+          awayScore: result.away_score
+        })
         // Add small delay to prevent overwhelming the system
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
       console.log('All games simulated successfully');
+      return results
     } catch (error) {
       console.error('Failed to simulate multiple games:', error);
       throw new Error('Multiple game simulation failed');
