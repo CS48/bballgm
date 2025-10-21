@@ -78,7 +78,7 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
     if (currentGameDay && currentGameDay.games && currentGameDay.games.length > 0) {
       // Use real games from today's schedule
       
-      return currentGameDay.games.map(game => {
+      const allMatchups = currentGameDay.games.map(game => {
         const homeTeam = teams.find(t => t.team_id === game.home_team_id)
         const awayTeam = teams.find(t => t.team_id === game.away_team_id)
         
@@ -95,6 +95,18 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
           completed: game.completed
         }
       }).filter(Boolean)
+      
+      // Prioritize user's team game - put it first if they have a game today
+      const userTeamGame = allMatchups.find(matchup => 
+        matchup.awayTeamId === userTeam.team_id || matchup.homeTeamId === userTeam.team_id
+      )
+      
+      if (userTeamGame) {
+        const otherGames = allMatchups.filter(matchup => matchup !== userTeamGame)
+        return [userTeamGame, ...otherGames]
+      }
+      
+      return allMatchups
     } else {
       // Fallback to sample matchups if no games scheduled
       const otherTeams = teams.filter(team => team.team_id !== userTeam.team_id)
@@ -373,7 +385,7 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
         </div>
 
         {/* CSS Grid Layout */}
-        <div className="grid grid-cols-3 grid-rows-6 gap-4" style={{ 
+        <div className="grid grid-cols-3 grid-rows-6 gap-8" style={{ 
           height: 'calc(100vh - 3vh - 3vh - 60px)', // Full viewport minus top/bottom padding minus header height
           minHeight: '600px',
           maxHeight: '900px'
@@ -580,20 +592,20 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                 <Button variant="outline" size="sm" onClick={nextPage}>›</Button>
               </div>
             </div>
-            <div className="flex gap-4 overflow-x-auto">
+            <div className="flex gap-8 overflow-x-auto">
               {currentPageMatchups.map((matchup, index) => {
                 const globalIndex = currentPage * matchupsPerPage + index
                 return (
                   <div
                     key={globalIndex}
-                    className={`flex-shrink-0 p-3 rounded cursor-pointer transition-colors w-[89px] ${
-                      globalIndex === selectedMatchup ? 'border border-primary bg-primary/5' : 'border-0'
+                    className={`flex-shrink-0 p-2 rounded cursor-pointer transition-colors w-[89px] ${
+                      globalIndex === selectedMatchup ? 'border-2 border-black bg-transparent' : 'border-0'
                     }`}
                     onClick={() => {
                       setSelectedMatchup(globalIndex)
                     }}
                   >
-                    <div className="text-sm space-y-2">
+                    <div className="text-sm space-y-1">
                       {(() => {
                         const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
                         const gameResult = gameResults[gameKey]

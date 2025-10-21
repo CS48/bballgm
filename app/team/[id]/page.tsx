@@ -308,7 +308,7 @@ export default function TeamPage({ params }: TeamPageProps) {
 
         {/* Tab Navigation */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-4" style={{ width: '320px' }}>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="roster">Roster</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
@@ -319,11 +319,11 @@ export default function TeamPage({ params }: TeamPageProps) {
           <TabsContent value="overview" className="mt-6">
             <div className="flex flex-col gap-6">
               {/* Team Season Stats Card - Full Width Row */}
-              <Card className="hub-card hub-card--filled">
-                <CardHeader>
+              <Card className="hub-card" style={{ backgroundColor: 'transparent', border: 'none', boxShadow: 'none' }}>
+                <CardHeader style={{ padding: '0' }}>
                   <CardTitle>Team Season Stats</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent style={{ padding: '0' }}>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
