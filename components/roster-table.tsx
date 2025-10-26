@@ -164,14 +164,14 @@ export function RosterTable({ players }: RosterTableProps) {
             {sortedPlayers.map((player) => (
               <tr key={player.player_id} className="border-b border-gray-200">
                 <td className="p-2">
-                  <Checkbox />
+                  <Checkbox className="border-black data-[state=checked]:bg-black data-[state=checked]:border-black" />
                 </td>
                 <td className="p-2">
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-medium">{player.name}</p>
                       {player.is_starter === 1 && (
-                        <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200">
+                        <Badge variant="outline" className="text-xs bg-gray-50 text-black border-gray-300">
                           Starter
                         </Badge>
                       )}

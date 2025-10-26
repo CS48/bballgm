@@ -118,8 +118,8 @@ export function GameStatsTable({ players }: GameStatsTableProps) {
                     </p>
                   </div>
                 </td>
-                <td className="p-2">{formatStat(player.current_stats?.minutes)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.points)}</td>
+                <td className="p-2">{formatStat(player.current_stats?.minutes, 0)}</td>
+                <td className="p-2">{formatStat(player.current_stats?.points, 0)}</td>
                 <td className="p-2">{formatStat(player.current_stats?.fg_made, 0)}</td>
                 <td className="p-2">{formatStat(player.current_stats?.fg_attempted, 0)}</td>
                 <td className="p-2">{formatStat(player.current_stats?.fg_pct)}</td>

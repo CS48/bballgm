@@ -8,7 +8,6 @@ import { useLeague, useStandings } from "@/lib/context/league-context"
 import { leagueService } from "@/lib/services/league-service"
 import { playerService } from "@/lib/services/player-service"
 import { RosterTable } from "@/components/roster-table"
-import { PageNavigation } from "@/components/page-navigation"
 import type { Team } from "@/lib/types/database"
 
 interface TeamPageProps {
@@ -159,13 +158,10 @@ export default function TeamPage({ params }: TeamPageProps) {
     : []
 
   return (
-    <div className="min-h-screen bg-background" style={{ paddingLeft: '6vw', paddingRight: '6vw', paddingTop: '3vh', paddingBottom: '3vh' }}>
+    <div className="min-h-screen bg-background" style={{ paddingLeft: '3vw', paddingRight: '3vw', paddingTop: '3vh', paddingBottom: '3vh' }}>
       <div className="max-w-7xl mx-auto">
-        {/* Header Navigation */}
-        <PageNavigation userTeam={team} currentPage="team" />
-
         {/* Team Info and Ratings Section */}
-        <div className="flex gap-6 mb-8">
+        <div className="flex gap-6 mb-4">
           {/* Team Info Card */}
           <div className="flex-1 team-info-card hub-card--transparent" style={{ gap: '0', padding: '0.5rem' }}>
             <p className="team-city" style={{ fontSize: '1.5rem', margin: '0', color: '#000000' }}>{team.city}</p>
@@ -319,9 +315,9 @@ export default function TeamPage({ params }: TeamPageProps) {
           <TabsContent value="overview" className="mt-6">
             <div className="flex flex-col gap-6">
               {/* Team Season Stats Card - Full Width Row */}
-              <Card className="hub-card" style={{ backgroundColor: 'transparent', border: 'none', boxShadow: 'none' }}>
+              <Card className="hub-card" style={{ backgroundColor: 'transparent', border: 'none', boxShadow: 'none', padding: '0' }}>
                 <CardHeader style={{ padding: '0' }}>
-                  <CardTitle>Team Season Stats</CardTitle>
+                  <CardTitle>Team Season Averages</CardTitle>
                 </CardHeader>
                 <CardContent style={{ padding: '0' }}>
                   <div className="overflow-x-auto">
@@ -347,34 +343,30 @@ export default function TeamPage({ params }: TeamPageProps) {
                           <th className="text-left p-2">STL</th>
                           <th className="text-left p-2">BLK</th>
                           <th className="text-left p-2">PF</th>
-                          <th className="text-left p-2">DD</th>
-                          <th className="text-left p-2">TD</th>
                           <th className="text-left p-2">+/-</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr>
-                          <td className="p-2">{teamSeasonStats?.games || 0}</td>
+                          <td className="p-2">{(teamSeasonStats?.games || 0).toFixed(1)}</td>
                           <td className="p-2">{teamSeasonStats?.ppg?.toFixed(1) || '0.0'}</td>
-                          <td className="p-2">{teamSeasonStats?.fg_made || 0}</td>
-                          <td className="p-2">{teamSeasonStats?.fg_attempted || 0}</td>
+                          <td className="p-2">{(teamSeasonStats?.fg_made || 0).toFixed(1)}</td>
+                          <td className="p-2">{(teamSeasonStats?.fg_attempted || 0).toFixed(1)}</td>
                           <td className="p-2">{teamSeasonStats?.fg_pct ? (teamSeasonStats.fg_pct * 100).toFixed(1) + '%' : '0.0%'}</td>
-                          <td className="p-2">{teamSeasonStats?.three_made || 0}</td>
-                          <td className="p-2">{teamSeasonStats?.three_attempted || 0}</td>
+                          <td className="p-2">{(teamSeasonStats?.three_made || 0).toFixed(1)}</td>
+                          <td className="p-2">{(teamSeasonStats?.three_attempted || 0).toFixed(1)}</td>
                           <td className="p-2">{teamSeasonStats?.three_pct ? (teamSeasonStats.three_pct * 100).toFixed(1) + '%' : '0.0%'}</td>
-                          <td className="p-2">{teamSeasonStats?.ft_made || 0}</td>
-                          <td className="p-2">{teamSeasonStats?.ft_attempted || 0}</td>
+                          <td className="p-2">{(teamSeasonStats?.ft_made || 0).toFixed(1)}</td>
+                          <td className="p-2">{(teamSeasonStats?.ft_attempted || 0).toFixed(1)}</td>
                           <td className="p-2">{teamSeasonStats?.ft_pct ? (teamSeasonStats.ft_pct * 100).toFixed(1) + '%' : '0.0%'}</td>
-                          <td className="p-2">{teamSeasonStats?.oreb || 0}</td>
-                          <td className="p-2">{teamSeasonStats?.dreb || 0}</td>
+                          <td className="p-2">{(teamSeasonStats?.oreb || 0).toFixed(1)}</td>
+                          <td className="p-2">{(teamSeasonStats?.dreb || 0).toFixed(1)}</td>
                           <td className="p-2">{teamSeasonStats?.rpg?.toFixed(1) || '0.0'}</td>
                           <td className="p-2">{teamSeasonStats?.apg?.toFixed(1) || '0.0'}</td>
                           <td className="p-2">{teamSeasonStats?.tpg?.toFixed(1) || '0.0'}</td>
                           <td className="p-2">{teamSeasonStats?.spg?.toFixed(1) || '0.0'}</td>
                           <td className="p-2">{teamSeasonStats?.bpg?.toFixed(1) || '0.0'}</td>
-                          <td className="p-2">{teamSeasonStats?.pf || 0}</td>
-                          <td className="p-2">{teamSeasonStats?.dd || 0}</td>
-                          <td className="p-2">{teamSeasonStats?.td || 0}</td>
+                          <td className="p-2">{(teamSeasonStats?.pf || 0).toFixed(1)}</td>
                           <td className="p-2">{teamSeasonStats?.plus_minus?.toFixed(1) || '0.0'}</td>
                         </tr>
                       </tbody>
@@ -383,71 +375,55 @@ export default function TeamPage({ params }: TeamPageProps) {
                 </CardContent>
               </Card>
 
-              {/* Second Row: Three Cards */}
-              <div className="grid grid-cols-3 gap-6">
-                {/* Starters Card */}
-                <Card className="hub-card hub-card--filled">
-                <CardHeader>
+              {/* Starters Header */}
+              <Card className="hub-card" style={{ backgroundColor: 'transparent', border: 'none', boxShadow: 'none', padding: '0' }}>
+                <CardHeader style={{ padding: '0' }}>
                   <CardTitle>Starters</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="starters-table-container">
-                    <table className="starters-table">
-                      <thead>
-                        <tr>
-                          <th className="starters-table-header" style={{ fontSize: '0.75rem' }}>Name</th>
-                          <th className="w-auto text-right pr-2" style={{ fontSize: '0.75rem' }}>PPG</th>
-                          <th className="w-auto text-right pr-2" style={{ fontSize: '0.75rem' }}>APG</th>
-                          <th className="w-auto text-right pr-2" style={{ fontSize: '0.75rem' }}>RPG</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {starters.map((player: any, index: number) => (
-                          <tr key={player.player_id} className="border-b border-gray-200">
-                            <td className="player-name-cell">
-                              <p className="font-medium">{player.name}</p>
-                              <div className="text-sm text-muted-foreground">
-                                <span>{player.position}</span>
-                                <span> | </span>
-                                <span>{player.overall_rating} ovr</span>
-                              </div>
-                            </td>
-                            <td className="starters-table-cell">
-                              {player.current_stats?.ppg?.toFixed(1) || '0.0'}
-                            </td>
-                            <td className="starters-table-cell">
-                              {player.current_stats?.apg?.toFixed(1) || '0.0'}
-                            </td>
-                            <td className="starters-table-cell">
-                              {player.current_stats?.rpg?.toFixed(1) || '0.0'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
               </Card>
 
-                {/* Personnel Card */}
-                <Card className="hub-card hub-card--filled">
-                  <CardHeader>
-                    <CardTitle>Personnel</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">Feature not available</p>
-                  </CardContent>
-                </Card>
-
-                {/* Trade Block Card */}
-                <Card className="hub-card hub-card--filled">
-                  <CardHeader>
-                    <CardTitle>Trade Block</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">Feature not available</p>
-                  </CardContent>
-                </Card>
+              {/* Five Starter Boxes */}
+              <div className="flex gap-4">
+                {starters.map((player: any, index: number) => (
+                  <Card key={player.player_id} className="flex-1 bg-transparent rounded-lg">
+                    <CardContent className="p-4 text-center">
+                      {/* Player Avatar */}
+                      <div className="mb-3">
+                        <img 
+                          src="/placeholder-user.jpg" 
+                          alt={player.name}
+                          className="w-16 h-16 rounded-full mx-auto object-cover border-2 border-gray-300"
+                        />
+                      </div>
+                      
+                      {/* Player Name */}
+                      <h3 className="font-semibold text-lg mb-1">{player.name}</h3>
+                      
+                      {/* Position and Rating */}
+                      <div className="text-sm text-muted-foreground mb-3">
+                        <span className="font-medium">{player.position}</span>
+                        <span> | </span>
+                        <span>{player.overall_rating} ovr</span>
+                      </div>
+                      
+                      {/* Key Stats */}
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-center" style={{ gap: '3rem' }}>
+                          <span className="text-muted-foreground">PPG:</span>
+                          <span className="font-medium">{player.current_stats?.ppg?.toFixed(1) || '0.0'}</span>
+                        </div>
+                        <div className="flex justify-center" style={{ gap: '3rem' }}>
+                          <span className="text-muted-foreground">APG:</span>
+                          <span className="font-medium">{player.current_stats?.apg?.toFixed(1) || '0.0'}</span>
+                        </div>
+                        <div className="flex justify-center" style={{ gap: '3rem' }}>
+                          <span className="text-muted-foreground">RPG:</span>
+                          <span className="font-medium">{player.current_stats?.rpg?.toFixed(1) || '0.0'}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </div>
           </TabsContent>

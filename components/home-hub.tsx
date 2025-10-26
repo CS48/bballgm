@@ -362,28 +362,8 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
   }
 
   return (
-    <div className="min-h-screen bg-background" style={{ paddingLeft: '6vw', paddingRight: '6vw', paddingTop: '3vh', paddingBottom: '3vh' }}>
+    <div className="min-h-screen bg-background" style={{ paddingLeft: '3vw', paddingRight: '3vw', paddingTop: '3vh', paddingBottom: '3vh' }}>
       <div className="max-w-7xl mx-auto">
-        {/* Header Navigation */}
-        <div className="flex items-center justify-between mb-6">
-          <nav className="flex items-center gap-6">
-            <span className="text-foreground font-medium border-b-2 border-primary pb-1">Home</span>
-            <Link 
-              href={`/team/${userTeam.team_id}`}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              My Team
-            </Link>
-            <span className="text-muted-foreground/50">Schedule</span>
-            <Link
-              href="/settings"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Settings
-            </Link>
-          </nav>
-        </div>
-
         {/* CSS Grid Layout */}
         <div className="grid grid-cols-3 grid-rows-6 gap-8" style={{ 
           height: 'calc(100vh - 3vh - 3vh - 60px)', // Full viewport minus top/bottom padding minus header height

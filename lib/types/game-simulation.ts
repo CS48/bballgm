@@ -102,6 +102,11 @@ export interface PlayerGameStats extends GameSimulationPlayer {
   fieldGoalsAttempted: number
   threePointersMade: number
   threePointersAttempted: number
+  turnovers: number
+  fouls: number
+  offensiveRebound: number
+  defensiveRebound: number
+  minutes: number
 }
 
 /**
@@ -148,6 +153,9 @@ export interface WatchGameState {
   animationSpeed: AnimationSpeed
   playerStats: Map<string, PlayerGameStats>
   currentEventIndex: number
+  playerMinutes: Map<string, number>
+  previousBallHandler: string | undefined
+  lastActionWasPass: boolean
 }
 
 /**

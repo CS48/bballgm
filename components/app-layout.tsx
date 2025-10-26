@@ -1,18 +1,28 @@
 "use client"
 
-import { MainMenu } from "@/components/main-menu"
+import { useState, useEffect } from "react"
+import { useRouter, usePathname } from "next/navigation"
+import { AppSidebar } from "@/components/app-sidebar"
 import { useLeague } from "@/lib/context/league-context"
 import { storage } from "@/lib/utils/storage"
-import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
 import type { Team } from "@/lib/types/database"
 
-export default function HomePage() {
+interface AppLayoutProps {
+  children: React.ReactNode
+}
+
+export function AppLayout({ children }: AppLayoutProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const { teams, isLoading, isInitialized } = useLeague()
   const [userTeam, setUserTeam] = useState<Team | null>(null)
 
+  // Skip sidebar for onboarding and landing pages
+  const skipSidebar = pathname === '/' || pathname === '/onboarding'
+
   useEffect(() => {
+    if (skipSidebar) return
+
     // Wait for league to initialize
     if (isLoading || !isInitialized) return
 
@@ -35,15 +45,10 @@ export default function HomePage() {
     }
 
     setUserTeam(team)
-  }, [isLoading, isInitialized, teams, router])
+  }, [isLoading, isInitialized, teams, router, skipSidebar])
 
-  const handleResetGame = () => {
-    storage.clearSession()
-    router.push('/onboarding')
-  }
-
-  // Show loading while team loads
-  if (!userTeam) {
+  // Show loading while team loads (only for pages that need sidebar)
+  if (!skipSidebar && !userTeam) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -54,5 +59,18 @@ export default function HomePage() {
     )
   }
 
-  return <MainMenu userTeam={userTeam} onResetGame={handleResetGame} />
+  if (skipSidebar) {
+    return <>{children}</>
+  }
+
+  return (
+    <>
+      <AppSidebar userTeam={userTeam!} />
+      <div className="flex flex-1 flex-col">
+        <main className="flex-1 p-4">
+          {children}
+        </main>
+      </div>
+    </>
+  )
 }

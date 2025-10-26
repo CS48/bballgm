@@ -114,7 +114,7 @@ export function GameWatch({ homeTeam, awayTeam, onGameComplete, onNavigateAway }
         overall_rating: player.overall,
         current_stats: stats ? {
           games: 1,
-          minutes: 0, // Will be calculated based on game time
+          minutes: stats.minutes,
           points: stats.points,
           fg_made: stats.fieldGoalsMade,
           fg_attempted: stats.fieldGoalsAttempted,

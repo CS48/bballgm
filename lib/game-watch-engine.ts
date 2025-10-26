@@ -34,6 +34,7 @@ export class WatchGameEngine {
    */
   private initializeState(homeTeam: GameSimulationTeam, awayTeam: GameSimulationTeam): WatchGameState {
     const playerStats = new Map<string, PlayerGameStats>()
+    const playerMinutes = new Map<string, number>()
     
     // Initialize player stats for both teams
     const allPlayers = [...homeTeam.players, ...awayTeam.players]
@@ -51,7 +52,11 @@ export class WatchGameEngine {
         threePointersAttempted: 0,
         turnovers: 0,
         fouls: 0,
+        offensiveRebound: 0,
+        defensiveRebound: 0,
+        minutes: 0,
       })
+      playerMinutes.set(player.id, 0)
     })
 
     return {
@@ -69,7 +74,10 @@ export class WatchGameEngine {
       isComplete: false,
       animationSpeed: 1,
       playerStats,
-      currentEventIndex: 0
+      currentEventIndex: 0,
+      playerMinutes,
+      previousBallHandler: undefined,
+      lastActionWasPass: false
     }
   }
 
@@ -239,7 +247,10 @@ export class WatchGameEngine {
       this.state.currentEventIndex++
 
       // Update player stats
-      this.updatePlayerStats(possessionEvent, offensiveTeam)
+      this.updatePlayerStats(possessionEvent, offensiveTeam, defensiveTeam)
+
+      // Update minutes for active players
+      this.updatePlayerMinutes(possessionEvent)
 
       // Wait for animation delay
       await this.waitForEventDelay()
@@ -314,27 +325,121 @@ export class WatchGameEngine {
   /**
    * Update player stats based on possession event
    */
-  private updatePlayerStats(possessionEvent: any, offensiveTeam: GameSimulationTeam): void {
+  private updatePlayerStats(possessionEvent: any, offensiveTeam: GameSimulationTeam, defensiveTeam: GameSimulationTeam): void {
     const playerId = this.findPlayerIdByName(possessionEvent.ballHandler, offensiveTeam)
     if (!playerId) return
 
     const playerStats = this.state.playerStats.get(playerId)
     if (!playerStats) return
 
-    if (possessionEvent.rollResult?.outcome === 'success' && possessionEvent.rollResult.points) {
-      playerStats.points += possessionEvent.rollResult.points
+    const rollResult = possessionEvent.rollResult
+
+    // Handle shot attempts and makes
+    if (rollResult?.outcome === 'success' && rollResult.points) {
+      playerStats.points += rollResult.points
       playerStats.fieldGoalsMade++
       playerStats.fieldGoalsAttempted++
-      if (possessionEvent.rollResult.isThreePointer) {
+      if (rollResult.isThreePointer) {
         playerStats.threePointersMade++
         playerStats.threePointersAttempted++
       }
-    } else if (possessionEvent.rollResult?.outcome === 'failure') {
+
+      // Check for assist - only if last action was a pass and we have a previous ball handler
+      if (this.state.lastActionWasPass && this.state.previousBallHandler && this.state.previousBallHandler !== playerId) {
+        const passerStats = this.state.playerStats.get(this.state.previousBallHandler)
+        if (passerStats) {
+          passerStats.assists++
+        }
+      }
+
+      // Reset assist tracking after successful shot
+      this.state.lastActionWasPass = false
+      this.state.previousBallHandler = undefined
+
+    } else if (rollResult?.outcome === 'failure') {
       playerStats.fieldGoalsAttempted++
-      if (possessionEvent.rollResult.isThreePointer) {
+      if (rollResult.isThreePointer) {
         playerStats.threePointersAttempted++
       }
     }
+
+    // Handle rebounds
+    if (rollResult?.outcome === 'offensive' || rollResult?.outcome === 'defensive') {
+      const rebounderName = rollResult.rebounder
+      const rebounderId = this.findPlayerIdByName(rebounderName, offensiveTeam) || 
+                         this.findPlayerIdByName(rebounderName, defensiveTeam)
+      
+      if (rebounderId) {
+        const rebounderStats = this.state.playerStats.get(rebounderId)
+        if (rebounderStats) {
+          if (rollResult.outcome === 'offensive') {
+            rebounderStats.offensiveRebound++
+          } else {
+            rebounderStats.defensiveRebound++
+          }
+          rebounderStats.rebounds = rebounderStats.offensiveRebound + rebounderStats.defensiveRebound
+        }
+      }
+    }
+
+    // Handle turnovers and steals
+    if (rollResult?.outcome === 'intercepted' || rollResult?.outcome === 'steal') {
+      // Turnover for ball handler
+      playerStats.turnovers++
+
+      // Steal for defensive player
+      // For simplicity, we'll credit the steal to a random defensive player
+      // In a more sophisticated system, we'd track which specific defender made the steal
+      const defensivePlayers = defensiveTeam.players.filter(p => p.is_starter === 1)
+      if (defensivePlayers.length > 0) {
+        const randomDefender = defensivePlayers[Math.floor(Math.random() * defensivePlayers.length)]
+        const defenderStats = this.state.playerStats.get(randomDefender.id)
+        if (defenderStats) {
+          defenderStats.steals++
+        }
+      }
+
+      // Reset assist tracking on turnover
+      this.state.lastActionWasPass = false
+      this.state.previousBallHandler = undefined
+    }
+
+    // Handle passes
+    if (rollResult?.outcome === 'complete') {
+      // Track previous ball handler for assist potential
+      this.state.previousBallHandler = playerId
+      this.state.lastActionWasPass = true
+    }
+
+    // Handle skill moves - reset assist tracking
+    if (possessionEvent.decision?.action === 'skill_move') {
+      this.state.lastActionWasPass = false
+    }
+  }
+
+  /**
+   * Update player minutes based on possession event
+   */
+  private updatePlayerMinutes(possessionEvent: any): void {
+    // Calculate time elapsed for this event (simplified - assume 3 seconds per event)
+    const timeElapsed = 3
+
+    // Get active players (starters for both teams)
+    const homeStarters = this.state.homeTeam.players.filter(p => p.is_starter === 1)
+    const awayStarters = this.state.awayTeam.players.filter(p => p.is_starter === 1)
+    const activePlayers = [...homeStarters, ...awayStarters]
+
+    // Update minutes for all active players
+    activePlayers.forEach(player => {
+      const currentMinutes = this.state.playerMinutes.get(player.id) || 0
+      this.state.playerMinutes.set(player.id, currentMinutes + timeElapsed)
+
+      // Update the player stats minutes as well
+      const playerStats = this.state.playerStats.get(player.id)
+      if (playerStats) {
+        playerStats.minutes = Math.round((currentMinutes + timeElapsed) / 60) // Convert to minutes
+      }
+    })
   }
 
   /**

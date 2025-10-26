@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { SettingsMenu } from "@/components/settings-menu"
-import { PageNavigation } from "@/components/page-navigation"
 import { useLeague } from "@/lib/context/league-context"
 import { storage } from "@/lib/utils/storage"
 import type { Team } from "@/lib/types/database"
@@ -57,18 +56,11 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background" style={{ paddingLeft: '6vw', paddingRight: '6vw', paddingTop: '3vh', paddingBottom: '3vh' }}>
-      <div className="max-w-7xl mx-auto">
-        {/* Header Navigation */}
-        <PageNavigation userTeam={userTeam} currentPage="settings" />
-        
-        <div className="container mx-auto px-4 py-8">
-          <SettingsMenu 
-            userTeam={userTeam}
-            onResetGame={handleResetGame}
-          />
-        </div>
-      </div>
+    <div className="container mx-auto px-4 py-8">
+      <SettingsMenu 
+        userTeam={userTeam}
+        onResetGame={handleResetGame}
+      />
     </div>
   )
 }
