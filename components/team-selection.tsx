@@ -61,7 +61,7 @@ export function TeamSelection({ onTeamSelected }: TeamSelectionProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div className="min-h-screen bg-background p-4" style={{ marginLeft: 'auto', marginRight: 'auto' }}>
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-primary mb-2">Select Your Team</h1>

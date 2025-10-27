@@ -35,7 +35,7 @@ export function GMCreation({ onGMCreated }: GMCreationProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4" style={{ marginLeft: 'auto', marginRight: 'auto' }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-primary mb-2">Basketball GM</h1>

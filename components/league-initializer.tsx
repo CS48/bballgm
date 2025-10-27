@@ -108,7 +108,7 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
   // Show loading while context is initializing
   if (!isInitialized) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen" style={{ marginLeft: 'auto', marginRight: 'auto' }}>
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center p-8">
             <Loader2 className="h-8 w-8 animate-spin mb-4" />
@@ -124,7 +124,7 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
 
   if (isLoading || isCreating) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen" style={{ marginLeft: 'auto', marginRight: 'auto' }}>
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center p-8">
             <Loader2 className="h-8 w-8 animate-spin mb-4" />
@@ -145,7 +145,7 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen" style={{ marginLeft: 'auto', marginRight: 'auto' }}>
         <Card className="w-full max-w-md">
           <CardContent className="p-6">
             <Alert className="mb-4">
@@ -163,7 +163,7 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100" style={{ marginLeft: 'auto', marginRight: 'auto' }}>
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center mb-4">

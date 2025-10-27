@@ -105,8 +105,7 @@ export function RosterTable({ players }: RosterTableProps) {
   return (
     <div className="roster-table-container">
       {/* Header with segmented control */}
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">Roster</h3>
+      <div className="flex justify-start items-center mb-4">
         <ToggleGroup type="single" value={view} onValueChange={(value) => setView(value as "info" | "stats")}>
           <ToggleGroupItem value="info">Info</ToggleGroupItem>
           <ToggleGroupItem value="stats">Stats</ToggleGroupItem>
