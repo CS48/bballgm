@@ -22,13 +22,6 @@ export default function TeamPage({ params }: TeamPageProps) {
   const [team, setTeam] = useState<Team | null>(null)
   const [teamRoster, setTeamRoster] = useState<any>(null)
   const [teamSeasonStats, setTeamSeasonStats] = useState<any>(null)
-  const [teamRatings, setTeamRatings] = useState({
-    overall: 0,
-    interiorShooting: 0,
-    threePointShooting: 0,
-    passing: 0,
-    onBallDefense: 0
-  })
   const [loading, setLoading] = useState(true)
 
   const teamId = parseInt(params.id)
@@ -73,28 +66,6 @@ export default function TeamPage({ params }: TeamPageProps) {
         const roster = await leagueService.getTeamRoster(teamId)
         console.log('TeamPage: Roster fetched:', roster)
         setTeamRoster(roster)
-
-        // Calculate team ratings from player attributes
-        if (roster.players && roster.players.length > 0) {
-          console.log('TeamPage: Calculating ratings for', roster.players.length, 'players')
-          const players = roster.players
-          const overallRatings = players.map(p => p.overall_rating)
-          const interiorShooting = players.map(p => p.inside_shot)
-          const threePointShooting = players.map(p => p.three_point_shot)
-          const passing = players.map(p => p.pass)
-          const onBallDefense = players.map(p => p.on_ball_defense)
-
-          setTeamRatings({
-            overall: Math.round(overallRatings.reduce((a, b) => a + b, 0) / overallRatings.length),
-            interiorShooting: Math.round(interiorShooting.reduce((a, b) => a + b, 0) / interiorShooting.length),
-            threePointShooting: Math.round(threePointShooting.reduce((a, b) => a + b, 0) / threePointShooting.length),
-            passing: Math.round(passing.reduce((a, b) => a + b, 0) / passing.length),
-            onBallDefense: Math.round(onBallDefense.reduce((a, b) => a + b, 0) / onBallDefense.length)
-          })
-          console.log('TeamPage: Ratings calculated successfully')
-        } else {
-          console.log('TeamPage: No players found in roster')
-        }
       } catch (error) {
         console.error('TeamPage: Failed to fetch team data:', error)
       } finally {
@@ -160,144 +131,16 @@ export default function TeamPage({ params }: TeamPageProps) {
   return (
     <div className="min-h-screen bg-background" style={{ paddingLeft: '3vw', paddingRight: '3vw', paddingTop: '3vh', paddingBottom: '3vh' }}>
       <div className="max-w-7xl mx-auto">
-        {/* Team Info and Ratings Section */}
-        <div className="flex gap-6 mb-4">
+        {/* Team Info Section */}
+        <div className="mb-4">
           {/* Team Info Card */}
-          <div className="flex-1 team-info-card hub-card--transparent" style={{ gap: '0', padding: '0.5rem' }}>
+          <div className="team-info-card hub-card--transparent" style={{ gap: '0', padding: '0.5rem' }}>
             <p className="team-city" style={{ fontSize: '1.5rem', margin: '0', color: '#000000' }}>{team.city}</p>
             <h2 className="team-name" style={{ fontSize: '2.25rem', margin: '0', lineHeight: '1' }}>{team.name.toUpperCase()}</h2>
             <div className="team-record" style={{ fontSize: '1rem', margin: '0' }}>
               <span>({team.wins}-{team.losses})</span>
               <span> | </span>
               <span>#{standings.overall?.findIndex(t => t.team_id === team.team_id) + 1 || 1} in {team.conference}ern Conference</span>
-            </div>
-          </div>
-
-          {/* Team Ratings */}
-          <div className="flex-1">
-            <div className="team-stats-rings">
-              <div className="stat-ring">
-                <div className="relative w-16 h-16 mx-auto mb-2">
-                  <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
-                    <path
-                      className="text-gray-300"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      fill="none"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                    <path
-                      stroke="#333333"
-                      strokeWidth="3"
-                      fill="none"
-                      strokeDasharray={`${teamRatings.overall}, 100`}
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-sm font-bold text-gray-800">
-                      {teamRatings.overall}
-                    </span>
-                  </div>
-                </div>
-                <p className="stat-ring-label">Overall</p>
-              </div>
-              <div className="stat-ring">
-                <div className="relative w-16 h-16 mx-auto mb-2">
-                  <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
-                    <path
-                      className="text-gray-300"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      fill="none"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                    <path
-                      stroke="#333333"
-                      strokeWidth="3"
-                      fill="none"
-                      strokeDasharray={`${teamRatings.interiorShooting}, 100`}
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-sm font-bold text-gray-800">{teamRatings.interiorShooting}</span>
-                  </div>
-                </div>
-                <p className="stat-ring-label">Interior Shooting</p>
-              </div>
-              <div className="stat-ring">
-                <div className="relative w-16 h-16 mx-auto mb-2">
-                  <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
-                    <path
-                      className="text-gray-300"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      fill="none"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                    <path
-                      stroke="#333333"
-                      strokeWidth="3"
-                      fill="none"
-                      strokeDasharray={`${teamRatings.threePointShooting}, 100`}
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-sm font-bold text-gray-800">{teamRatings.threePointShooting}</span>
-                  </div>
-                </div>
-                <p className="stat-ring-label">3P Shooting</p>
-              </div>
-              <div className="stat-ring">
-                <div className="relative w-16 h-16 mx-auto mb-2">
-                  <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
-                    <path
-                      className="text-gray-300"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      fill="none"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                    <path
-                      stroke="#333333"
-                      strokeWidth="3"
-                      fill="none"
-                      strokeDasharray={`${teamRatings.passing}, 100`}
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-sm font-bold text-gray-800">{teamRatings.passing}</span>
-                  </div>
-                </div>
-                <p className="stat-ring-label">Passing</p>
-              </div>
-              <div className="stat-ring">
-                <div className="relative w-16 h-16 mx-auto mb-2">
-                  <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
-                    <path
-                      className="text-gray-300"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      fill="none"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                    <path
-                      stroke="#333333"
-                      strokeWidth="3"
-                      fill="none"
-                      strokeDasharray={`${teamRatings.onBallDefense}, 100`}
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-sm font-bold text-gray-800">{teamRatings.onBallDefense}</span>
-                  </div>
-                </div>
-                <p className="stat-ring-label">On-Ball Defense</p>
-              </div>
             </div>
           </div>
         </div>
@@ -397,7 +240,11 @@ export default function TeamPage({ params }: TeamPageProps) {
                       </div>
                       
                       {/* Player Name */}
-                      <h3 className="font-semibold text-lg mb-1">{player.name}</h3>
+                      <h3 className="font-semibold text-lg mb-1">
+                        <Link href={`/player/${player.player_id}`} className="hover:underline text-primary">
+                          {player.name}
+                        </Link>
+                      </h3>
                       
                       {/* Position and Rating */}
                       <div className="text-sm text-muted-foreground mb-3">

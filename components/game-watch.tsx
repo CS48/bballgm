@@ -165,22 +165,6 @@ export function GameWatch({ homeTeam, awayTeam, onGameComplete, onNavigateAway }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation Header */}
-      <div className="border-b border-black bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
-          <div className="mr-4 flex">
-            <Button variant="ghost" onClick={handleNavigationAttempt}>
-              ← Back
-            </Button>
-          </div>
-          <nav className="flex items-center space-x-6 text-sm font-medium">
-            <span className="text-muted-foreground">
-              {homeTeam.name} vs {awayTeam.name}
-            </span>
-          </nav>
-        </div>
-      </div>
-
       {/* Flexbox 1: Scoreboard & Controls */}
       <div className="w-full px-[10vw] py-3 border-b border-black">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -234,7 +218,7 @@ export function GameWatch({ homeTeam, awayTeam, onGameComplete, onNavigateAway }
       </div>
 
       {/* Flexbox 2: Stats & Event Log */}
-      <div className="flex flex-col lg:flex-row h-[calc(100vh-140px)]">
+      <div className="flex flex-col lg:flex-row h-[calc(100vh-80px)]">
         {/* Sub-flexbox 1: Team Stats */}
         <div className="flex-[2] min-w-[50vw] p-4 overflow-hidden">
           <Tabs defaultValue="away" className="h-full flex flex-col">

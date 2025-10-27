@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
@@ -169,7 +170,9 @@ export function RosterTable({ players }: RosterTableProps) {
                 <td className="p-2">
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="font-medium">{player.name}</p>
+                      <Link href={`/player/${player.player_id}`} className="font-medium hover:underline text-primary">
+                        {player.name}
+                      </Link>
                       {player.is_starter === 1 && (
                         <Badge variant="outline" className="text-xs bg-gray-50 text-black border-gray-300">
                           Starter

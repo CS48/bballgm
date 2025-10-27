@@ -55,10 +55,12 @@ export function AppSidebar({ userTeam }: AppSidebarProps) {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <div className="flex items-center justify-center p-2">
-              <SidebarTrigger />
-            </div>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <SidebarTrigger className="justify-start" />
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               {navigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
