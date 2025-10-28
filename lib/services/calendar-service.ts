@@ -142,6 +142,9 @@ export class CalendarService {
    */
   public async getGamesByDay(season: number, gameDay: number): Promise<GameScheduleEntry[]> {
     try {
+      console.log(`=== GET GAMES BY DAY ===`)
+      console.log(`Querying season: ${season}, gameDay: ${gameDay}`)
+      
       const sql = `
         SELECT g.game_id, g.home_team_id, g.away_team_id, g.home_score, g.away_score, g.completed,
                ht.city as home_city, ht.name as home_name,
@@ -154,6 +157,7 @@ export class CalendarService {
       `;
       
       const results = dbService.exec(sql, [season, gameDay]);
+      console.log(`Found ${results.length} games for gameDay ${gameDay}`)
       
       return results.map(game => ({
         game_id: game.game_id,

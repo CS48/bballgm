@@ -12,21 +12,43 @@ import type {
   AnimationSpeed,
   PlayerGameStats 
 } from './types/game-simulation'
+import type { TeamRotationConfig } from './types/database'
 import type { PossessionResult } from './types/simulation-engine'
 import { GameEngine } from './game-engine'
 import { simulatePossession } from './simulation/possession-engine'
 import { convertToSimulationTeam, convertToSimulationPlayer } from './types/simulation-engine'
 import { initializeD20RNG } from './simulation/d20-rng'
 import { formatPossessionEvent, formatGameClock } from './utils/event-formatter'
+import { RotationManager } from './simulation/rotation-manager'
+import { FatigueCalculator } from './simulation/fatigue-calculator'
 
 export class WatchGameEngine {
   private state: WatchGameState
   private eventQueue: GameEvent[] = []
   private currentPossessionIndex = 0
   private isProcessing = false
+  private homeRotationManager: RotationManager
+  private awayRotationManager: RotationManager
+  private homeFatigueCalculator: FatigueCalculator
+  private awayFatigueCalculator: FatigueCalculator
 
-  constructor(homeTeam: GameSimulationTeam, awayTeam: GameSimulationTeam) {
+  constructor(
+    homeTeam: GameSimulationTeam, 
+    awayTeam: GameSimulationTeam,
+    homeRotationConfig: TeamRotationConfig | null = null,
+    awayRotationConfig: TeamRotationConfig | null = null
+  ) {
     this.state = this.initializeState(homeTeam, awayTeam)
+    
+    // Initialize rotation managers
+    const simHomeTeam = convertToSimulationTeam(homeTeam)
+    const simAwayTeam = convertToSimulationTeam(awayTeam)
+    
+    this.homeRotationManager = new RotationManager(simHomeTeam, homeRotationConfig)
+    this.awayRotationManager = new RotationManager(simAwayTeam, awayRotationConfig)
+    
+    this.homeFatigueCalculator = new FatigueCalculator()
+    this.awayFatigueCalculator = new FatigueCalculator()
   }
 
   /**
@@ -86,6 +108,26 @@ export class WatchGameEngine {
    */
   getState(): WatchGameState {
     return { ...this.state }
+  }
+
+  /**
+   * Get currently active player IDs for a team
+   */
+  getActivePlayerIds(team: 'home' | 'away'): number[] {
+    const gameState = {
+      quarter: this.state.currentQuarter,
+      quarterTimeRemaining: this.state.quarterTimeRemaining,
+      homeScore: this.state.homeScore,
+      awayScore: this.state.awayScore,
+      playerFouls: new Map<string, number>(),
+      playerMinutes: new Map<string, number>()
+    }
+    
+    const activePlayers = team === 'home' 
+      ? this.homeRotationManager.getActiveLineup(gameState)
+      : this.awayRotationManager.getActiveLineup(gameState)
+    
+    return activePlayers.map(p => parseInt(p.id))
   }
 
   /**
@@ -159,25 +201,46 @@ export class WatchGameEngine {
       const seed = Date.now() + this.currentPossessionIndex
       initializeD20RNG(seed)
 
-      // Filter for active starters (5 players) BEFORE selecting ball handler
-      let activeOffensivePlayers = simOffensiveTeam.players.filter(p => p.is_starter === 1)
-      
-      // Fallback: if we don't have exactly 5 starters, use first 5 players
-      if (activeOffensivePlayers.length !== 5) {
-        // console.warn('⚠️ Watch Game Engine - Using slice(0,5) for ball handler selection. Found', activeOffensivePlayers.length, 'starters')
-        activeOffensivePlayers = simOffensiveTeam.players.slice(0, 5)
+      // Get active lineups from rotation managers
+      const gameState = {
+        quarter: this.state.currentQuarter,
+        quarterTimeRemaining: this.state.quarterTimeRemaining,
+        homeScore: this.state.homeScore,
+        awayScore: this.state.awayScore,
+        playerFouls: new Map<string, number>(),
+        playerMinutes: new Map<string, number>()
       }
       
-      // Start with point guard as ball handler FROM ACTIVE STARTERS
-      const ballHandler = activeOffensivePlayers.find(p => p.position === 'PG') || activeOffensivePlayers[0]
+      const activeHomePlayers = this.homeRotationManager.getActiveLineup(gameState)
+      const activeAwayPlayers = this.awayRotationManager.getActiveLineup(gameState)
+      
+      // Determine which team is offensive/defensive
+      const activeOffensivePlayers = this.state.currentPossession === 'home' ? activeHomePlayers : activeAwayPlayers
+      const activeDefensivePlayers = this.state.currentPossession === 'home' ? activeAwayPlayers : activeHomePlayers
+      
+      // Update fatigue for active players (every ~3 seconds of game time)
+      this.homeFatigueCalculator.updateFatigue(activeHomePlayers, 3)
+      this.awayFatigueCalculator.updateFatigue(activeAwayPlayers, 3)
+      
+      // Apply fatigue to get performance-adjusted players
+      const fatiguedHomePlayers = this.homeFatigueCalculator.applyFatigueToLineup(activeHomePlayers)
+      const fatiguedAwayPlayers = this.awayFatigueCalculator.applyFatigueToLineup(activeAwayPlayers)
+      
+      const fatiguedOffensivePlayers = this.state.currentPossession === 'home' ? fatiguedHomePlayers : fatiguedAwayPlayers
+      const fatiguedDefensivePlayers = this.state.currentPossession === 'home' ? fatiguedAwayPlayers : fatiguedHomePlayers
+      
+      // Start with point guard as ball handler from active offensive players
+      const ballHandler = fatiguedOffensivePlayers.find(p => p.position === 'PG') || fatiguedOffensivePlayers[0]
 
-      // Simulate possession
+      // Simulate possession with fatigued players
       const possessionResult = simulatePossession(
         simOffensiveTeam,
         simDefensiveTeam,
         ballHandler,
         seed,
-        this.state.quarterTimeRemaining
+        this.state.quarterTimeRemaining,
+        fatiguedOffensivePlayers,
+        fatiguedDefensivePlayers
       )
 
       // Process possession events
@@ -424,18 +487,19 @@ export class WatchGameEngine {
     // Calculate time elapsed for this event (simplified - assume 3 seconds per event)
     const timeElapsed = 3
 
-    // Get active players (starters for both teams)
-    const homeStarters = this.state.homeTeam.players.filter(p => p.is_starter === 1)
-    const awayStarters = this.state.awayTeam.players.filter(p => p.is_starter === 1)
-    const activePlayers = [...homeStarters, ...awayStarters]
+    // Get currently active players from rotation managers
+    const activeHomePlayerIds = this.getActivePlayerIds('home')
+    const activeAwayPlayerIds = this.getActivePlayerIds('away')
+    const activePlayerIds = [...activeHomePlayerIds, ...activeAwayPlayerIds]
 
     // Update minutes for all active players
-    activePlayers.forEach(player => {
-      const currentMinutes = this.state.playerMinutes.get(player.id) || 0
-      this.state.playerMinutes.set(player.id, currentMinutes + timeElapsed)
+    activePlayerIds.forEach(playerId => {
+      const playerIdStr = playerId.toString()
+      const currentMinutes = this.state.playerMinutes.get(playerIdStr) || 0
+      this.state.playerMinutes.set(playerIdStr, currentMinutes + timeElapsed)
 
       // Update the player stats minutes as well
-      const playerStats = this.state.playerStats.get(player.id)
+      const playerStats = this.state.playerStats.get(playerIdStr)
       if (playerStats) {
         playerStats.minutes = Math.round((currentMinutes + timeElapsed) / 60) // Convert to minutes
       }

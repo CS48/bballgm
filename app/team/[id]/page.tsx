@@ -8,7 +8,8 @@ import { useLeague, useStandings } from "@/lib/context/league-context"
 import { leagueService } from "@/lib/services/league-service"
 import { playerService } from "@/lib/services/player-service"
 import { RosterTable } from "@/components/roster-table"
-import type { Team } from "@/lib/types/database"
+import { RotationEditor } from "@/components/rotation-editor"
+import type { Team, TeamRotationConfig } from "@/lib/types/database"
 
 interface TeamPageProps {
   params: {
@@ -17,25 +18,44 @@ interface TeamPageProps {
 }
 
 export default function TeamPage({ params }: TeamPageProps) {
-  const { teams, isLoading: leagueLoading } = useLeague()
+  const { teams, isLoading: leagueLoading, refreshData } = useLeague()
   const standings = useStandings()
   const [team, setTeam] = useState<Team | null>(null)
   const [teamRoster, setTeamRoster] = useState<any>(null)
   const [teamSeasonStats, setTeamSeasonStats] = useState<any>(null)
+  const [rotationConfig, setRotationConfig] = useState<TeamRotationConfig | null>(null)
   const [loading, setLoading] = useState(true)
 
   const teamId = parseInt(params.id)
 
-  // Show loading if league is still loading
-  if (leagueLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading league data...</p>
-        </div>
-      </div>
-    )
+  // Handle rotation config save
+  const handleRotationSave = async (config: TeamRotationConfig) => {
+    try {
+      // Update team with new rotation config
+      const updatedTeam = {
+        ...team!,
+        rotation_config: JSON.stringify(config)
+      }
+      
+      // Update in database
+      await leagueService.updateTeam(teamId, updatedTeam)
+      
+      // Refresh league context to pick up the change
+      await refreshData()
+      
+      // Update local state
+      setRotationConfig(config)
+      setTeam(updatedTeam)
+      
+      console.log('Rotation config saved successfully')
+    } catch (error) {
+      console.error('Failed to save rotation config:', error)
+    }
+  }
+
+  // Handle rotation config reset
+  const handleRotationReset = () => {
+    setRotationConfig(null)
   }
 
   useEffect(() => {
@@ -61,6 +81,13 @@ export default function TeamPage({ params }: TeamPageProps) {
           setTeamSeasonStats(seasonStats)
         }
 
+        // Parse rotation config from rotation_config JSON
+        if (foundTeam.rotation_config) {
+          const rotation = JSON.parse(foundTeam.rotation_config)
+          console.log('TeamPage: Rotation config:', rotation)
+          setRotationConfig(rotation)
+        }
+
         // Fetch team roster with real player data
         console.log('TeamPage: Fetching roster...')
         const roster = await leagueService.getTeamRoster(teamId)
@@ -82,6 +109,18 @@ export default function TeamPage({ params }: TeamPageProps) {
       setLoading(false)
     }
   }, [teamId, teams])
+
+  // Show loading if league is still loading
+  if (leagueLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading league data...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
@@ -147,9 +186,10 @@ export default function TeamPage({ params }: TeamPageProps) {
 
         {/* Tab Navigation */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4" style={{ width: '320px' }}>
+          <TabsList className="grid w-full grid-cols-5" style={{ width: '400px' }}>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="roster">Roster</TabsTrigger>
+            <TabsTrigger value="rotation">Rotation</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="finances">Finances</TabsTrigger>
           </TabsList>
@@ -278,6 +318,24 @@ export default function TeamPage({ params }: TeamPageProps) {
           {/* Roster Tab */}
           <TabsContent value="roster" className="mt-6">
             <RosterTable players={teamRoster?.players || []} />
+          </TabsContent>
+
+          {/* Rotation Tab */}
+          <TabsContent value="rotation" className="mt-6">
+            {teamRoster?.players ? (
+              <RotationEditor 
+                players={teamRoster.players}
+                rotationConfig={rotationConfig}
+                onSave={handleRotationSave}
+                onReset={handleRotationReset}
+              />
+            ) : (
+              <Card className="hub-card hub-card--filled">
+                <CardContent>
+                  <p className="text-muted-foreground">Loading roster data...</p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Schedule Tab */}

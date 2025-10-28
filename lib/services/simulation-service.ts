@@ -11,6 +11,8 @@
 import { dbService } from '../database/db-service';
 import { playerService } from './player-service';
 import { teamService } from './team-service';
+import { gameService } from './game-service';
+import { leagueService } from './league-service';
 import { Player, Team, GameBoxScore, PlayerBoxScore, TeamBoxScore } from '../types/database';
 
 /**
@@ -103,9 +105,13 @@ export class SimulationService {
     const homeGameTeam = this.convertToGameTeam(homeTeam, homePlayers);
     const awayGameTeam = this.convertToGameTeam(awayTeam, awayPlayers);
 
+    // Parse rotation configs if they exist
+    const homeRotationConfig = homeTeam.rotation_config ? JSON.parse(homeTeam.rotation_config) : null;
+    const awayRotationConfig = awayTeam.rotation_config ? JSON.parse(awayTeam.rotation_config) : null;
+
     // Use the D20 game engine for simulation
     const { GameEngine } = await import('../game-engine');
-    const gameResult = GameEngine.simulateGame(homeGameTeam, awayGameTeam);
+    const gameResult = GameEngine.simulateGame(homeGameTeam, awayGameTeam, homeRotationConfig, awayRotationConfig);
 
     // Convert game result to simulation result format
     const boxScore: GameBoxScore = {
@@ -762,24 +768,59 @@ export class SimulationService {
   ): Promise<void> {
     try {
       const currentDate = new Date().toISOString().split('T')[0];
-      const currentYear = new Date().getFullYear();
+      const currentSeason = await leagueService.getCurrentSeason();
+      const currentYear = currentSeason.year;
 
+      // UPDATE existing game instead of INSERT
       const sql = `
-        INSERT INTO games (season, date, home_team_id, away_team_id, home_score, away_score, completed, box_score)
-        VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+        UPDATE games 
+        SET home_score = ?, 
+            away_score = ?, 
+            completed = 1, 
+            box_score = ?,
+            date = ?
+        WHERE season = ? 
+          AND home_team_id = ? 
+          AND away_team_id = ?
+          AND completed = 0
       `;
 
       const params = [
-        currentYear,
-        currentDate,
-        homeTeamId,
-        awayTeamId,
         gameResult.home_score,
         gameResult.away_score,
-        JSON.stringify(gameResult.box_score)
+        JSON.stringify(gameResult.box_score),
+        currentDate,
+        currentYear,
+        homeTeamId,
+        awayTeamId
       ];
 
-      dbService.run(sql, params);
+      const result = dbService.run(sql, params);
+      
+      console.log(`=== STORE GAME RESULT ===`)
+      console.log(`Updating game: ${homeTeamId} vs ${awayTeamId}`)
+      console.log(`UPDATE affected ${result.changes} rows`)
+      
+      // If no game was updated, insert a new one (fallback for games not in schedule)
+      if (result.changes === 0) {
+        console.warn(`No scheduled game found for ${homeTeamId} vs ${awayTeamId}, inserting new game`);
+        const insertSql = `
+          INSERT INTO games (season, date, home_team_id, away_team_id, home_score, away_score, completed, box_score)
+          VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+        `;
+        dbService.run(insertSql, [
+          currentYear,
+          currentDate,
+          homeTeamId,
+          awayTeamId,
+          gameResult.home_score,
+          gameResult.away_score,
+          JSON.stringify(gameResult.box_score)
+        ]);
+        console.log(`INSERTED new game for ${homeTeamId} vs ${awayTeamId}`)
+      }
+      
+      console.log(`Updated game result: ${homeTeamId} vs ${awayTeamId}`);
     } catch (error) {
       console.error('Failed to store game result:', error);
       throw error;
@@ -799,6 +840,13 @@ export class SimulationService {
       
       const results = []
       for (const game of games) {
+        // Check if game is already completed in database
+        const existingGameId = await gameService.getGameIdByMatchup(game.homeTeamId, game.awayTeamId)
+        if (existingGameId) {
+          console.warn(`Skipping already completed game: ${game.homeTeamId} vs ${game.awayTeamId}`)
+          continue
+        }
+        
         const result = await this.simulateGame(game.homeTeamId, game.awayTeamId);
         results.push({
           homeTeamId: game.homeTeamId,
@@ -828,6 +876,86 @@ export class SimulationService {
       averageScore: 110, // This would be calculated from actual games
       simulationVersion: '1.0.0'
     };
+  }
+
+  /**
+   * Log a completed watch game to the database
+   * @param homeTeamId Home team ID
+   * @param awayTeamId Away team ID
+   * @param gameResult Watch game result
+   */
+  public async logWatchGame(homeTeamId: number, awayTeamId: number, gameResult: any): Promise<void> {
+    try {
+      // Convert watch game result to the format expected by updateGameResults
+      const simulationResult = {
+        home_score: gameResult.homeScore,
+        away_score: gameResult.awayScore,
+        box_score: {
+          home_team: {
+            team_id: homeTeamId,
+            team_name: gameResult.homeTeam.name,
+            total_points: gameResult.homeScore,
+            players: gameResult.homePlayerStats.map((player: any) => ({
+              player_id: parseInt(player.id),
+              name: player.name,
+              position: player.position,
+              minutes: player.minutes || 0,
+              points: player.points,
+              rebounds: player.rebounds,
+              assists: player.assists,
+              steals: player.steals,
+              blocks: player.blocks,
+              turnovers: player.turnovers,
+              fg_made: player.fieldGoalsMade,
+              fg_attempted: player.fieldGoalsAttempted,
+              fg_pct: player.fieldGoalsAttempted > 0 ? player.fieldGoalsMade / player.fieldGoalsAttempted : 0,
+              three_made: player.threePointersMade,
+              three_attempted: player.threePointersAttempted,
+              three_pct: player.threePointersAttempted > 0 ? player.threePointersMade / player.threePointersAttempted : 0,
+              ft_made: 0,
+              ft_attempted: 0,
+              ft_pct: 0,
+              plus_minus: 0
+            }))
+          },
+          away_team: {
+            team_id: awayTeamId,
+            team_name: gameResult.awayTeam.name,
+            total_points: gameResult.awayScore,
+            players: gameResult.awayPlayerStats.map((player: any) => ({
+              player_id: parseInt(player.id),
+              name: player.name,
+              position: player.position,
+              minutes: player.minutes || 0,
+              points: player.points,
+              rebounds: player.rebounds,
+              assists: player.assists,
+              steals: player.steals,
+              blocks: player.blocks,
+              turnovers: player.turnovers,
+              fg_made: player.fieldGoalsMade,
+              fg_attempted: player.fieldGoalsAttempted,
+              fg_pct: player.fieldGoalsAttempted > 0 ? player.fieldGoalsMade / player.fieldGoalsAttempted : 0,
+              three_made: player.threePointersMade,
+              three_attempted: player.threePointersAttempted,
+              three_pct: player.threePointersAttempted > 0 ? player.threePointersMade / player.threePointersAttempted : 0,
+              ft_made: 0,
+              ft_attempted: 0,
+              ft_pct: 0,
+              plus_minus: 0
+            }))
+          }
+        }
+      };
+
+      // Use the existing updateGameResults method
+      await this.updateGameResults(homeTeamId, awayTeamId, simulationResult);
+      
+      console.log(`Watch game logged: Team ${homeTeamId} vs Team ${awayTeamId}`);
+    } catch (error) {
+      console.error('Failed to log watch game:', error);
+      throw error;
+    }
   }
 }
 

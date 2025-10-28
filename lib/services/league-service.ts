@@ -138,15 +138,52 @@ export class LeagueService {
    * @returns Promise that resolves to current season info
    */
   public async getCurrentSeason(): Promise<SeasonInfo> {
-    const currentYear = new Date().getFullYear();
-    return {
-      year: currentYear,
-      start_date: `${currentYear}-10-15`,
-      end_date: `${currentYear + 1}-04-15`,
-      games_per_team: 82,
-      playoffs_enabled: false,
-      playoff_teams_per_conference: 8
-    };
+    try {
+      // Query the most recent season from season_calendar
+      const sql = `
+        SELECT DISTINCT season 
+        FROM season_calendar 
+        ORDER BY season DESC 
+        LIMIT 1
+      `;
+      
+      const results = dbService.exec(sql);
+      
+      if (results.length === 0) {
+        // Fallback to current year if no season found
+        const currentYear = new Date().getFullYear();
+        return {
+          year: currentYear,
+          start_date: `${currentYear}-10-15`,
+          end_date: `${currentYear + 1}-04-15`,
+          games_per_team: 82,
+          playoffs_enabled: false,
+          playoff_teams_per_conference: 8
+        };
+      }
+      
+      const season = results[0].season;
+      return {
+        year: season,
+        start_date: `${season}-10-15`,
+        end_date: `${season + 1}-04-15`,
+        games_per_team: 82,
+        playoffs_enabled: false,
+        playoff_teams_per_conference: 8
+      };
+    } catch (error) {
+      console.error('Failed to get current season:', error);
+      // Fallback to current year
+      const currentYear = new Date().getFullYear();
+      return {
+        year: currentYear,
+        start_date: `${currentYear}-10-15`,
+        end_date: `${currentYear + 1}-04-15`,
+        games_per_team: 82,
+        playoffs_enabled: false,
+        playoff_teams_per_conference: 8
+      };
+    }
   }
 
   /**
@@ -299,6 +336,21 @@ export class LeagueService {
     } catch (error) {
       console.error('Failed to get all players:', error);
       throw new Error('Failed to get all players');
+    }
+  }
+
+  /**
+   * Update a team's information
+   * @param teamId Team ID to update
+   * @param updateData Data to update
+   * @returns Promise that resolves when update is complete
+   */
+  public async updateTeam(teamId: number, updateData: Partial<Team>): Promise<void> {
+    try {
+      return await teamService.updateTeam(teamId, updateData);
+    } catch (error) {
+      console.error('Failed to update team:', error);
+      throw new Error('Failed to update team');
     }
   }
 

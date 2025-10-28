@@ -38,6 +38,9 @@ import { getConfig } from './config-loader'
  * @param defensiveTeam Defensive team
  * @param ballHandler Starting ball handler
  * @param seed Random seed for deterministic simulation
+ * @param quarterTimeRemaining Time remaining in quarter
+ * @param activeOffensivePlayers Active offensive players (5 players)
+ * @param activeDefensivePlayers Active defensive players (5 players)
  * @returns Complete possession result
  */
 export function simulatePossession(
@@ -45,22 +48,22 @@ export function simulatePossession(
   defensiveTeam: SimulationTeam,
   ballHandler: SimulationPlayer,
   seed: number,
-  quarterTimeRemaining: number
+  quarterTimeRemaining: number,
+  activeOffensivePlayers: SimulationPlayer[],
+  activeDefensivePlayers: SimulationPlayer[]
 ): PossessionResult {
   // Initialize RNG with seed
   initializeD20RNG(seed)
   
-  // Create initial possession state - use designated starters (is_starter === 1)
-  let activeOffensivePlayers = offensiveTeam.players.filter(p => p.is_starter === 1)
-  let activeDefensivePlayers = defensiveTeam.players.filter(p => p.is_starter === 1)
-  
-  // Fallback: if we don't have exactly 5 starters, use first 5 players
+  // Use provided active players instead of filtering starters
+  // Validate that we have exactly 5 players for each team
   if (activeOffensivePlayers.length !== 5) {
-    activeOffensivePlayers = offensiveTeam.players.slice(0, 5)
+    console.warn(`Expected 5 offensive players, got ${activeOffensivePlayers.length}`)
   }
   if (activeDefensivePlayers.length !== 5) {
-    activeDefensivePlayers = defensiveTeam.players.slice(0, 5)
+    console.warn(`Expected 5 defensive players, got ${activeDefensivePlayers.length}`)
   }
+  
   let state = resetPossessionState(ballHandler, [...activeOffensivePlayers, ...activeDefensivePlayers], quarterTimeRemaining)
   
   const events: PossessionLogEntry[] = []

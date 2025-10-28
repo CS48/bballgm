@@ -1,10 +1,13 @@
 import type { GameSimulationPlayer, GameSimulationTeam, GameEvent, GameSimulationResult, StrategicAdjustments } from "@/lib/types/game-simulation"
 import type { SimulationTeam, D20GameEvent } from "@/lib/types/simulation-engine"
+import type { TeamRotationConfig } from "@/lib/types/database"
 import { GameClock } from "./game-clock"
 import { simulatePossession } from "./simulation/possession-engine"
 import { convertToSimulationTeam, convertToSimulationPlayer } from "./types/simulation-engine"
 import { initializeD20RNG } from "./simulation/d20-rng"
 import { getConfig } from "./simulation/config-loader"
+import { RotationManager } from "./simulation/rotation-manager"
+import { FatigueCalculator } from "./simulation/fatigue-calculator"
 
 export interface GameSegmentResult {
   events: GameEvent[]
@@ -23,7 +26,7 @@ export class GameEngine {
 
 
 
-  public static simulateGame(homeTeam: GameSimulationTeam, awayTeam: GameSimulationTeam): GameSimulationResult {
+  public static simulateGame(homeTeam: GameSimulationTeam, awayTeam: GameSimulationTeam, homeRotationConfig: TeamRotationConfig | null = null, awayRotationConfig: TeamRotationConfig | null = null): GameSimulationResult {
     console.log('🏀 Starting full game simulation:', homeTeam.name, 'vs', awayTeam.name)
     
     
@@ -41,7 +44,9 @@ export class GameEngine {
       0, // starting home possessions
       0, // starting away possessions
       homeTeam, // starting possession
-      1 // starting event ID
+      1, // starting event ID
+      homeRotationConfig,
+      awayRotationConfig
     )
     
     console.log('🏁 Game complete - Home:', gameResult.homeScore, 'Away:', gameResult.awayScore)
@@ -59,7 +64,9 @@ export class GameEngine {
         gameResult.homePossessions,
         gameResult.awayPossessions,
         gameResult.finalPossession,
-        gameResult.eventId
+        gameResult.eventId,
+        homeRotationConfig,
+        awayRotationConfig
       )
       
       gameResult.events.push(...overtimeResult.events)
@@ -84,7 +91,9 @@ export class GameEngine {
     startingHomePossessions: number,
     startingAwayPossessions: number,
     startingPossession: GameSimulationTeam,
-    startingEventId: number
+    startingEventId: number,
+    homeRotationConfig: TeamRotationConfig | null = null,
+    awayRotationConfig: TeamRotationConfig | null = null
   ): GameSegmentResult {
     console.log(`🎯 Simulating quarters ${startQuarter}-${endQuarter}`)
     
@@ -103,6 +112,17 @@ export class GameEngine {
     
     // Disable automatic quarter advancement - we'll handle it manually
     gameClock.setAutoAdvanceQuarters(false)
+
+    // Initialize rotation managers
+    const simHomeTeam = convertToSimulationTeam(homeTeam)
+    const simAwayTeam = convertToSimulationTeam(awayTeam)
+    
+    const homeRotationManager = new RotationManager(simHomeTeam, homeRotationConfig)
+    const awayRotationManager = new RotationManager(simAwayTeam, awayRotationConfig)
+    
+    // Initialize fatigue calculators
+    const homeFatigueCalculator = new FatigueCalculator()
+    const awayFatigueCalculator = new FatigueCalculator()
 
     // Initialize or copy player stats
     const playerStats = new Map<string, any>()
@@ -165,6 +185,27 @@ export class GameEngine {
       // Get quarter time remaining before simulating possession
       const quarterTimeRemaining = gameClock.getQuarterTimeRemaining()
       
+      // Get active lineups from rotation managers
+      const gameState = {
+        quarter: currentTime.quarter,
+        quarterTimeRemaining,
+        homeScore,
+        awayScore,
+        playerFouls: new Map<string, number>(),
+        playerMinutes: new Map<string, number>()
+      }
+      
+      const activeHomePlayers = homeRotationManager.getActiveLineup(gameState)
+      const activeAwayPlayers = awayRotationManager.getActiveLineup(gameState)
+      
+      // Update fatigue calculators
+      homeFatigueCalculator.updateFatigue(activeHomePlayers, 3) // Assume 3 seconds per possession
+      awayFatigueCalculator.updateFatigue(activeAwayPlayers, 3)
+      
+      // Apply fatigue to players
+      const fatiguedHomePlayers = homeFatigueCalculator.applyFatigueToLineup(activeHomePlayers)
+      const fatiguedAwayPlayers = awayFatigueCalculator.applyFatigueToLineup(activeAwayPlayers)
+      
       // Simulate a possession
       const possessionResult = this.simulatePossession(
         currentPossession,
@@ -175,7 +216,9 @@ export class GameEngine {
         homeScore,
         awayScore,
         eventId,
-        quarterTimeRemaining
+        quarterTimeRemaining,
+        fatiguedHomePlayers,
+        fatiguedAwayPlayers
       )
 
       // Add events from this possession
@@ -226,7 +269,9 @@ export class GameEngine {
     currentHomeScore: number,
     currentAwayScore: number,
     startEventId: number,
-    quarterTimeRemaining: number
+    quarterTimeRemaining: number,
+    activeHomePlayers: any[],
+    activeAwayPlayers: any[]
   ): {
     events: GameEvent[]
     homeScore: number
@@ -242,16 +287,11 @@ export class GameEngine {
     const seed = Math.floor(gameClock.getTotalGameTime() * 1000) + startEventId
     initializeD20RNG(seed)
     
-    // Filter for active starters (5 players) BEFORE selecting ball handler
-    let activeOffensivePlayers = simOffensiveTeam.players.filter(p => p.is_starter === 1)
+    // Use provided active players instead of filtering starters
+    const activeOffensivePlayers = offensiveTeam === homeTeam ? activeHomePlayers : activeAwayPlayers
+    const activeDefensivePlayers = offensiveTeam === homeTeam ? activeAwayPlayers : activeHomePlayers
     
-    // Fallback: if we don't have exactly 5 starters, use first 5 players
-    if (activeOffensivePlayers.length !== 5) {
-      console.warn('⚠️ Game Engine - Using slice(0,5) for ball handler selection. Found', activeOffensivePlayers.length, 'starters')
-      activeOffensivePlayers = simOffensiveTeam.players.slice(0, 5)
-    }
-    
-    // Start with point guard as ball handler FROM ACTIVE STARTERS
+    // Start with point guard as ball handler FROM ACTIVE PLAYERS
     const ballHandler = activeOffensivePlayers.find(p => p.position === 'PG') || activeOffensivePlayers[0]
     
     // Simulate possession using D20 engine
@@ -260,7 +300,9 @@ export class GameEngine {
       simDefensiveTeam,
       ballHandler,
       seed,
-      quarterTimeRemaining
+      quarterTimeRemaining,
+      activeOffensivePlayers,
+      activeDefensivePlayers
     )
     
     // Log possession summary
@@ -407,7 +449,9 @@ export class GameEngine {
     startingHomePossessions: number,
     startingAwayPossessions: number,
     startingPossession: GameSimulationTeam,
-    startingEventId: number
+    startingEventId: number,
+    homeRotationConfig: TeamRotationConfig | null = null,
+    awayRotationConfig: TeamRotationConfig | null = null
   ): GameSegmentResult {
     console.log('⏰ Starting overtime simulation...')
     
@@ -423,7 +467,9 @@ export class GameEngine {
       startingHomePossessions,
       startingAwayPossessions,
       startingPossession,
-      startingEventId // Continue event ID sequence
+      startingEventId, // Continue event ID sequence
+      homeRotationConfig,
+      awayRotationConfig
     )
   }
 

@@ -32,9 +32,10 @@ interface Player {
 
 interface GameStatsTableProps {
   players: Player[]
+  activePlayerIds?: number[]
 }
 
-export function GameStatsTable({ players }: GameStatsTableProps) {
+export function GameStatsTable({ players, activePlayerIds = [] }: GameStatsTableProps) {
   // Helper functions
   const formatStat = (value: number | undefined, decimals: number = 1): string => {
     if (value === undefined || value === null) return "0.0"
@@ -46,29 +47,41 @@ export function GameStatsTable({ players }: GameStatsTableProps) {
     return (made / attempted).toFixed(1)
   }
 
-  // Sort players: starters first (by position order), then bench players (by overall rating)
-  const starters = (() => {
-    // If no players are marked as starters, fall back to top 5 by overall rating
-    const playersWithStarterFlag = players.filter(player => player.is_starter === 1)
-    
-    if (playersWithStarterFlag.length === 0) {
-      return players
+  // Sort players based on active status if provided, otherwise use starter status
+  const sortedPlayers = (() => {
+    if (activePlayerIds.length > 0) {
+      // Sort by active status: active players first, then bench
+      const activePlayers = players.filter(p => activePlayerIds.includes(p.player_id))
+        .sort((a, b) => {
+          // Sort active players by position order
+          const positionOrder = ['PG', 'SG', 'SF', 'PF', 'C']
+          return positionOrder.indexOf(a.position) - positionOrder.indexOf(b.position)
+        })
+      
+      const benchPlayers = players.filter(p => !activePlayerIds.includes(p.player_id))
         .sort((a, b) => b.overall_rating - a.overall_rating)
-        .slice(0, 5)
+      
+      return [...activePlayers, ...benchPlayers]
+    } else {
+      // Fallback to starter-based sorting
+      const playersWithStarterFlag = players.filter(player => player.is_starter === 1)
+      
+      if (playersWithStarterFlag.length === 0) {
+        return players
+          .sort((a, b) => b.overall_rating - a.overall_rating)
+      }
+      
+      const starters = playersWithStarterFlag.sort((a, b) => {
+        const positionOrder = ['PG', 'SG', 'SF', 'PF', 'C']
+        return positionOrder.indexOf(a.position) - positionOrder.indexOf(b.position)
+      })
+      
+      const bench = players.filter(player => player.is_starter !== 1)
+        .sort((a, b) => b.overall_rating - a.overall_rating)
+      
+      return [...starters, ...bench]
     }
-    
-    // Use actual starters
-    return playersWithStarterFlag.sort((a, b) => {
-      // Sort by position order: PG, SG, SF, PF, C
-      const positionOrder = ['PG', 'SG', 'SF', 'PF', 'C']
-      return positionOrder.indexOf(a.position) - positionOrder.indexOf(b.position)
-    })
   })()
-  
-  const benchPlayers = players.filter(player => player.is_starter !== 1)
-    .sort((a, b) => b.overall_rating - a.overall_rating)
-  
-  const sortedPlayers = [...starters, ...benchPlayers]
 
   return (
     <div className="game-stats-table-container">
@@ -101,15 +114,21 @@ export function GameStatsTable({ players }: GameStatsTableProps) {
             </tr>
           </thead>
           <tbody>
-            {sortedPlayers.map((player, index) => (
-              <tr 
-                key={player.player_id} 
-                className={
-                  index === 5 && sortedPlayers.length > 5 
-                    ? 'border-t-2 border-t-gray-600 dark:border-t-gray-500' 
-                    : 'border-b border-gray-200'
-                }
-              >
+            {sortedPlayers.map((player, index) => {
+              // Determine where to place the divider line
+              const isLastActivePlayer = activePlayerIds.length > 0 
+                ? index === activePlayerIds.length - 1
+                : index === 4 // fallback to 5th player (starters)
+              
+              return (
+                <tr 
+                  key={player.player_id} 
+                  className={
+                    isLastActivePlayer && sortedPlayers.length > 5 
+                      ? 'border-b-2 border-black' 
+                      : 'border-b border-gray-200'
+                  }
+                >
                 <td className="p-2" style={{ minWidth: '11.5rem' }}>
                   <div>
                     <p className="font-medium">{player.name}</p>
@@ -137,9 +156,10 @@ export function GameStatsTable({ players }: GameStatsTableProps) {
                 <td className="p-2">{formatStat(player.current_stats?.steals, 0)}</td>
                 <td className="p-2">{formatStat(player.current_stats?.blocks, 0)}</td>
                 <td className="p-2">{formatStat(player.current_stats?.pf, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.plus_minus)}</td>
+                <td className="p-2">{formatStat(player.current_stats?.plus_minus)}                </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>

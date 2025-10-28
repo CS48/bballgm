@@ -69,7 +69,10 @@ export const TEAMS_TABLE_SCHEMA = `
     historical_records TEXT, -- [{season: 2023, wins: 52, losses: 30, stats: {...}}, {...}]
     
     -- Schedule (JSON array)
-    schedule TEXT -- [{game_id: 1, opponent_id: 5, date: "2024-10-15", home: true, completed: false, result: null}, {...}]
+    schedule TEXT, -- [{game_id: 1, opponent_id: 5, date: "2024-10-15", home: true, completed: false, result: null}, {...}]
+    
+    -- Rotation Configuration (JSON)
+    rotation_config TEXT -- TeamRotationConfig object
   );
 `;
 
@@ -165,7 +168,15 @@ export const FULL_SCHEMA = `
 /**
  * Database version for migration tracking
  */
-export const DATABASE_VERSION = '1.0.0';
+export const DATABASE_VERSION = '1.1.0';
+
+/**
+ * Migration to add rotation_config column to teams table
+ * This handles existing databases that don't have the rotation_config column
+ */
+export const MIGRATION_ADD_ROTATION_CONFIG = `
+  ALTER TABLE teams ADD COLUMN rotation_config TEXT;
+`;
 
 /**
  * Get all table names in the database

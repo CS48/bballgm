@@ -12,6 +12,7 @@ import { dbService } from '../database/db-service';
 import { leagueService } from '../services/league-service';
 import { simulationService } from '../services/simulation-service';
 import { calendarService } from '../services/calendar-service';
+import { gameService } from '../services/game-service';
 import { storage } from '../utils/storage';
 import { Team, Player } from '../types/database';
 import { LeagueState, SeasonInfo, LeagueConfig, LeagueInitOptions } from '../types/league';
@@ -48,6 +49,8 @@ interface LeagueContextType {
   simulateGame: (homeTeamId: number, awayTeamId: number) => Promise<{ homeScore: number; awayScore: number }>;
   simulateMultipleGames: (games: Array<{ homeTeamId: number; awayTeamId: number }>) => Promise<Array<{ homeTeamId: number; awayTeamId: number; homeScore: number; awayScore: number }>>;
   logWatchGame: (homeTeamId: number, awayTeamId: number, gameResult: any) => Promise<void>;
+  getGameResult: (gameId: number) => Promise<any>;
+  refreshCurrentGameDay: () => Promise<void>;
   advanceToNextGameDay: () => Promise<void>;
   simulateToGameDay: (gameDay: number) => Promise<void>;
   refreshData: () => Promise<void>;
@@ -322,6 +325,9 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       // Refresh data after simulations
       await refreshData();
       
+      // Auto-save database after multiple game simulations
+      await saveDatabase();
+      
       console.log(`${games.length} games simulated successfully`);
       return results  // Return the actual results
     } catch (err) {
@@ -377,6 +383,60 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
   };
 
   /**
+   * Get a completed game result by game ID
+   */
+  const getGameResult = async (gameId: number): Promise<any> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const result = await gameService.getGameResult(gameId);
+      
+      console.log(`Retrieved game result for game ID: ${gameId}`);
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to get game result';
+      setError(errorMessage);
+      console.error('Failed to get game result:', err);
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Refresh current game day data
+   */
+  const refreshCurrentGameDay = async (): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      console.log(`=== REFRESH CURRENT GAME DAY ===`)
+      console.log('Before refresh, currentGameDay:', currentGameDay)
+      
+      const currentSeason = await leagueService.getCurrentSeason();
+      console.log('Current season:', currentSeason)
+      
+      const gameDay = await calendarService.getCurrentGameDay(currentSeason.year);
+      console.log('After query, gameDay:', gameDay)
+      console.log('gameDay.games:', gameDay?.games)
+      
+      setCurrentGameDay(gameDay);
+      console.log('After setState, should update to:', gameDay)
+      
+      console.log('Refreshed current game day data');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to refresh current game day';
+      setError(errorMessage);
+      console.error('Failed to refresh current game day:', err);
+      throw new Error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
    * Advance to the next game day
    */
   const advanceToNextGameDay = async (): Promise<void> => {
@@ -389,6 +449,9 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       
       // Refresh data after advance
       await refreshData();
+      
+      // Auto-save database after advancing day
+      await saveDatabase();
       
       console.log('Advanced to next game day');
     } catch (err) {
@@ -555,6 +618,8 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     simulateGame,
     simulateMultipleGames,
     logWatchGame,
+    getGameResult,
+    refreshCurrentGameDay,
     advanceToNextGameDay,
     simulateToGameDay,
     refreshData,

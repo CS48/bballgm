@@ -7,15 +7,17 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useLeague, useTeams, useStandings } from "@/lib/context/league-context"
 import { leagueService } from "@/lib/services/league-service"
+import { gameService } from "@/lib/services/game-service"
 import type { Team } from "@/lib/types/database"
 
 interface HomeHubProps {
   userTeam: Team
   onNavigateToGameSelect: () => void
   onNavigateToWatchGame: (homeTeam: Team, awayTeam: Team) => void
+  onViewGameResult: (gameId: number) => void
 }
 
-export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGame }: HomeHubProps) {
+export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGame, onViewGameResult }: HomeHubProps) {
   const { teams, simulateGame, simulateMultipleGames, advanceToNextGameDay, currentGameDay } = useLeague()
   const standings = useStandings()
   const [selectedMatchup, setSelectedMatchup] = useState(0)
@@ -75,6 +77,10 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
 
   // Generate matchups from today's games or fallback to sample matchups
   const matchups = useMemo(() => {
+    console.log(`=== MATCHUPS RECALC ===`)
+    console.log('currentGameDay exists:', !!currentGameDay)
+    console.log('currentGameDay.games count:', currentGameDay?.games?.length || 0)
+    
     if (currentGameDay && currentGameDay.games && currentGameDay.games.length > 0) {
       // Use real games from today's schedule
       
@@ -92,7 +98,9 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
           awayTeamId: awayTeam.team_id,
           homeTeamId: homeTeam.team_id,
           gameId: game.game_id,
-          completed: game.completed
+          completed: game.completed,
+          homeScore: game.score?.home,  // Include scores from database
+          awayScore: game.score?.away
         }
       }).filter(Boolean)
       
@@ -136,6 +144,48 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
       return [userTeamMatchup, ...otherMatchups]
     }
   }, [currentGameDay, teams, userTeam])
+
+  // Log final matchup state
+  useEffect(() => {
+    if (matchups.length > 0) {
+      console.log('=== FINAL MATCHUP STATE ===')
+      const completedCount = matchups.filter(m => m.completed).length
+      console.log(`Total matchups: ${matchups.length}, Completed: ${completedCount}`)
+      matchups.forEach(matchup => {
+        if (matchup.completed) {
+          console.log(`✓ ${matchup.homeTeamId} vs ${matchup.awayTeamId}: ${matchup.awayScore}-${matchup.homeScore}`)
+        }
+      })
+    }
+  }, [matchups])
+
+  // Sync gameResults with database on mount
+  useEffect(() => {
+    console.log(`=== SYNC EFFECT ===`)
+    console.log('matchups count:', matchups.length)
+    
+    const syncCompletedGames = () => {
+      if (matchups && matchups.length > 0) {
+        const completedResults: {[key: string]: {homeScore: number, awayScore: number}} = {}
+        
+        matchups.forEach(matchup => {
+          if (matchup.completed && matchup.homeScore !== undefined && matchup.awayScore !== undefined) {
+            const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
+            // Use actual scores from database
+            completedResults[gameKey] = { 
+              homeScore: matchup.homeScore, 
+              awayScore: matchup.awayScore 
+            }
+          }
+        })
+        
+        console.log('completedResults:', completedResults)
+        setGameResults(prev => ({ ...prev, ...completedResults }))
+      }
+    }
+    
+    syncCompletedGames()
+  }, [matchups])
 
   // Calculate total pages after matchups are defined
   const totalPages = Math.ceil(matchups.length / matchupsPerPage)
@@ -244,6 +294,19 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
   const handleSimulateGame = async (matchup: any) => {
     const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
     
+    // Check if game is already completed
+    if (matchup.completed) {
+      console.warn('Game already completed, cannot simulate again')
+      return
+    }
+    
+    // Check if game exists in database and is completed
+    const gameId = await gameService.getGameIdByMatchup(matchup.homeTeamId, matchup.awayTeamId)
+    if (gameId) {
+      console.warn('Game already exists in database, cannot simulate again')
+      return
+    }
+    
     try {
       // Mark this game as simulating
       setSimulatingGames(prev => new Set(prev).add(gameKey))
@@ -279,7 +342,8 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
       // Filter out games that are already completed
       const uncompletedGames = matchups.filter(matchup => {
         const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
-        return !gameResults[gameKey] // Only include if not in results
+        // Check BOTH local state AND database completed flag
+        return !gameResults[gameKey] && !matchup.completed
       })
       
       // Only simulate uncompleted games
@@ -317,7 +381,11 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
 
   const checkAllGamesCompleted = () => {
     const totalGames = matchups.length
-    const completedGames = Object.keys(gameResults).length
+    // Count games completed in EITHER local state OR database
+    const completedGames = matchups.filter(matchup => {
+      const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
+      return gameResults[gameKey] || matchup.completed
+    }).length
     setAllGamesCompleted(completedGames >= totalGames)
   }
 
@@ -589,7 +657,7 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                       {(() => {
                         const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`
                         const gameResult = gameResults[gameKey]
-                        const isCompleted = !!gameResult
+                        const isCompleted = !!gameResult || matchup.completed // Check both sources
                         const isSimulating = isGameSimulating(matchup)
                         
                         return (
@@ -597,13 +665,13 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                             <div className="flex justify-between items-center">
                               <span className="font-medium">{getTeamAbbreviation(matchup.awayTeamId)}</span>
                               <span className="text-muted-foreground">
-                                {isCompleted ? gameResult.awayScore : isSimulating ? '...' : matchup.awayRecord}
+                                {isCompleted ? (gameResult?.awayScore ?? matchup.awayScore ?? matchup.awayRecord) : isSimulating ? '...' : matchup.awayRecord}
                               </span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="font-medium">{getTeamAbbreviation(matchup.homeTeamId)}</span>
                               <span className="text-muted-foreground">
-                                {isCompleted ? gameResult.homeScore : isSimulating ? '...' : matchup.homeRecord}
+                                {isCompleted ? (gameResult?.homeScore ?? matchup.homeScore ?? matchup.homeRecord) : isSimulating ? '...' : matchup.homeRecord}
                               </span>
                             </div>
                             {isSimulating && (
@@ -640,17 +708,20 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                   
                   const gameKey = `${selectedGame.homeTeamId}-${selectedGame.awayTeamId}`
                   const gameResult = gameResults[gameKey]
-                  const isCompleted = !!gameResult
+                  const isCompleted = !!gameResult || selectedGame.completed // Check both sources
                   
                   if (isCompleted) {
+                    const awayScore = gameResult?.awayScore ?? selectedGame.awayScore ?? 0
+                    const homeScore = gameResult?.homeScore ?? selectedGame.homeScore ?? 0
+                    
                     return (
                       <div className="flex justify-center gap-4 text-2xl font-bold">
-                        <span className={gameResult.awayScore > gameResult.homeScore ? 'text-green-600' : 'text-gray-600'}>
-                          {gameResult.awayScore}
+                        <span className={awayScore > homeScore ? 'text-green-600' : 'text-gray-600'}>
+                          {awayScore}
                         </span>
                         <span>-</span>
-                        <span className={gameResult.homeScore > gameResult.awayScore ? 'text-green-600' : 'text-gray-600'}>
-                          {gameResult.homeScore}
+                        <span className={homeScore > awayScore ? 'text-green-600' : 'text-gray-600'}>
+                          {homeScore}
                         </span>
                       </div>
                     )
@@ -672,14 +743,22 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                   
                   const gameKey = `${selectedGame.homeTeamId}-${selectedGame.awayTeamId}`
                   const gameResult = gameResults[gameKey]
-                  const isCompleted = !!gameResult
+                  const isCompleted = !!gameResult || selectedGame.completed // Check both sources
                   
                   if (isCompleted) {
                     return (
-                      <div className="text-center">
-                        <p className="text-green-600 font-semibold">Game Completed</p>
-                        <p className="text-sm text-muted-foreground">Final Score</p>
-                      </div>
+                      <Button 
+                        onClick={async () => {
+                          // Get the game ID for this matchup
+                          const gameId = await gameService.getGameIdByMatchup(selectedGame.homeTeamId, selectedGame.awayTeamId)
+                          if (gameId) {
+                            onViewGameResult(gameId)
+                          }
+                        }}
+                        className="px-6 py-2"
+                      >
+                        View Result
+                      </Button>
                     )
                   } else {
                     const isSimulating = isGameSimulating(selectedGame)

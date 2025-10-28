@@ -307,6 +307,8 @@ export interface Team {
   historical_records: string | null;
   /** Team schedule (JSON string) */
   schedule: string | null;
+  /** Team rotation configuration (JSON string) */
+  rotation_config: string | null;
 }
 
 /**
@@ -418,6 +420,34 @@ export interface DatabaseResult<T> {
   changes: number;
   /** Last inserted row ID (for INSERT operations) */
   lastInsertRowid: number;
+}
+
+/**
+ * Player rotation interface
+ * Defines minute ranges when a player is active during a game
+ */
+export interface PlayerRotation {
+  /** Player ID */
+  player_id: number;
+  /** Minute ranges when player is active (e.g., [[0, 6], [18, 24], [36, 42]]) */
+  active_minutes: number[][];
+  /** Total minutes this player should play */
+  total_minutes: number;
+}
+
+/**
+ * Team rotation configuration interface
+ * Stores the complete rotation pattern for a team
+ */
+export interface TeamRotationConfig {
+  /** Team ID */
+  team_id: number;
+  /** Array of player rotations */
+  player_rotations: PlayerRotation[];
+  /** Whether this is a custom rotation or default */
+  is_custom: boolean;
+  /** Last updated timestamp */
+  last_updated: string;
 }
 
 /**

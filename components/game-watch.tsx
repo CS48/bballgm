@@ -9,16 +9,19 @@ import { GameWatchNavigationModal } from "./game-watch-navigation-modal"
 import { WatchGameEngine } from "@/lib/game-watch-engine"
 import { formatGameClock, getEventColorClass } from "@/lib/utils/event-formatter"
 import type { GameSimulationTeam, WatchGameState, AnimationSpeed } from "@/lib/types/game-simulation"
+import type { TeamRotationConfig } from "@/lib/types/database"
 
 interface GameWatchProps {
   homeTeam: GameSimulationTeam
   awayTeam: GameSimulationTeam
+  homeRotationConfig?: TeamRotationConfig | null
+  awayRotationConfig?: TeamRotationConfig | null
   onGameComplete: (result: any) => void
   onNavigateAway: () => void
 }
 
-export function GameWatch({ homeTeam, awayTeam, onGameComplete, onNavigateAway }: GameWatchProps) {
-  const [gameEngine] = useState(() => new WatchGameEngine(homeTeam, awayTeam))
+export function GameWatch({ homeTeam, awayTeam, homeRotationConfig, awayRotationConfig, onGameComplete, onNavigateAway }: GameWatchProps) {
+  const [gameEngine] = useState(() => new WatchGameEngine(homeTeam, awayTeam, homeRotationConfig || null, awayRotationConfig || null))
   const [gameState, setGameState] = useState<WatchGameState>(gameEngine.getState())
   const [showNavigationModal, setShowNavigationModal] = useState(false)
   const eventFeedRef = useRef<HTMLDivElement>(null)
@@ -229,13 +232,19 @@ export function GameWatch({ homeTeam, awayTeam, onGameComplete, onNavigateAway }
             
             <TabsContent value="away" className="flex-1 overflow-hidden">
               <div className="h-full overflow-auto">
-                <GameStatsTable players={getRosterTableData(awayTeam)} />
+                <GameStatsTable 
+                  players={getRosterTableData(awayTeam)} 
+                  activePlayerIds={gameEngine.getActivePlayerIds('away')}
+                />
               </div>
             </TabsContent>
             
             <TabsContent value="home" className="flex-1 overflow-hidden">
               <div className="h-full overflow-auto">
-                <GameStatsTable players={getRosterTableData(homeTeam)} />
+                <GameStatsTable 
+                  players={getRosterTableData(homeTeam)} 
+                  activePlayerIds={gameEngine.getActivePlayerIds('home')}
+                />
               </div>
             </TabsContent>
           </Tabs>

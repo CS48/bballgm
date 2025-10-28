@@ -9,8 +9,11 @@ import { HomeHub } from "./home-hub"
 import { GameWatch } from "./game-watch"
 import { useLeague } from "@/lib/context/league-context"
 import { leagueService } from "@/lib/services/league-service"
+import { teamService } from "@/lib/services/team-service"
+import { gameService } from "@/lib/services/game-service"
+import { GameEngine } from "@/lib/game-engine"
 import { convertDatabaseTeamToGameTeam } from "@/lib/types/game-simulation"
-import type { Team } from "@/lib/types/database"
+import type { Team, TeamRotationConfig } from "@/lib/types/database"
 import type { GameSimulationTeam, GameSimulationPlayer } from "@/lib/types/game-simulation"
 
 interface MainMenuProps {
@@ -18,7 +21,7 @@ interface MainMenuProps {
   onResetGame: () => void
 }
 
-type MenuView = "main" | "game-select" | "game-result" | "watch-game"
+type MenuView = "main" | "game-select" | "game-result" | "watch-game" | "view-game-result"
 
 // Helper to convert roster from getTeamRoster to GameSimulationTeam
 function convertRosterToGameTeam(roster: any, team: Team): GameSimulationTeam {
@@ -63,31 +66,47 @@ function convertRosterToGameTeam(roster: any, team: Team): GameSimulationTeam {
 }
 
 export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
-  const { simulateGame, logWatchGame, teams, players } = useLeague()
+  const { simulateGame, logWatchGame, teams, players, getGameResult, refreshCurrentGameDay } = useLeague()
   const router = useRouter()
   const [currentView, setCurrentView] = useState<MenuView>("main")
   const [selectedOpponent, setSelectedOpponent] = useState<Team | null>(null)
   const [gameResult, setGameResult] = useState<any>(null)
   const [isSimulating, setIsSimulating] = useState(false)
   const [watchGameTeams, setWatchGameTeams] = useState<{ home: GameSimulationTeam; away: GameSimulationTeam } | null>(null)
+  const [watchGameRotations, setWatchGameRotations] = useState<{ home: TeamRotationConfig | null; away: TeamRotationConfig | null }>({ home: null, away: null })
 
   const handleOpponentSelected = async (opponent: Team, gameMode: 'sim' | 'watch') => {
     setSelectedOpponent(opponent)
     
     if (gameMode === 'watch') {
+      // Check if game already completed in database
+      const gameId = await gameService.getGameIdByMatchup(userTeam.team_id, opponent.team_id)
+      if (gameId) {
+        console.warn('Game already completed, cannot watch again')
+        alert('This game has already been completed. View the result instead.')
+        return
+      }
+      
       // Prepare teams for watch mode (stay in same context)
       try {
-        // Get full rosters with calculated overall ratings
-        const [homeRoster, awayRoster] = await Promise.all([
+        // Get full rosters with calculated overall ratings and rotation configs
+        const [homeRoster, awayRoster, homeTeam, awayTeam] = await Promise.all([
           leagueService.getTeamRoster(userTeam.team_id),
-          leagueService.getTeamRoster(opponent.team_id)
+          leagueService.getTeamRoster(opponent.team_id),
+          teamService.getTeam(userTeam.team_id),
+          teamService.getTeam(opponent.team_id)
         ])
+        
+        // Parse rotation configs if they exist
+        const homeRotation = homeTeam?.rotation_config ? JSON.parse(homeTeam.rotation_config) : null
+        const awayRotation = awayTeam?.rotation_config ? JSON.parse(awayTeam.rotation_config) : null
         
         // Convert to game simulation teams
         const homeGameTeam = convertRosterToGameTeam(homeRoster, userTeam)
         const awayGameTeam = convertRosterToGameTeam(awayRoster, opponent)
         
         setWatchGameTeams({ home: homeGameTeam, away: awayGameTeam })
+        setWatchGameRotations({ home: homeRotation, away: awayRotation })
         setCurrentView("watch-game")
       } catch (error) {
         console.error('Failed to prepare watch game:', error)
@@ -100,20 +119,24 @@ export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
     setIsSimulating(true)
     
     try {
-      // Simulate game instantly using simulation service
-      const result = await simulateGame(userTeam.team_id, opponent.team_id)
+      // Get full rosters with calculated overall ratings
+      const [homeRoster, awayRoster] = await Promise.all([
+        leagueService.getTeamRoster(userTeam.team_id),
+        leagueService.getTeamRoster(opponent.team_id)
+      ])
       
-      // Create game result object for the result component
-      const gameResult = {
-        homeScore: result.homeScore,
-        awayScore: result.awayScore,
-        homeTeam: userTeam,
-        awayTeam: opponent,
-        winner: result.homeScore > result.awayScore ? userTeam : opponent,
-        events: [] // No events needed for instant simulation
-      }
+      // Convert to game simulation teams
+      const homeGameTeam = convertRosterToGameTeam(homeRoster, userTeam)
+      const awayGameTeam = convertRosterToGameTeam(awayRoster, opponent)
       
-      handleGameComplete(gameResult)
+      // Simulate game with full stats using GameEngine
+      const fullResult = GameEngine.simulateGame(homeGameTeam, awayGameTeam)
+      
+      // Still call context simulateGame to persist to DB
+      await simulateGame(userTeam.team_id, opponent.team_id)
+      
+      // Use the full result with player stats
+      handleGameComplete(fullResult)
     } catch (error) {
       console.error('Game simulation failed:', error)
       // Reset to game selection on error
@@ -128,11 +151,18 @@ export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
     setCurrentView("game-result")
   }
 
-  const handlePlayAgain = () => {
-    setSelectedOpponent(null)
-    setGameResult(null)
-    setCurrentView("game-select")
+  const handleViewGameResult = async (gameId: number) => {
+    try {
+      const result = await getGameResult(gameId)
+      if (result) {
+        setGameResult(result)
+        setCurrentView("view-game-result")
+      }
+    } catch (error) {
+      console.error('Failed to load game result:', error)
+    }
   }
+
 
 
   if (currentView === "game-select") {
@@ -158,8 +188,14 @@ export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
           <GameResultComponent
             result={gameResult}
             userTeam={userTeam}
-            onPlayAgain={handlePlayAgain}
-            onBackToMenu={() => setCurrentView("main")}
+            onBackToMenu={async () => {
+              console.log(`=== BACK TO MENU CLICKED ===`)
+              console.log('Before refreshCurrentGameDay')
+              await refreshCurrentGameDay() // Refresh before navigating back
+              console.log('After refreshCurrentGameDay')
+              setCurrentView("main")
+              console.log('After setCurrentView("main")')
+            }}
           />
         </div>
       </div>
@@ -172,6 +208,8 @@ export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
       <GameWatch
         homeTeam={watchGameTeams.home}
         awayTeam={watchGameTeams.away}
+        homeRotationConfig={watchGameRotations.home}
+        awayRotationConfig={watchGameRotations.away}
         onGameComplete={async (result) => {
           try {
             // Log the completed watch game to the database
@@ -181,32 +219,39 @@ export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
               result
             )
             
-            // Convert watch game result to game result format
-            setGameResult({
-              homeScore: result.homeScore || 0,
-              awayScore: result.awayScore || 0,
-              homeTeam: userTeam,
-              awayTeam: selectedOpponent,
-              winner: (result.homeScore || 0) > (result.awayScore || 0) ? userTeam : selectedOpponent,
-              events: result.events || []
-            })
+            // Use the complete result from buildGameResult()
+            setGameResult(result)
             setCurrentView("game-result")
           } catch (error) {
             console.error('Failed to log watch game:', error)
             // Still show the result even if logging failed
-            setGameResult({
-              homeScore: result.homeScore || 0,
-              awayScore: result.awayScore || 0,
-              homeTeam: userTeam,
-              awayTeam: selectedOpponent,
-              winner: (result.homeScore || 0) > (result.awayScore || 0) ? userTeam : selectedOpponent,
-              events: result.events || []
-            })
+            setGameResult(result)
             setCurrentView("game-result")
           }
         }}
         onNavigateAway={() => setCurrentView("main")}
       />
+    )
+  }
+
+  if (currentView === "view-game-result" && gameResult) {
+    return (
+      <div className="min-h-screen bg-background p-4">
+        <div className="max-w-6xl mx-auto">
+          <GameResultComponent
+            result={gameResult}
+            userTeam={userTeam}
+            onBackToMenu={async () => {
+              console.log(`=== BACK TO MENU CLICKED ===`)
+              console.log('Before refreshCurrentGameDay')
+              await refreshCurrentGameDay() // Refresh before navigating back
+              console.log('After refreshCurrentGameDay')
+              setCurrentView("main")
+              console.log('After setCurrentView("main")')
+            }}
+          />
+        </div>
+      </div>
     )
   }
 
@@ -217,11 +262,17 @@ export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
       onNavigateToWatchGame={async (homeTeam, awayTeam) => {
         // Prepare teams for watch mode
         try {
-          // Get full rosters with calculated overall ratings
-          const [homeRoster, awayRoster] = await Promise.all([
+          // Get full rosters with calculated overall ratings and rotation configs
+          const [homeRoster, awayRoster, homeTeamData, awayTeamData] = await Promise.all([
             leagueService.getTeamRoster(homeTeam.team_id),
-            leagueService.getTeamRoster(awayTeam.team_id)
+            leagueService.getTeamRoster(awayTeam.team_id),
+            teamService.getTeam(homeTeam.team_id),
+            teamService.getTeam(awayTeam.team_id)
           ])
+          
+          // Parse rotation configs if they exist
+          const homeRotation = homeTeamData?.rotation_config ? JSON.parse(homeTeamData.rotation_config) : null
+          const awayRotation = awayTeamData?.rotation_config ? JSON.parse(awayTeamData.rotation_config) : null
           
           // Convert to game simulation teams
           const homeGameTeam = convertRosterToGameTeam(homeRoster, homeTeam)
@@ -229,11 +280,13 @@ export function MainMenu({ userTeam, onResetGame }: MainMenuProps) {
           
           setSelectedOpponent(awayTeam)
           setWatchGameTeams({ home: homeGameTeam, away: awayGameTeam })
+          setWatchGameRotations({ home: homeRotation, away: awayRotation })
           setCurrentView("watch-game")
         } catch (error) {
           console.error('Failed to prepare watch game:', error)
         }
       }}
+      onViewGameResult={handleViewGameResult}
     />
   )
 }

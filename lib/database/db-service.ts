@@ -150,7 +150,10 @@ export class DatabaseService {
           historical_records TEXT, -- [{season: 2023, wins: 52, losses: 30, stats: {...}}, {...}]
           
           -- Schedule (JSON array)
-          schedule TEXT -- [{game_id: 1, opponent_id: 5, date: "2024-10-15", home: true, completed: false, result: null}, {...}]
+          schedule TEXT, -- [{game_id: 1, opponent_id: 5, date: "2024-10-15", home: true, completed: false, result: null}, {...}]
+          
+          -- Rotation Configuration (JSON)
+          rotation_config TEXT -- TeamRotationConfig object
         );
       `);
 

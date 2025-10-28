@@ -1,25 +1,20 @@
 "use client"
 
-import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Trophy } from "lucide-react"
-import { BoxScore } from "./box-score"
 import type { Team } from "@/lib/types/database"
 import type { GameSimulationResult, PlayerGameStats } from "@/lib/types/game-simulation"
 
 interface GameResultProps {
   result: GameSimulationResult
   userTeam: Team
-  onPlayAgain: () => void
   onBackToMenu: () => void
 }
 
-export function GameResultComponent({ result, userTeam, onPlayAgain, onBackToMenu }: GameResultProps) {
-  const [showBoxScore, setShowBoxScore] = useState(false)
-
+export function GameResultComponent({ result, userTeam, onBackToMenu }: GameResultProps) {
   const userIsHome = userTeam.team_id.toString() === result.homeTeam.id
   const userWon =
     (userIsHome && result.homeScore > result.awayScore) || (!userIsHome && result.awayScore > result.homeScore)
@@ -27,10 +22,6 @@ export function GameResultComponent({ result, userTeam, onPlayAgain, onBackToMen
   const userScore = userIsHome ? result.homeScore : result.awayScore
   const opponentScore = userIsHome ? result.awayScore : result.homeScore
   const opponent = userIsHome ? result.awayTeam : result.homeTeam
-
-  if (showBoxScore) {
-    return <BoxScore result={result} onClose={() => setShowBoxScore(false)} />
-  }
 
   const calculateFieldGoalPercentage = (made: number, attempted: number) => {
     if (attempted === 0) return "0.0%"
@@ -77,7 +68,23 @@ export function GameResultComponent({ result, userTeam, onPlayAgain, onBackToMen
       )
     }
     
-    const totals = players.reduce(
+    // Sort players: starters first (by position order), then bench (by minutes played)
+    const sortedPlayers = [...players].sort((a, b) => {
+      // Starters come first
+      if (a.is_starter && !b.is_starter) return -1
+      if (!a.is_starter && b.is_starter) return 1
+      
+      // Both starters: sort by position order
+      if (a.is_starter && b.is_starter) {
+        const positionOrder = ['PG', 'SG', 'SF', 'PF', 'C']
+        return positionOrder.indexOf(a.position) - positionOrder.indexOf(b.position)
+      }
+      
+      // Both bench: sort by minutes played (descending)
+      return (b.minutes || 0) - (a.minutes || 0)
+    })
+    
+    const totals = sortedPlayers.reduce(
       (acc, player) => ({
         points: acc.points + player.points,
         rebounds: acc.rebounds + player.rebounds,
@@ -132,7 +139,7 @@ export function GameResultComponent({ result, userTeam, onPlayAgain, onBackToMen
               </tr>
             </thead>
             <tbody className="bg-white">
-              {players.map((player) => (
+              {sortedPlayers.map((player) => (
                 <PlayerStatsRow key={player.id} player={player} isMVP={result.mvp?.id === player.id} />
               ))}
               <tr className="border-t-2 bg-gray-100 font-bold">
@@ -161,6 +168,13 @@ export function GameResultComponent({ result, userTeam, onPlayAgain, onBackToMen
 
   return (
     <div className="space-y-6">
+      {/* Back to Menu button at top */}
+      <div className="flex justify-start">
+        <Button variant="secondary" onClick={onBackToMenu} className="text-lg px-8 py-6">
+          ← Back to Menu
+        </Button>
+      </div>
+      
       <div className="text-center">
         <h2 className="text-4xl font-bold text-primary mb-2">Game Complete</h2>
         <Badge variant={userWon ? "default" : "destructive"} className="text-xl px-6 py-2">
@@ -177,7 +191,7 @@ export function GameResultComponent({ result, userTeam, onPlayAgain, onBackToMen
           <div className="flex justify-between items-center">
             <div className="text-center flex-1">
               <h3 className="text-xl font-bold">{userTeam.name}</h3>
-              <div className={`text-5xl font-bold mt-2 ${userWon ? "text-green-600" : "text-red-600"}`}>
+              <div className="text-5xl font-bold mt-2">
                 {userScore}
               </div>
             </div>
@@ -186,7 +200,7 @@ export function GameResultComponent({ result, userTeam, onPlayAgain, onBackToMen
             </div>
             <div className="text-center flex-1">
               <h3 className="text-xl font-bold">{opponent.name}</h3>
-              <div className={`text-5xl font-bold mt-2 ${!userWon ? "text-green-600" : "text-red-600"}`}>
+              <div className="text-5xl font-bold mt-2">
                 {opponentScore}
               </div>
             </div>
@@ -245,45 +259,6 @@ export function GameResultComponent({ result, userTeam, onPlayAgain, onBackToMen
           </Tabs>
         </CardContent>
       </Card>
-
-      {/* Game Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Game Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div>
-              <p className="text-2xl font-bold text-primary">{result.events.length}</p>
-              <p className="text-sm text-muted-foreground">Total Plays</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-primary">4</p>
-              <p className="text-sm text-muted-foreground">Quarters</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-primary">{userScore + opponentScore}</p>
-              <p className="text-sm text-muted-foreground">Total Points</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-primary">{Math.abs(userScore - opponentScore)}</p>
-              <p className="text-sm text-muted-foreground">Point Difference</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex gap-4 justify-center">
-        <Button onClick={() => setShowBoxScore(true)} variant="outline" className="text-lg px-8 py-6">
-          View Full Box Score
-        </Button>
-        <Button onClick={onPlayAgain} className="text-lg px-8 py-6">
-          Play Another Game
-        </Button>
-        <Button variant="secondary" onClick={onBackToMenu} className="text-lg px-8 py-6">
-          Back to Menu
-        </Button>
-      </div>
     </div>
   )
 }
