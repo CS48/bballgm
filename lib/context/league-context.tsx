@@ -55,6 +55,7 @@ interface LeagueContextType {
   simulateToGameDay: (gameDay: number) => Promise<void>;
   refreshData: () => Promise<void>;
   advanceSeason: () => Promise<void>;
+  saveDatabase: () => Promise<void>;
   
   // Utility functions
   getTeamById: (teamId: number) => Team | null;
@@ -624,6 +625,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     simulateToGameDay,
     refreshData,
     advanceSeason,
+    saveDatabase,
     
     // Utility functions
     getTeamById,

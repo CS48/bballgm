@@ -18,7 +18,7 @@ interface TeamPageProps {
 }
 
 export default function TeamPage({ params }: TeamPageProps) {
-  const { teams, isLoading: leagueLoading, refreshData } = useLeague()
+  const { teams, isLoading: leagueLoading, refreshData, saveDatabase } = useLeague()
   const standings = useStandings()
   const [team, setTeam] = useState<Team | null>(null)
   const [teamRoster, setTeamRoster] = useState<any>(null)
@@ -39,6 +39,9 @@ export default function TeamPage({ params }: TeamPageProps) {
       
       // Update in database
       await leagueService.updateTeam(teamId, updatedTeam)
+      
+      // Persist database to localStorage
+      await saveDatabase()
       
       // Refresh league context to pick up the change
       await refreshData()

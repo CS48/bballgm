@@ -316,18 +316,6 @@ export function RotationChart({ players, rotationConfig, onSave, onReset }: Rota
         </div>
       </div>
 
-      {/* Validation Errors */}
-      {validationErrors.length > 0 && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            <div className="space-y-1">
-              {validationErrors.map((error, index) => (
-                <div key={index}>{error}</div>
-              ))}
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
 
       {/* Chart */}
       <Card>
@@ -348,11 +336,11 @@ export function RotationChart({ players, rotationConfig, onSave, onReset }: Rota
                       <div 
                         key={minute}
                         className={`text-xs text-center flex-shrink-0 border-r border-gray-200 ${
-                          hasError ? 'bg-red-100' : ''
+                          hasError ? 'bg-red-100' : 'bg-transparent'
                         }`}
-                        style={{ width: RECTANGLE_WIDTH }}
+                        style={{ width: RECTANGLE_WIDTH, height: RECTANGLE_HEIGHT }}
                       >
-                        {hasError && <span className="text-red-600">⚠️</span>}
+                        {hasError && <span className="text-red-600 font-bold">!</span>}
                       </div>
                     )
                   })}
@@ -438,7 +426,7 @@ export function RotationChart({ players, rotationConfig, onSave, onReset }: Rota
                       <div
                         key={minute}
                         className={`border border-gray-200 cursor-pointer hover:opacity-80 ${
-                          isActive ? 'bg-black' : 'bg-white'
+                          isActive ? 'bg-gray-500' : 'bg-white'
                         }`}
                         style={{ 
                           width: RECTANGLE_WIDTH,
