@@ -233,6 +233,9 @@ export interface SimulationConfig {
       max_faces: number;
       min_faces: number;
     };
+    position_bonuses: Record<string, number>;
+    distance_modifiers: Record<string, Record<string, number>>;
+    three_pointer_modifiers: Record<string, number>;
   };
   decision_logic: {
     forced_shot_threshold: number;
