@@ -36,7 +36,7 @@ interface LeagueContextType {
   // Standings
   easternStandings: any[];
   westernStandings: any[];
-  overallStandings: any[];
+  standingsTimestamp: number;
 
   // Calendar
   currentGameDay: GameDay | null;
@@ -95,7 +95,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
   // Standings
   const [easternStandings, setEasternStandings] = useState<any[]>([]);
   const [westernStandings, setWesternStandings] = useState<any[]>([]);
-  const [overallStandings, setOverallStandings] = useState<any[]>([]);
+  const [standingsTimestamp, setStandingsTimestamp] = useState<number>(Date.now());
 
   // Calendar
   const [currentGameDay, setCurrentGameDay] = useState<GameDay | null>(null);
@@ -182,12 +182,11 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       const [eastern, western] = await Promise.all([
         leagueService.getStandings('East'),
         leagueService.getStandings('West'),
-        leagueService.getStandings(null),
       ]);
 
       setEasternStandings(eastern);
       setWesternStandings(western);
-      setOverallStandings(overall);
+      setStandingsTimestamp(Date.now()); // Update timestamp when standings change
 
       // Load calendar data
       const currentYear = new Date().getFullYear();
@@ -609,7 +608,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     // Standings
     easternStandings,
     westernStandings,
-    overallStandings,
+    standingsTimestamp,
 
     // Calendar
     currentGameDay,
@@ -726,7 +725,7 @@ export function useStandings(): {
   return {
     eastern: easternStandings,
     western: westernStandings,
-    overall: overallStandings,
+    standingsTimestamp,
   };
 }
 

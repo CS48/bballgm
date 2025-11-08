@@ -190,8 +190,11 @@ export default function TeamPage({ params }: TeamPageProps) {
               </span>
               <span> | </span>
               <span>
-                #{standings.overall?.findIndex((t) => t.team_id === team.team_id) + 1 || 1} in {team.conference}ern
-                Conference
+                #{(() => {
+                  const conferenceStandings = team.conference === 'East' ? standings.eastern : standings.western;
+                  const position = conferenceStandings?.findIndex((t) => t.team_id === team.team_id) + 1 || 1;
+                  return position;
+                })()} in {team.conference === 'East' ? 'Eastern' : 'Western'} Conference
               </span>
             </div>
           </div>
