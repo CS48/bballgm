@@ -36,7 +36,7 @@ interface LeagueContextType {
   // Standings
   easternStandings: any[];
   westernStandings: any[];
-  overallStandings: any[];
+  standingsTimestamp: number;
 
   // Calendar
   currentGameDay: GameDay | null;
@@ -95,7 +95,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
   // Standings
   const [easternStandings, setEasternStandings] = useState<any[]>([]);
   const [westernStandings, setWesternStandings] = useState<any[]>([]);
-  const [overallStandings, setOverallStandings] = useState<any[]>([]);
+  const [standingsTimestamp, setStandingsTimestamp] = useState<number>(Date.now());
 
   // Calendar
   const [currentGameDay, setCurrentGameDay] = useState<GameDay | null>(null);
@@ -179,15 +179,14 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       setLeagueState(stateData);
 
       // Load standings
-      const [eastern, western, overall] = await Promise.all([
+      const [eastern, western] = await Promise.all([
         leagueService.getStandings('East'),
         leagueService.getStandings('West'),
-        leagueService.getStandings(null),
       ]);
 
       setEasternStandings(eastern);
       setWesternStandings(western);
-      setOverallStandings(overall);
+      setStandingsTimestamp(Date.now()); // Update timestamp when standings change
 
       // Load calendar data
       const currentYear = new Date().getFullYear();
@@ -261,7 +260,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       setPlayers([]);
       setEasternStandings([]);
       setWesternStandings([]);
-      setOverallStandings([]);
+      setStandingsTimestamp(Date.now()); // Update timestamp when standings are cleared
       setCurrentGameDay(null);
       setSeasonProgress(null);
       setTeamProgress(null);
@@ -609,7 +608,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     // Standings
     easternStandings,
     westernStandings,
-    overallStandings,
+    standingsTimestamp,
 
     // Calendar
     currentGameDay,
@@ -720,13 +719,13 @@ export function usePlayers(): Player[] {
 export function useStandings(): {
   eastern: any[];
   western: any[];
-  overall: any[];
+  standingsTimestamp: number;
 } {
-  const { easternStandings, westernStandings, overallStandings } = useLeague();
+  const { easternStandings, westernStandings, standingsTimestamp } = useLeague();
   return {
     eastern: easternStandings,
     western: westernStandings,
-    overall: overallStandings,
+    standingsTimestamp,
   };
 }
 

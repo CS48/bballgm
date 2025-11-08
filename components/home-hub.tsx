@@ -23,7 +23,6 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
   const [selectedMatchup, setSelectedMatchup] = useState(0);
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
-  const [gameResults, setGameResults] = useState<{ [key: string]: { homeScore: number; awayScore: number } }>({});
   const [allGamesCompleted, setAllGamesCompleted] = useState(false);
   const [simulatingGames, setSimulatingGames] = useState<Set<string>>(new Set());
   const [userTeamRoster, setUserTeamRoster] = useState<any>(null);
@@ -159,34 +158,6 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
         }
       });
     }
-  }, [matchups]);
-
-  // Sync gameResults with database on mount
-  useEffect(() => {
-    console.log(`=== SYNC EFFECT ===`);
-    console.log('matchups count:', matchups.length);
-
-    const syncCompletedGames = () => {
-      if (matchups && matchups.length > 0) {
-        const completedResults: { [key: string]: { homeScore: number; awayScore: number } } = {};
-
-        matchups.forEach((matchup) => {
-          if (matchup.completed && matchup.homeScore !== undefined && matchup.awayScore !== undefined) {
-            const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`;
-            // Use actual scores from database
-            completedResults[gameKey] = {
-              homeScore: matchup.homeScore,
-              awayScore: matchup.awayScore,
-            };
-          }
-        });
-
-        console.log('completedResults:', completedResults);
-        setGameResults((prev) => ({ ...prev, ...completedResults }));
-      }
-    };
-
-    syncCompletedGames();
   }, [matchups]);
 
   // Calculate total pages after matchups are defined
@@ -342,16 +313,7 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
       setSimulatingGames((prev) => new Set(prev).add(gameKey));
 
       // Get actual simulation results
-      const result = await simulateGame(matchup.homeTeamId, matchup.awayTeamId);
-
-      // Use actual scores from simulation
-      setGameResults((prev) => ({
-        ...prev,
-        [gameKey]: {
-          homeScore: result.homeScore,
-          awayScore: result.awayScore,
-        },
-      }));
+      await simulateGame(matchup.homeTeamId, matchup.awayTeamId);
 
       // Check if all games are completed
       checkAllGamesCompleted();
@@ -370,11 +332,7 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
   const handleSimulateAllGames = async () => {
     try {
       // Filter out games that are already completed
-      const uncompletedGames = matchups.filter((matchup) => {
-        const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`;
-        // Check BOTH local state AND database completed flag
-        return !gameResults[gameKey] && !matchup.completed;
-      });
+      const uncompletedGames = matchups.filter((matchup) => !matchup.completed);
 
       // Only simulate uncompleted games
       if (uncompletedGames.length > 0) {
@@ -383,24 +341,8 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
           awayTeamId: matchup.awayTeamId,
         }));
 
-        // Get actual results from simulations
-        const results = await simulateMultipleGames(games);
-
-        // Convert to UI format
-        const newResults: { [key: string]: { homeScore: number; awayScore: number } } = {};
-        results.forEach((result) => {
-          const gameKey = `${result.homeTeamId}-${result.awayTeamId}`;
-          newResults[gameKey] = {
-            homeScore: result.homeScore,
-            awayScore: result.awayScore,
-          };
-        });
-
-        // Merge with existing results instead of replacing
-        setGameResults((prev) => ({
-          ...prev,
-          ...newResults,
-        }));
+        // Simulate all games
+        await simulateMultipleGames(games);
       }
 
       setAllGamesCompleted(true);
@@ -411,17 +353,13 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
 
   const checkAllGamesCompleted = () => {
     const totalGames = matchups.length;
-    // Count games completed in EITHER local state OR database
-    const completedGames = matchups.filter((matchup) => {
-      const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`;
-      return gameResults[gameKey] || matchup.completed;
-    }).length;
+    // Count games completed in database
+    const completedGames = matchups.filter((matchup) => matchup.completed).length;
     setAllGamesCompleted(completedGames >= totalGames);
   };
 
   const handleProceedToNextDay = async () => {
     // Reset local UI state
-    setGameResults({});
     setAllGamesCompleted(false);
     setSelectedMatchup(0);
     setCurrentPage(0);
@@ -434,30 +372,27 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
     }
   };
 
-  // Calculate updated team record based on game results
+  // Calculate updated team record based on database
   const getUpdatedTeamRecord = (teamId: number) => {
-    let wins = userTeam.wins;
-    let losses = userTeam.losses;
-
-    // Check if this team played any games today
-    Object.entries(gameResults).forEach(([gameKey, result]) => {
-      const [homeTeamId, awayTeamId] = gameKey.split('-').map(Number);
-
-      if (teamId === homeTeamId || teamId === awayTeamId) {
-        const isHomeTeam = teamId === homeTeamId;
-        const teamScore = isHomeTeam ? result.homeScore : result.awayScore;
-        const opponentScore = isHomeTeam ? result.awayScore : result.homeScore;
-
-        if (teamScore > opponentScore) {
-          wins++;
-        } else {
-          losses++;
-        }
-      }
-    });
-
-    return { wins, losses };
+    // Return wins/losses directly from userTeam (refreshed from database)
+    return { wins: userTeam.wins, losses: userTeam.losses };
   };
+
+  // Calculate standings position - memoized to recalculate when standings update
+  const standingsPosition = useMemo(() => {
+    const conferenceStandings = userTeam.conference === 'East' ? standings.eastern : standings.western;
+
+    // Handle empty or undefined standings
+    if (!conferenceStandings || conferenceStandings.length === 0) {
+      return 1; // Default if standings not loaded yet
+    }
+
+    // Find team position in standings
+    const index = conferenceStandings.findIndex((t) => t.team_id === userTeam.team_id);
+
+    // If team found, return position (index + 1), otherwise default to 1
+    return index >= 0 ? index + 1 : 1;
+  }, [standings.eastern, standings.western, standings.standingsTimestamp, userTeam.team_id, userTeam.conference]);
 
   return (
     <div
@@ -495,13 +430,7 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                     </span>
                     <span> | </span>
                     <span>
-                      #
-                      {(() => {
-                        const conferenceStandings =
-                          userTeam.conference === 'Eastern' ? standings.eastern : standings.western;
-                        return conferenceStandings?.findIndex((t) => t.team_id === userTeam.team_id) + 1 || 1;
-                      })()}{' '}
-                      in {userTeam.conference}ern Conference
+                      #{standingsPosition} in {userTeam.conference === 'East' ? 'Eastern' : 'Western'} Conference
                     </span>
                   </>
                 );
@@ -715,9 +644,7 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                   >
                     <div className="text-sm space-y-1">
                       {(() => {
-                        const gameKey = `${matchup.homeTeamId}-${matchup.awayTeamId}`;
-                        const gameResult = gameResults[gameKey];
-                        const isCompleted = !!gameResult || matchup.completed; // Check both sources
+                        const isCompleted = matchup.completed;
                         const isSimulating = isGameSimulating(matchup);
 
                         return (
@@ -726,7 +653,7 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                               <span className="font-medium">{getTeamAbbreviation(matchup.awayTeamId)}</span>
                               <span className="text-muted-foreground">
                                 {isCompleted
-                                  ? (gameResult?.awayScore ?? matchup.awayScore ?? matchup.awayRecord)
+                                  ? (matchup.awayScore ?? matchup.awayRecord)
                                   : isSimulating
                                     ? '...'
                                     : matchup.awayRecord}
@@ -736,7 +663,7 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                               <span className="font-medium">{getTeamAbbreviation(matchup.homeTeamId)}</span>
                               <span className="text-muted-foreground">
                                 {isCompleted
-                                  ? (gameResult?.homeScore ?? matchup.homeScore ?? matchup.homeRecord)
+                                  ? (matchup.homeScore ?? matchup.homeRecord)
                                   : isSimulating
                                     ? '...'
                                     : matchup.homeRecord}
@@ -780,13 +707,11 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                   const selectedGame = matchups[selectedMatchup];
                   if (!selectedGame) return null;
 
-                  const gameKey = `${selectedGame.homeTeamId}-${selectedGame.awayTeamId}`;
-                  const gameResult = gameResults[gameKey];
-                  const isCompleted = !!gameResult || selectedGame.completed; // Check both sources
+                  const isCompleted = selectedGame.completed;
 
                   if (isCompleted) {
-                    const awayScore = gameResult?.awayScore ?? selectedGame.awayScore ?? 0;
-                    const homeScore = gameResult?.homeScore ?? selectedGame.homeScore ?? 0;
+                    const awayScore = selectedGame.awayScore ?? 0;
+                    const homeScore = selectedGame.homeScore ?? 0;
 
                     return (
                       <div className="flex justify-center gap-4 text-2xl font-bold">
@@ -811,9 +736,7 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                   const selectedGame = matchups[selectedMatchup];
                   if (!selectedGame) return null;
 
-                  const gameKey = `${selectedGame.homeTeamId}-${selectedGame.awayTeamId}`;
-                  const gameResult = gameResults[gameKey];
-                  const isCompleted = !!gameResult || selectedGame.completed; // Check both sources
+                  const isCompleted = selectedGame.completed;
 
                   if (isCompleted) {
                     return (
