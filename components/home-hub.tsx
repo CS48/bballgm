@@ -716,11 +716,11 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
                     
                     return (
                       <div className="flex justify-center gap-4 text-2xl font-bold">
-                        <span className={awayScore > homeScore ? 'text-green-600' : 'text-gray-600'}>
+                        <span className={awayScore > homeScore ? 'text-black' : 'text-gray-600'}>
                           {awayScore}
                         </span>
                         <span>-</span>
-                        <span className={homeScore > awayScore ? 'text-green-600' : 'text-gray-600'}>
+                        <span className={homeScore > awayScore ? 'text-black' : 'text-gray-600'}>
                           {homeScore}
                         </span>
                       </div>

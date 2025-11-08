@@ -13,15 +13,17 @@ import type { TeamRotationConfig, Player } from '@/lib/types/database'
 interface RotationEditorProps {
   players: Player[]
   rotationConfig: TeamRotationConfig | null
+  teamId: number
   onSave: (config: TeamRotationConfig) => void
   onReset: () => void
 }
 
-export function RotationEditor({ players, rotationConfig, onSave, onReset }: RotationEditorProps) {
+export function RotationEditor({ players, rotationConfig, teamId, onSave, onReset }: RotationEditorProps) {
   return (
     <RotationChart 
       players={players}
       rotationConfig={rotationConfig}
+      teamId={teamId}
       onSave={onSave}
       onReset={onReset}
     />

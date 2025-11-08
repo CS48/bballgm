@@ -6,8 +6,9 @@
  * blowouts, and close games.
  */
 
-import type { TeamRotationConfig, PlayerRotation } from '../types/database'
+import type { TeamRotationConfig, PlayerRotation, Player } from '../types/database'
 import type { SimulationPlayer, SimulationTeam } from '../types/simulation-engine'
+import { createDefaultRotationConfig } from '../utils/default-rotation-generator'
 
 export interface GameState {
   quarter: number
@@ -71,40 +72,88 @@ export class RotationManager {
 
   /**
    * Get default rotation pattern when no custom config exists
+   * Uses position-based selection to match createDefaultRotationConfig
+   * Ensures exactly one player of each position (PG, SG, SF, PF, C) at all times
    */
   private getDefaultActiveLineup(): SimulationPlayer[] {
-    const starters = this.team.players.filter(p => p.is_starter === 1)
-    const bench = this.team.players.filter(p => p.is_starter === 0)
+    const positions: Array<'PG' | 'SG' | 'SF' | 'PF' | 'C'> = ['PG', 'SG', 'SF', 'PF', 'C']
     
-    // Sort bench by overall rating (best first)
-    bench.sort((a, b) => this.calculateOverallRating(b) - this.calculateOverallRating(a))
+    // Group players by position and sort by overall rating within each position
+    const playersByPosition: Record<string, SimulationPlayer[]> = {
+      PG: [],
+      SG: [],
+      SF: [],
+      PF: [],
+      C: []
+    }
+    
+    this.team.players.forEach(player => {
+      if (playersByPosition[player.position]) {
+        playersByPosition[player.position].push(player)
+      }
+    })
+    
+    // Sort each position by overall rating (best first)
+    positions.forEach(pos => {
+      playersByPosition[pos].sort((a, b) => {
+        const aRating = this.calculateOverallRating(a)
+        const bRating = this.calculateOverallRating(b)
+        return bRating - aRating
+      })
+    })
+    
+    // Get starters: best player at each position
+    const starters: SimulationPlayer[] = positions
+      .map(pos => playersByPosition[pos][0])
+      .filter(Boolean)
+    
+    // Get backups: 2nd best at each position
+    const backups: SimulationPlayer[] = positions
+      .map(pos => playersByPosition[pos][1])
+      .filter(Boolean)
+    
+    // Get third string: 3rd best at each position
+    const thirdString: SimulationPlayer[] = positions
+      .map(pos => playersByPosition[pos][2])
+      .filter(Boolean)
     
     const { quarter, quarterTimeRemaining } = this.gameState
     const totalGameTime = (quarter - 1) * 12 * 60 + (12 * 60 - quarterTimeRemaining)
+    const totalGameMinutes = Math.floor(totalGameTime / 60) // Convert to minutes
     
-    // Default pattern: Starters play 0-6, bench 6-12, starters 12-18, etc.
-    if (totalGameTime < 6 * 60) {
-      // Q1: 0-6 minutes - Starters
+    // Use the same pattern as createDefaultRotationConfig:
+    // 0-6: Starters, 6-12: Backups, 12-18: Starters, 18-24: Backups, 24-30: Starters, 30-36: Backups, 36-42: Starters, 42-48: Starters, 46-48: Top 3 starters + 2 backups
+    if (totalGameMinutes < 6) {
+      // 0-6 minutes: Starters (one of each position)
       return this.getBestLineup(starters, 5)
-    } else if (totalGameTime < 12 * 60) {
-      // Q1: 6-12 minutes - Bench
-      return this.getBestLineup(bench, 5)
-    } else if (totalGameTime < 18 * 60) {
-      // Q2: 0-6 minutes - Starters
+    } else if (totalGameMinutes < 12) {
+      // 6-12 minutes: Backups (one of each position)
+      return this.getBestLineup(backups, 5)
+    } else if (totalGameMinutes < 18) {
+      // 12-18 minutes: Starters
       return this.getBestLineup(starters, 5)
-    } else if (totalGameTime < 24 * 60) {
-      // Q2: 6-12 minutes - Bench
-      return this.getBestLineup(bench, 5)
-    } else if (totalGameTime < 30 * 60) {
-      // Q3: 0-6 minutes - Starters
+    } else if (totalGameMinutes < 24) {
+      // 18-24 minutes: Backups
+      return this.getBestLineup(backups, 5)
+    } else if (totalGameMinutes < 30) {
+      // 24-30 minutes: Starters
       return this.getBestLineup(starters, 5)
-    } else if (totalGameTime < 36 * 60) {
-      // Q3: 6-12 minutes - Bench
-      return this.getBestLineup(bench, 5)
+    } else if (totalGameMinutes < 36) {
+      // 30-36 minutes: Backups
+      return this.getBestLineup(backups, 5)
+    } else if (totalGameMinutes < 42) {
+      // 36-42 minutes: Starters
+      return this.getBestLineup(starters, 5)
+    } else if (totalGameMinutes < 46) {
+      // 42-46 minutes: Starters
+      return this.getBestLineup(starters, 5)
     } else {
-      // Q4: Mix of best players
-      const allPlayers = [...starters, ...bench.slice(0, 3)] // Top 8 players
-      return this.getBestLineup(allPlayers, 5)
+      // 46-48 minutes: Top 3 starters + backups at positions of starters 4-5 (ensuring position balance)
+      const top3Starters = starters.slice(0, 3)
+      const top3StarterPositions = new Set(top3Starters.map(s => s.position))
+      const backupsFor46_48 = backups.filter(b => !top3StarterPositions.has(b.position))
+      const combined = [...top3Starters, ...backupsFor46_48]
+      return this.getBestLineup(combined, 5)
     }
   }
 
@@ -370,72 +419,40 @@ export class RotationManager {
 
   /**
    * Create default rotation configuration for a team
+   * Uses the shared utility function for consistency with UI
    */
   static createDefaultRotation(team: SimulationTeam): TeamRotationConfig {
-    const players = [...team.players].sort((a, b) => {
-      const aRating = (a.speed + a.ball_iq + a.inside_shot + a.three_point_shot + 
-                      a.pass + a.skill_move + a.on_ball_defense + a.stamina + 
-                      a.block + a.steal + a.offensive_rebound + a.defensive_rebound) / 12
-      const bRating = (b.speed + b.ball_iq + b.inside_shot + b.three_point_shot + 
-                      b.pass + b.skill_move + b.on_ball_defense + b.stamina + 
-                      b.block + b.steal + b.offensive_rebound + b.defensive_rebound) / 12
-      return bRating - aRating
-    })
-
-    const playerRotations: PlayerRotation[] = []
-    
-    // Starters (players 1-5): ~32 minutes each
-    for (let i = 0; i < 5; i++) {
-      playerRotations.push({
-        player_id: parseInt(players[i].id),
-        active_minutes: [[0, 6], [12, 18], [24, 30], [36, 42]], // 24 minutes + Q4 time
-        total_minutes: 32
-      })
-    }
-    
-    // 6th-7th man: ~22 minutes each
-    for (let i = 5; i < 7; i++) {
-      playerRotations.push({
-        player_id: parseInt(players[i].id),
-        active_minutes: [[6, 12], [18, 24], [30, 36]], // 18 minutes + Q4 time
-        total_minutes: 22
-      })
-    }
-    
-    // 8th man: ~18 minutes
-    if (players[7]) {
-      playerRotations.push({
-        player_id: parseInt(players[7].id),
-        active_minutes: [[6, 12], [30, 36]], // 12 minutes + Q4 time
-        total_minutes: 18
-      })
-    }
-    
-    // 9th-10th man: ~9 minutes each
-    for (let i = 8; i < 10; i++) {
-      if (players[i]) {
-        playerRotations.push({
-          player_id: parseInt(players[i].id),
-          active_minutes: [[6, 12]], // 6 minutes + Q4 time
-          total_minutes: 9
-        })
-      }
-    }
-    
-    // Remaining players: minimal time
-    for (let i = 10; i < players.length; i++) {
-      playerRotations.push({
-        player_id: parseInt(players[i].id),
-        active_minutes: [[42, 48]], // Only garbage time
-        total_minutes: 3
-      })
-    }
-
-    return {
+    // Convert SimulationPlayer to Player-like format for the shared utility
+    const playersAsDbFormat: Player[] = team.players.map(simPlayer => ({
+      player_id: parseInt(simPlayer.id),
       team_id: parseInt(team.id),
-      player_rotations: playerRotations,
-      is_custom: false,
-      last_updated: new Date().toISOString()
-    }
+      first_name: simPlayer.name.split(' ')[0] || '',
+      last_name: simPlayer.name.split(' ').slice(1).join(' ') || '',
+      age: 25, // Default age (not used in rotation calculation)
+      position: simPlayer.position,
+      is_starter: simPlayer.is_starter || 0,
+      height: 75, // Default height (not used in rotation calculation)
+      weight: 200, // Default weight (not used in rotation calculation)
+      years_pro: 5, // Default years (not used in rotation calculation)
+      draft_info: null,
+      speed: simPlayer.speed,
+      ball_iq: simPlayer.ball_iq,
+      inside_shot: simPlayer.inside_shot,
+      three_point_shot: simPlayer.three_point_shot,
+      pass: simPlayer.pass,
+      skill_move: simPlayer.skill_move,
+      on_ball_defense: simPlayer.on_ball_defense,
+      stamina: simPlayer.stamina,
+      block: simPlayer.block,
+      steal: simPlayer.steal,
+      offensive_rebound: simPlayer.offensive_rebound,
+      defensive_rebound: simPlayer.defensive_rebound,
+      current_season_stats: null,
+      historical_stats: null,
+      career_stats: null
+    }))
+
+    // Use shared utility to generate default rotation
+    return createDefaultRotationConfig(parseInt(team.id), playersAsDbFormat)
   }
 }

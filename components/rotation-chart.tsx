@@ -14,10 +14,12 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import type { PlayerRotation, TeamRotationConfig } from '@/lib/types/database'
 import type { Player } from '@/lib/types/database'
+import { createDefaultRotationConfig } from '@/lib/utils/default-rotation-generator'
 
 interface RotationChartProps {
   players: Player[]
   rotationConfig: TeamRotationConfig | null
+  teamId: number
   onSave: (config: TeamRotationConfig) => void
   onReset: () => void
 }
@@ -27,7 +29,7 @@ const QUARTER_MINUTES = 12
 const RECTANGLE_WIDTH = 12
 const RECTANGLE_HEIGHT = 30
 
-export function RotationChart({ players, rotationConfig, onSave, onReset }: RotationChartProps) {
+export function RotationChart({ players, rotationConfig, teamId, onSave, onReset }: RotationChartProps) {
   const [playerMinutes, setPlayerMinutes] = useState<Map<number, boolean[]>>(new Map())
   const [isDragging, setIsDragging] = useState(false)
   const [dragStartState, setDragStartState] = useState<boolean | null>(null)
@@ -36,86 +38,69 @@ export function RotationChart({ players, rotationConfig, onSave, onReset }: Rota
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [isValid, setIsValid] = useState(false)
 
-  // Create default rotation pattern (position-aware)
+  // Create default rotation using shared utility (overall-rating-based, matching simulation engine)
   const createDefaultRotation = useCallback((): Map<number, boolean[]> => {
     const playerMinutesMap = new Map<number, boolean[]>()
     
-    // Group players by position
-    const positions = ['PG', 'SG', 'SF', 'PF', 'C'] as const
-    const playersByPosition: Record<string, any[]> = {
-      PG: [],
-      SG: [],
-      SF: [],
-      PF: [],
-      C: []
-    }
+    // Generate default rotation config using shared utility
+    // Convert players to full Player format (players from getTeamRoster have all attributes)
+    const fullPlayers: Player[] = players.map(p => {
+      const playerAny = p as any
+      const nameParts = playerAny.name?.split(' ') || ['', '']
+      return {
+        player_id: p.player_id,
+        team_id: teamId,
+        first_name: nameParts[0] || '',
+        last_name: nameParts.slice(1).join(' ') || '',
+        age: playerAny.age ?? 25,
+        position: p.position,
+        is_starter: playerAny.is_starter ?? 0,
+        height: playerAny.height ?? 75,
+        weight: playerAny.weight ?? 200,
+        years_pro: playerAny.years_pro ?? 5,
+        draft_info: null,
+        speed: playerAny.speed ?? 50,
+        ball_iq: playerAny.ball_iq ?? 50,
+        inside_shot: playerAny.inside_shot ?? 50,
+        three_point_shot: playerAny.three_point_shot ?? 50,
+        pass: playerAny.pass ?? 50,
+        skill_move: playerAny.skill_move ?? 50,
+        on_ball_defense: playerAny.on_ball_defense ?? 50,
+        stamina: playerAny.stamina ?? 50,
+        block: playerAny.block ?? 50,
+        steal: playerAny.steal ?? 50,
+        offensive_rebound: playerAny.offensive_rebound ?? 50,
+        defensive_rebound: playerAny.defensive_rebound ?? 50,
+        current_season_stats: null,
+        historical_stats: null,
+        career_stats: null
+      }
+    })
     
+    const defaultConfig = createDefaultRotationConfig(teamId, fullPlayers)
+    
+    // Convert TeamRotationConfig to Map<number, boolean[]> format
+    defaultConfig.player_rotations.forEach(playerRotation => {
+      const minutes = Array(TOTAL_MINUTES).fill(false)
+      
+      playerRotation.active_minutes.forEach(([start, end]) => {
+        for (let i = start; i < end; i++) {
+          minutes[i] = true
+        }
+      })
+      
+      playerMinutesMap.set(playerRotation.player_id, minutes)
+    })
+    
+    // Ensure all players have an entry (even if they have no minutes)
     players.forEach(player => {
-      if (playersByPosition[player.position]) {
-        playersByPosition[player.position].push(player)
-      }
-    })
-    
-    // Sort each position by overall rating
-    positions.forEach(pos => {
-      playersByPosition[pos].sort((a, b) => b.overall_rating - a.overall_rating)
-    })
-    
-    // Assign minutes for each position
-    positions.forEach(pos => {
-      const posPlayers = playersByPosition[pos]
-      
-      if (posPlayers.length === 0) return
-      
-      // Starter (best at position): ~32 minutes
-      // Pattern: Play most of Q1, Q2, Q3, Q4 with 6-minute rests
-      if (posPlayers[0]) {
-        const minutes = Array(TOTAL_MINUTES).fill(false)
-        // Q1: 0-6, Q2: 12-18, Q3: 24-30, Q4: 36-42
-        const ranges = [[0, 6], [12, 18], [24, 30], [36, 42]]
-        ranges.forEach(([start, end]) => {
-          for (let i = start; i < end; i++) {
-            minutes[i] = true
-          }
-        })
-        playerMinutesMap.set(posPlayers[0].player_id, minutes)
-      }
-      
-      // Backup (2nd best): ~16 minutes
-      // Pattern: Fill in when starter rests
-      if (posPlayers[1]) {
-        const minutes = Array(TOTAL_MINUTES).fill(false)
-        // Q1: 6-10, Q2: 18-22, Q3: 30-34, Q4: 42-46
-        const ranges = [[6, 10], [18, 22], [30, 34], [42, 46]]
-        ranges.forEach(([start, end]) => {
-          for (let i = start; i < end; i++) {
-            minutes[i] = true
-          }
-        })
-        playerMinutesMap.set(posPlayers[1].player_id, minutes)
-      }
-      
-      // 3rd string: limited garbage time minutes
-      if (posPlayers[2]) {
-        const minutes = Array(TOTAL_MINUTES).fill(false)
-        // End of quarters when both starter and backup rest
-        const ranges = [[10, 12], [22, 24], [34, 36], [46, 48]]
-        ranges.forEach(([start, end]) => {
-          for (let i = start; i < end; i++) {
-            minutes[i] = true
-          }
-        })
-        playerMinutesMap.set(posPlayers[2].player_id, minutes)
-      }
-      
-      // Additional players at this position: no minutes by default
-      for (let i = 3; i < posPlayers.length; i++) {
-        playerMinutesMap.set(posPlayers[i].player_id, Array(TOTAL_MINUTES).fill(false))
+      if (!playerMinutesMap.has(player.player_id)) {
+        playerMinutesMap.set(player.player_id, Array(TOTAL_MINUTES).fill(false))
       }
     })
     
     return playerMinutesMap
-  }, [players])
+  }, [players, teamId])
 
   // Initialize player minutes from rotation config
   useEffect(() => {

@@ -329,6 +329,7 @@ export default function TeamPage({ params }: TeamPageProps) {
               <RotationEditor 
                 players={teamRoster.players}
                 rotationConfig={rotationConfig}
+                teamId={teamId}
                 onSave={handleRotationSave}
                 onReset={handleRotationReset}
               />
