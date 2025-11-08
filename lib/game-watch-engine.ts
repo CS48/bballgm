@@ -389,13 +389,34 @@ export class WatchGameEngine {
    * Update player stats based on possession event
    */
   private updatePlayerStats(possessionEvent: any, offensiveTeam: GameSimulationTeam, defensiveTeam: GameSimulationTeam): void {
+    const rollResult = possessionEvent.rollResult
+    
+    // Handle rebounds specially - rebounder can be on either team
+    if (rollResult?.outcome === 'offensive' || rollResult?.outcome === 'defensive') {
+      const rebounderName = rollResult.rebounder
+      const rebounderId = this.findPlayerIdByName(rebounderName, offensiveTeam) || 
+                         this.findPlayerIdByName(rebounderName, defensiveTeam)
+      
+      if (rebounderId) {
+        const rebounderStats = this.state.playerStats.get(rebounderId)
+        if (rebounderStats) {
+          if (rollResult.outcome === 'offensive') {
+            rebounderStats.offensiveRebound++
+          } else {
+            rebounderStats.defensiveRebound++
+          }
+          rebounderStats.rebounds = rebounderStats.offensiveRebound + rebounderStats.defensiveRebound
+        }
+      }
+      return // Rebound handling is complete, no need to process other stats
+    }
+
+    // For non-rebound events, find the player in the offensive team
     const playerId = this.findPlayerIdByName(possessionEvent.ballHandler, offensiveTeam)
     if (!playerId) return
 
     const playerStats = this.state.playerStats.get(playerId)
     if (!playerStats) return
-
-    const rollResult = possessionEvent.rollResult
 
     // Handle shot attempts and makes
     if (rollResult?.outcome === 'success' && rollResult.points) {
@@ -423,25 +444,6 @@ export class WatchGameEngine {
       playerStats.fieldGoalsAttempted++
       if (rollResult.isThreePointer) {
         playerStats.threePointersAttempted++
-      }
-    }
-
-    // Handle rebounds
-    if (rollResult?.outcome === 'offensive' || rollResult?.outcome === 'defensive') {
-      const rebounderName = rollResult.rebounder
-      const rebounderId = this.findPlayerIdByName(rebounderName, offensiveTeam) || 
-                         this.findPlayerIdByName(rebounderName, defensiveTeam)
-      
-      if (rebounderId) {
-        const rebounderStats = this.state.playerStats.get(rebounderId)
-        if (rebounderStats) {
-          if (rollResult.outcome === 'offensive') {
-            rebounderStats.offensiveRebound++
-          } else {
-            rebounderStats.defensiveRebound++
-          }
-          rebounderStats.rebounds = rebounderStats.offensiveRebound + rebounderStats.defensiveRebound
-        }
       }
     }
 
