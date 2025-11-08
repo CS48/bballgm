@@ -1,6 +1,6 @@
 /**
  * Calendar Type Definitions
- * 
+ *
  * This file contains TypeScript interfaces and types for the in-game
  * calendar system, including game days, season calendars, and team progress.
  */

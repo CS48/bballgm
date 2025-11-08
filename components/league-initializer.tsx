@@ -1,6 +1,6 @@
 /**
  * League Initializer Component
- * 
+ *
  * This component handles the initialization of a new basketball league,
  * providing a user interface to create and configure the league settings.
  */
@@ -19,7 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Loader2, Users, Calendar, Trophy, Circle, AlertTriangle } from 'lucide-react';
 
 interface LeagueInitializerProps {
-  onComplete?: () => void
+  onComplete?: () => void;
 }
 
 /**
@@ -49,11 +49,11 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
         setExistingLeague({
           teams: teams.length,
           players: players.length,
-          games: 0 // We'll need to get this from the database
+          games: 0, // We'll need to get this from the database
         });
       }
     };
-    
+
     checkExistingLeague();
   }, [teams, players]);
 
@@ -70,7 +70,7 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
     }
     try {
       setIsCreating(true);
-      
+
       const options: LeagueInitOptions = {
         league_name: leagueName,
         start_season: startSeason,
@@ -83,17 +83,17 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
           games_per_season: 82,
           use_divisions: false,
           playoffs_enabled: false,
-          playoff_teams_per_conference: 8
+          playoff_teams_per_conference: 8,
         },
         generate_rosters: generateRosters,
         generate_schedule: generateSchedule,
         useV2Scheduler: useV2Scheduler,
-        random_seed: Math.floor(Math.random() * 1000000)
+        random_seed: Math.floor(Math.random() * 1000000),
       };
 
       await initializeLeague(options);
       console.log('League created successfully!');
-      
+
       // Call onComplete callback if provided
       if (onComplete) {
         onComplete();
@@ -108,14 +108,15 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
   // Show loading while context is initializing
   if (!isInitialized) {
     return (
-      <div className="flex items-center justify-center min-h-screen" style={{ marginLeft: 'auto', marginRight: 'auto' }}>
+      <div
+        className="flex items-center justify-center min-h-screen"
+        style={{ marginLeft: 'auto', marginRight: 'auto' }}
+      >
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center p-8">
             <Loader2 className="h-8 w-8 animate-spin mb-4" />
             <h2 className="text-xl font-semibold mb-2">Initializing...</h2>
-            <p className="text-muted-foreground text-center">
-              Setting up the basketball simulation engine...
-            </p>
+            <p className="text-muted-foreground text-center">Setting up the basketball simulation engine...</p>
           </CardContent>
         </Card>
       </div>
@@ -124,18 +125,18 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
 
   if (isLoading || isCreating) {
     return (
-      <div className="flex items-center justify-center min-h-screen" style={{ marginLeft: 'auto', marginRight: 'auto' }}>
+      <div
+        className="flex items-center justify-center min-h-screen"
+        style={{ marginLeft: 'auto', marginRight: 'auto' }}
+      >
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center p-8">
             <Loader2 className="h-8 w-8 animate-spin mb-4" />
-            <h2 className="text-xl font-semibold mb-2">
-              {isCreating ? 'Creating League...' : 'Initializing...'}
-            </h2>
+            <h2 className="text-xl font-semibold mb-2">{isCreating ? 'Creating League...' : 'Initializing...'}</h2>
             <p className="text-muted-foreground text-center">
-              {isCreating 
+              {isCreating
                 ? 'Generating teams, players, and schedules. This may take a moment.'
-                : 'Setting up the basketball simulation engine...'
-              }
+                : 'Setting up the basketball simulation engine...'}
             </p>
           </CardContent>
         </Card>
@@ -145,13 +146,14 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen" style={{ marginLeft: 'auto', marginRight: 'auto' }}>
+      <div
+        className="flex items-center justify-center min-h-screen"
+        style={{ marginLeft: 'auto', marginRight: 'auto' }}
+      >
         <Card className="w-full max-w-md">
           <CardContent className="p-6">
             <Alert className="mb-4">
-              <AlertDescription>
-                {error}
-              </AlertDescription>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
             <Button onClick={() => window.location.reload()} className="w-full">
               Retry
@@ -163,7 +165,10 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100" style={{ marginLeft: 'auto', marginRight: 'auto' }}>
+    <div
+      className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100"
+      style={{ marginLeft: 'auto', marginRight: 'auto' }}
+    >
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center mb-4">
@@ -174,7 +179,7 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
             Create your own basketball league and manage your team to championship glory!
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           {/* Existing League Warning */}
           {existingLeague && (
@@ -182,8 +187,8 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
               <AlertTriangle className="h-4 w-4 text-orange-600" />
               <AlertTitle className="text-orange-800">Existing League Detected</AlertTitle>
               <AlertDescription className="text-orange-700">
-                You have an existing league with {existingLeague.teams} teams, {existingLeague.players} players, and {existingLeague.games} games played.
-                Creating a new league will permanently delete all existing data.
+                You have an existing league with {existingLeague.teams} teams, {existingLeague.players} players, and{' '}
+                {existingLeague.games} games played. Creating a new league will permanently delete all existing data.
               </AlertDescription>
             </Alert>
           )}
@@ -199,7 +204,7 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
                   placeholder="My Basketball League"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="startSeason">Starting Season</Label>
                 <Input
@@ -216,7 +221,7 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
             {/* League Features */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">League Features</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
@@ -227,7 +232,7 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
                     30 NBA teams with 15 players each (450 total players)
                   </div>
                 </div>
-                
+
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-5 w-5 text-green-500" />
@@ -237,7 +242,7 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
                     Full NBA-style schedule with conference and inter-conference games
                   </div>
                 </div>
-                
+
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <Trophy className="h-5 w-5 text-yellow-500" />
@@ -247,7 +252,7 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
                     Advanced game engine with player attributes and team chemistry
                   </div>
                 </div>
-                
+
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <Circle className="h-5 w-5 text-orange-500" />
@@ -259,15 +264,10 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
                 </div>
               </div>
             </div>
-
           </div>
 
           {/* Create League Button */}
-          <Button 
-            onClick={handleCreateLeague}
-            className="w-full h-12 text-lg"
-            disabled={!leagueName.trim()}
-          >
+          <Button onClick={handleCreateLeague} className="w-full h-12 text-lg" disabled={!leagueName.trim()}>
             <Circle className="h-5 w-5 mr-2" />
             Create New League
           </Button>
@@ -275,9 +275,9 @@ export function LeagueInitializer({ onComplete }: LeagueInitializerProps) {
           {/* Additional Info */}
           <div className="text-center text-sm text-muted-foreground">
             <p>
-              This will create a complete basketball league with 30 teams, 450 players, 
-              and a full 82-game schedule. Realistic player rosters and balanced scheduling 
-              ensure competitive gameplay. You can start playing immediately!
+              This will create a complete basketball league with 30 teams, 450 players, and a full 82-game schedule.
+              Realistic player rosters and balanced scheduling ensure competitive gameplay. You can start playing
+              immediately!
             </p>
           </div>
         </CardContent>

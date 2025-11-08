@@ -3,7 +3,8 @@
 ## Problem Analysis
 
 **Current Issue**: `getCurrentSeason()` returns a hardcoded year (`new Date().getFullYear()`), but the actual season in the database might be different:
-- When league is generated, it uses `currentYear` 
+
+- When league is generated, it uses `currentYear`
 - When advancing seasons, it uses `currentYear + 1`
 - But `getCurrentSeason()` always returns the real-world year, not the database season
 
@@ -16,19 +17,20 @@
 Instead of hardcoding the season, query it from the database tables that actually have season data:
 
 #### Option 1: Query from `season_calendar` table (Recommended)
+
 ```typescript
 public async getCurrentSeason(): Promise<SeasonInfo> {
   try {
     // Query the most recent season from season_calendar
     const sql = `
-      SELECT DISTINCT season 
-      FROM season_calendar 
-      ORDER BY season DESC 
+      SELECT DISTINCT season
+      FROM season_calendar
+      ORDER BY season DESC
       LIMIT 1
     `;
-    
+
     const results = dbService.exec(sql);
-    
+
     if (results.length === 0) {
       // Fallback to current year if no season found
       const currentYear = new Date().getFullYear();
@@ -42,7 +44,7 @@ public async getCurrentSeason(): Promise<SeasonInfo> {
         playoff_teams_per_conference: 8
       };
     }
-    
+
     const season = results[0].season;
     return {
       year: season,
@@ -71,6 +73,7 @@ public async getCurrentSeason(): Promise<SeasonInfo> {
 ```
 
 #### Option 2: Query from `games` table
+
 ```typescript
 const sql = `
   SELECT DISTINCT season 
@@ -114,5 +117,3 @@ const sql = `
 - ✅ Graceful fallback if database is empty
 - ✅ No more hardcoded year assumptions
 - ✅ `refreshCurrentGameDay()` works correctly for all seasons
-
-

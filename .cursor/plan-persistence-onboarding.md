@@ -37,19 +37,19 @@
 ```typescript
 // User session (GM + selected team)
 interface UserSession {
-  gm: { name: string, [key: string]: any }
-  teamId: number
-  teamName: string
-  createdAt: string
+  gm: { name: string; [key: string]: any };
+  teamId: number;
+  teamName: string;
+  createdAt: string;
 }
-Key: 'bballgm-session'
+Key: 'bballgm-session';
 
 // League state (tracks if league exists)
 interface LeagueState {
-  exists: boolean
-  createdAt: string
+  exists: boolean;
+  createdAt: string;
 }
-Key: 'bballgm-league-state'
+Key: 'bballgm-league-state';
 ```
 
 ## Implementation Steps
@@ -61,106 +61,106 @@ Key: 'bballgm-league-state'
 Complete storage utility with session AND league state:
 
 ```typescript
-"use client"
+'use client';
 
 interface UserSession {
   gm: {
-    name: string
-    [key: string]: any
-  }
-  teamId: number
-  teamName: string
-  createdAt: string
+    name: string;
+    [key: string]: any;
+  };
+  teamId: number;
+  teamName: string;
+  createdAt: string;
 }
 
 interface LeagueState {
-  exists: boolean
-  createdAt: string
+  exists: boolean;
+  createdAt: string;
 }
 
-const SESSION_KEY = 'bballgm-session'
-const LEAGUE_KEY = 'bballgm-league-state'
+const SESSION_KEY = 'bballgm-session';
+const LEAGUE_KEY = 'bballgm-league-state';
 
 export const storage = {
   // Session methods
   saveSession(session: Omit<UserSession, 'createdAt'>): void {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined') return;
     try {
       const fullSession: UserSession = {
         ...session,
-        createdAt: new Date().toISOString()
-      }
-      localStorage.setItem(SESSION_KEY, JSON.stringify(fullSession))
+        createdAt: new Date().toISOString(),
+      };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(fullSession));
     } catch (error) {
-      console.error('Failed to save session:', error)
+      console.error('Failed to save session:', error);
     }
   },
 
   loadSession(): UserSession | null {
-    if (typeof window === 'undefined') return null
+    if (typeof window === 'undefined') return null;
     try {
-      const data = localStorage.getItem(SESSION_KEY)
-      return data ? JSON.parse(data) : null
+      const data = localStorage.getItem(SESSION_KEY);
+      return data ? JSON.parse(data) : null;
     } catch (error) {
-      console.error('Failed to load session:', error)
-      return null
+      console.error('Failed to load session:', error);
+      return null;
     }
   },
 
   clearSession(): void {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined') return;
     try {
-      localStorage.removeItem(SESSION_KEY)
+      localStorage.removeItem(SESSION_KEY);
     } catch (error) {
-      console.error('Failed to clear session:', error)
+      console.error('Failed to clear session:', error);
     }
   },
 
   hasSession(): boolean {
-    return this.loadSession() !== null
+    return this.loadSession() !== null;
   },
 
   // League state methods
   markLeagueExists(): void {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined') return;
     try {
       const state: LeagueState = {
         exists: true,
-        createdAt: new Date().toISOString()
-      }
-      localStorage.setItem(LEAGUE_KEY, JSON.stringify(state))
+        createdAt: new Date().toISOString(),
+      };
+      localStorage.setItem(LEAGUE_KEY, JSON.stringify(state));
     } catch (error) {
-      console.error('Failed to mark league:', error)
+      console.error('Failed to mark league:', error);
     }
   },
 
   hasLeague(): boolean {
-    if (typeof window === 'undefined') return false
+    if (typeof window === 'undefined') return false;
     try {
-      const data = localStorage.getItem(LEAGUE_KEY)
-      if (!data) return false
-      const state: LeagueState = JSON.parse(data)
-      return state.exists
+      const data = localStorage.getItem(LEAGUE_KEY);
+      if (!data) return false;
+      const state: LeagueState = JSON.parse(data);
+      return state.exists;
     } catch (error) {
-      return false
+      return false;
     }
   },
 
   clearLeague(): void {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined') return;
     try {
-      localStorage.removeItem(LEAGUE_KEY)
+      localStorage.removeItem(LEAGUE_KEY);
     } catch (error) {
-      console.error('Failed to clear league:', error)
+      console.error('Failed to clear league:', error);
     }
   },
 
   // Clear everything
   clearAll(): void {
-    this.clearSession()
-    this.clearLeague()
-  }
-}
+    this.clearSession();
+    this.clearLeague();
+  },
+};
 ```
 
 ### Step 2: Create Onboarding Route
@@ -269,7 +269,7 @@ export default function HomePage() {
     // Both exist → load game
     if (isLeagueReady && !isLoading) {
       const team = teams.find(t => t.team_id === session.teamId)
-      
+
       if (!team) {
         storage.clearSession()
         setPageState("resume-prompt")
@@ -332,7 +332,7 @@ export default function HomePage() {
             <Button onClick={handleResume} className="w-full" size="lg">
               Resume Current League
             </Button>
-            
+
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" className="w-full" size="lg">
@@ -387,30 +387,30 @@ Add onComplete callback prop (minimal change needed - just check if it already e
 Add league deletion in Danger Zone:
 
 ```typescript
-import { storage } from "@/lib/utils/storage"
-import { useRouter } from "next/navigation"
-import { useLeague } from "@/lib/context/league-context"
+import { storage } from '@/lib/utils/storage';
+import { useRouter } from 'next/navigation';
+import { useLeague } from '@/lib/context/league-context';
 
 export function SettingsMenu({ onResetGame, onBackToMenu }: SettingsMenuProps) {
-  const router = useRouter()
-  const { deleteLeague } = useLeague()
-  
+  const router = useRouter();
+  const { deleteLeague } = useLeague();
+
   // Reset GM/Team (keep league)
   const handleResetGM = () => {
-    storage.clearSession()
-    onResetGame()
-  }
-  
+    storage.clearSession();
+    onResetGame();
+  };
+
   // Delete entire league
   const handleDeleteLeague = async () => {
     try {
-      await deleteLeague()
-      storage.clearAll()
-      router.push('/')
+      await deleteLeague();
+      storage.clearAll();
+      router.push('/');
     } catch (error) {
-      console.error('Failed to delete league:', error)
+      console.error('Failed to delete league:', error);
     }
-  }
+  };
 
   // Add to settings UI:
   // Two options in Danger Zone:

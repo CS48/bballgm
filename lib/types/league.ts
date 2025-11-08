@@ -1,6 +1,6 @@
 /**
  * League Type Definitions
- * 
+ *
  * This file contains TypeScript interfaces and types for league-related
  * data structures used in the basketball simulation system. These types
  * define the overall league structure, standings, and related functionality.

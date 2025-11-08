@@ -3,6 +3,7 @@
 ## Current Status
 
 We've fixed:
+
 1. ✅ Season query (uses database instead of hardcoded year)
 2. ✅ Race condition (removed mount refresh from HomeHub)
 3. ✅ Game update (UPDATE instead of INSERT)
@@ -16,19 +17,21 @@ But the problem persists.
 **Problem**: Even though we `await refreshCurrentGameDay()`, the `setCurrentGameDay()` inside it is asynchronous. React batches state updates.
 
 **Flow**:
+
 ```javascript
-await refreshCurrentGameDay()  // Calls setCurrentGameDay(newData)
+await refreshCurrentGameDay(); // Calls setCurrentGameDay(newData)
 // setCurrentGameDay is queued but not completed
-setCurrentView("main")  // HomeHub mounts
+setCurrentView('main'); // HomeHub mounts
 // HomeHub reads currentGameDay from context
 // Might get OLD value if state update hasn't flushed
 ```
 
 **Solution**: Add a small delay or use a ref to ensure state is updated:
+
 ```javascript
-await refreshCurrentGameDay()
-await new Promise(resolve => setTimeout(resolve, 0)) // Let React flush state
-setCurrentView("main")
+await refreshCurrentGameDay();
+await new Promise((resolve) => setTimeout(resolve, 0)); // Let React flush state
+setCurrentView('main');
 ```
 
 ### Issue 2: Context Value Not Updating
@@ -44,11 +47,12 @@ Looking at the context code, `contextValue` is recreated on every render (not me
 **Problem**: HomeHub's `matchups` useMemo depends on `currentGameDay`, but maybe it's not re-running when expected.
 
 **Check**: Add console.log to see when matchups recalculates:
+
 ```typescript
 const matchups = useMemo(() => {
-  console.log('Recalculating matchups with currentGameDay:', currentGameDay)
+  console.log('Recalculating matchups with currentGameDay:', currentGameDay);
   // ... rest of logic
-}, [currentGameDay, teams, userTeam])
+}, [currentGameDay, teams, userTeam]);
 ```
 
 ### Issue 4: Database Not Actually Updated
@@ -56,9 +60,10 @@ const matchups = useMemo(() => {
 **Problem**: Maybe the UPDATE query isn't working as expected.
 
 **Check**: Add logging to see if the UPDATE actually happens:
+
 ```typescript
 const result = dbService.run(sql, params);
-console.log(`UPDATE result: ${result.changes} rows changed`)
+console.log(`UPDATE result: ${result.changes} rows changed`);
 ```
 
 ### Issue 5: Query Returns Multiple Games
@@ -66,9 +71,10 @@ console.log(`UPDATE result: ${result.changes} rows changed`)
 **Problem**: If there are duplicate games (from before the fix), the query might return multiple results.
 
 **Check**: Log what `getGamesByDay` returns:
+
 ```typescript
 const results = dbService.exec(sql, [season, gameDay]);
-console.log(`Found ${results.length} games for game day ${gameDay}`)
+console.log(`Found ${results.length} games for game day ${gameDay}`);
 ```
 
 ## Debugging Strategy
@@ -78,46 +84,51 @@ console.log(`Found ${results.length} games for game day ${gameDay}`)
 Add console.logs at key points:
 
 1. **In storeGameResult** (simulation-service.ts):
+
 ```typescript
-console.log(`Updating game: ${homeTeamId} vs ${awayTeamId}`)
+console.log(`Updating game: ${homeTeamId} vs ${awayTeamId}`);
 const result = dbService.run(sql, params);
-console.log(`UPDATE affected ${result.changes} rows`)
+console.log(`UPDATE affected ${result.changes} rows`);
 ```
 
 2. **In refreshCurrentGameDay** (league-context.tsx):
+
 ```typescript
-console.log('Before refresh, currentGameDay:', currentGameDay)
+console.log('Before refresh, currentGameDay:', currentGameDay);
 const gameDay = await calendarService.getCurrentGameDay(currentSeason.year);
-console.log('After query, gameDay:', gameDay)
+console.log('After query, gameDay:', gameDay);
 setCurrentGameDay(gameDay);
-console.log('After setState, should update to:', gameDay)
+console.log('After setState, should update to:', gameDay);
 ```
 
 3. **In HomeHub matchups useMemo**:
+
 ```typescript
 const matchups = useMemo(() => {
-  console.log('=== MATCHUPS RECALC ===')
-  console.log('currentGameDay:', currentGameDay)
-  console.log('currentGameDay.games:', currentGameDay?.games)
+  console.log('=== MATCHUPS RECALC ===');
+  console.log('currentGameDay:', currentGameDay);
+  console.log('currentGameDay.games:', currentGameDay?.games);
   // ... rest
-}, [currentGameDay, teams, userTeam])
+}, [currentGameDay, teams, userTeam]);
 ```
 
 4. **In HomeHub sync useEffect**:
+
 ```typescript
 useEffect(() => {
-  console.log('=== SYNC EFFECT ===')
-  console.log('matchups:', matchups)
+  console.log('=== SYNC EFFECT ===');
+  console.log('matchups:', matchups);
   const syncCompletedGames = () => {
     // ...
-  }
-  syncCompletedGames()
-}, [matchups])
+  };
+  syncCompletedGames();
+}, [matchups]);
 ```
 
 ### Step 2: Check Database State
 
 Add a helper to query the database directly:
+
 ```typescript
 // In main-menu.tsx, before refresh
 const checkDb = () => {
@@ -132,10 +143,11 @@ await refreshCurrentGameDay();
 ### Step 3: Verify State Propagation
 
 Add logging in the context provider to see when state changes:
+
 ```typescript
 useEffect(() => {
-  console.log('Context currentGameDay changed:', currentGameDay)
-}, [currentGameDay])
+  console.log('Context currentGameDay changed:', currentGameDay);
+}, [currentGameDay]);
 ```
 
 ## Most Likely Issue
@@ -147,6 +159,7 @@ The `await refreshCurrentGameDay()` completes, but the `setCurrentGameDay` insid
 ## Recommended Fix
 
 ### Option A: Force State Flush (Quick Fix)
+
 ```typescript
 onBackToMenu={async () => {
   await refreshCurrentGameDay()
@@ -157,6 +170,7 @@ onBackToMenu={async () => {
 ```
 
 ### Option B: Use Callback Pattern (Better)
+
 ```typescript
 onBackToMenu={async () => {
   await refreshCurrentGameDay()
@@ -166,10 +180,13 @@ onBackToMenu={async () => {
 ```
 
 ### Option C: Make refreshCurrentGameDay Return Promise That Resolves After State Update
+
 This is tricky because React state updates don't have callbacks. We'd need to use a ref or effect.
 
 ### Option D: Don't Unmount HomeHub (Best Long-term)
+
 Instead of unmounting HomeHub when viewing results, keep it mounted but hidden:
+
 ```typescript
 <div style={{ display: currentView === "main" ? "block" : "none" }}>
   <HomeHub ... />
@@ -189,5 +206,3 @@ Would you like me to:
 A) Add logging first to diagnose the exact issue?
 B) Try the quick fix (Option A) to see if it resolves it?
 C) Implement the long-term solution (Option D)?
-
-

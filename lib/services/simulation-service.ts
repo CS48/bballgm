@@ -1,8 +1,8 @@
-"use client"
+'use client';
 
 /**
  * Simulation Service - Game simulation engine
- * 
+ *
  * This service handles the core game simulation logic, calculating game results
  * based on team and player attributes, generating box scores, and updating
  * all relevant statistics in the database.
@@ -78,8 +78,10 @@ export class SimulationService {
       // Update database with results
       await this.updateGameResults(homeTeamId, awayTeamId, gameResult);
 
-      console.log(`Game completed: ${homeTeam.city} ${homeTeam.name} ${gameResult.home_score} - ${gameResult.away_score} ${awayTeam.city} ${awayTeam.name}`);
-      
+      console.log(
+        `Game completed: ${homeTeam.city} ${homeTeam.name} ${gameResult.home_score} - ${gameResult.away_score} ${awayTeam.city} ${awayTeam.name}`
+      );
+
       return gameResult;
     } catch (error) {
       console.error('Game simulation failed:', error);
@@ -119,7 +121,7 @@ export class SimulationService {
         team_id: homeTeam.team_id,
         team_name: `${homeTeam.city} ${homeTeam.name}`,
         total_points: gameResult.homeScore,
-        players: gameResult.homePlayerStats.map(player => ({
+        players: gameResult.homePlayerStats.map((player) => ({
           player_id: parseInt(player.id),
           name: player.name,
           position: player.position,
@@ -139,14 +141,14 @@ export class SimulationService {
           ft_made: 0, // Not tracked in current system
           ft_attempted: 0,
           ft_pct: 0,
-          plus_minus: 0 // Will be calculated
-        }))
+          plus_minus: 0, // Will be calculated
+        })),
       },
       away_team: {
         team_id: awayTeam.team_id,
         team_name: `${awayTeam.city} ${awayTeam.name}`,
         total_points: gameResult.awayScore,
-        players: gameResult.awayPlayerStats.map(player => ({
+        players: gameResult.awayPlayerStats.map((player) => ({
           player_id: parseInt(player.id),
           name: player.name,
           position: player.position,
@@ -166,9 +168,9 @@ export class SimulationService {
           ft_made: 0, // Not tracked in current system
           ft_attempted: 0,
           ft_pct: 0,
-          plus_minus: 0 // Will be calculated
-        }))
-      }
+          plus_minus: 0, // Will be calculated
+        })),
+      },
     };
 
     // Calculate team stats for the game
@@ -181,8 +183,8 @@ export class SimulationService {
       box_score: boxScore,
       game_stats: {
         home_team_stats: homeTeamStats,
-        away_team_stats: awayTeamStats
-      }
+        away_team_stats: awayTeamStats,
+      },
     };
   }
 
@@ -197,7 +199,7 @@ export class SimulationService {
       id: team.team_id.toString(),
       name: team.name,
       city: team.city,
-      players: players.map(player => ({
+      players: players.map((player) => ({
         id: player.player_id.toString(),
         name: `${player.first_name} ${player.last_name}`,
         position: player.position,
@@ -208,7 +210,7 @@ export class SimulationService {
           defense: Math.round((player.on_ball_defense + player.block + player.steal) / 3),
           rebounding: Math.round((player.offensive_rebound + player.defensive_rebound) / 2),
           passing: player.pass,
-          athleticism: Math.round((player.speed + player.stamina) / 2)
+          athleticism: Math.round((player.speed + player.stamina) / 2),
         },
         overall: player.overall_rating,
         descriptor: `${player.position} - ${player.overall_rating} OVR`,
@@ -224,9 +226,9 @@ export class SimulationService {
         block: player.block,
         steal: player.steal,
         offensive_rebound: player.offensive_rebound,
-        defensive_rebound: player.defensive_rebound
+        defensive_rebound: player.defensive_rebound,
       })),
-      record: { wins: team.wins, losses: team.losses }
+      record: { wins: team.wins, losses: team.losses },
     };
   }
 
@@ -256,10 +258,10 @@ export class SimulationService {
     const minScore = 80;
     const maxScore = 130;
     const scoreRange = maxScore - minScore;
-    
+
     // Convert 0-100 rating to score range
     const normalizedRating = Math.max(0, Math.min(100, teamRating)) / 100;
-    return Math.round(minScore + (normalizedRating * scoreRange));
+    return Math.round(minScore + normalizedRating * scoreRange);
   }
 
   /**
@@ -283,10 +285,10 @@ export class SimulationService {
     isHome: boolean
   ): Promise<PlayerBoxScore[]> {
     const boxScores: PlayerBoxScore[] = [];
-    
+
     // Sort players by overall rating (best players get more minutes)
-    const sortedPlayers = [...players].sort((a, b) => 
-      playerService.calculateOverallRating(b) - playerService.calculateOverallRating(a)
+    const sortedPlayers = [...players].sort(
+      (a, b) => playerService.calculateOverallRating(b) - playerService.calculateOverallRating(a)
     );
 
     // Distribute minutes and stats among players
@@ -296,21 +298,21 @@ export class SimulationService {
     for (let i = 0; i < sortedPlayers.length; i++) {
       const player = sortedPlayers[i];
       const overallRating = playerService.calculateOverallRating(player);
-      
+
       // Calculate minutes based on player rating and position
       const minutes = this.calculatePlayerMinutes(player, overallRating, i < 5);
       const points = this.calculatePlayerPoints(player, overallRating, remainingPoints, i < 5);
-      
+
       // Calculate other stats based on player attributes and minutes
       const rebounds = this.calculatePlayerRebounds(player, minutes);
       const assists = this.calculatePlayerAssists(player, minutes);
       const steals = this.calculatePlayerSteals(player, minutes);
       const blocks = this.calculatePlayerBlocks(player, minutes);
       const turnovers = this.calculatePlayerTurnovers(player, minutes);
-      
+
       // Calculate shooting stats
       const shootingStats = this.calculatePlayerShooting(player, points, minutes);
-      
+
       // Calculate plus/minus (simplified)
       const plusMinus = this.calculatePlusMinus(player, teamScore, isHome);
 
@@ -334,11 +336,11 @@ export class SimulationService {
         ft_made: Math.round(shootingStats.ft_made),
         ft_attempted: Math.round(shootingStats.ft_attempted),
         ft_pct: shootingStats.ft_pct,
-        plus_minus: Math.round(plusMinus)
+        plus_minus: Math.round(plusMinus),
       };
 
       boxScores.push(boxScore);
-      
+
       // Update remaining resources
       remainingPoints = Math.max(0, remainingPoints - points);
       remainingMinutes = Math.max(0, remainingMinutes - minutes);
@@ -358,7 +360,7 @@ export class SimulationService {
     const baseMinutes = isStarter ? 30 : 15; // Starters get more minutes
     const ratingBonus = (overallRating - 50) * 0.3; // Higher rated players get more minutes
     const randomVariation = (Math.random() - 0.5) * 10; // ±5 minutes variation
-    
+
     return Math.max(0, Math.min(48, baseMinutes + ratingBonus + randomVariation));
   }
 
@@ -370,11 +372,16 @@ export class SimulationService {
    * @param isStarter Whether player is a starter
    * @returns Points scored
    */
-  private calculatePlayerPoints(player: Player, overallRating: number, remainingPoints: number, isStarter: boolean): number {
+  private calculatePlayerPoints(
+    player: Player,
+    overallRating: number,
+    remainingPoints: number,
+    isStarter: boolean
+  ): number {
     const basePoints = isStarter ? 12 : 6; // Starters score more
     const ratingBonus = (overallRating - 50) * 0.4; // Higher rated players score more
     const randomVariation = (Math.random() - 0.5) * 8; // ±4 points variation
-    
+
     const calculatedPoints = Math.max(0, basePoints + ratingBonus + randomVariation);
     return Math.min(calculatedPoints, remainingPoints);
   }
@@ -389,7 +396,7 @@ export class SimulationService {
     const baseRate = (player.offensive_rebound + player.defensive_rebound) / 200; // Convert to rate
     const minutesFactor = minutes / 48; // Normalize to 48 minutes
     const randomVariation = (Math.random() - 0.5) * 4; // ±2 rebounds variation
-    
+
     return Math.max(0, baseRate * minutesFactor * 15 + randomVariation);
   }
 
@@ -403,7 +410,7 @@ export class SimulationService {
     const baseRate = player.pass / 100; // Convert to rate
     const minutesFactor = minutes / 48; // Normalize to 48 minutes
     const randomVariation = (Math.random() - 0.5) * 3; // ±1.5 assists variation
-    
+
     return Math.max(0, baseRate * minutesFactor * 8 + randomVariation);
   }
 
@@ -417,7 +424,7 @@ export class SimulationService {
     const baseRate = player.steal / 100; // Convert to rate
     const minutesFactor = minutes / 48; // Normalize to 48 minutes
     const randomVariation = (Math.random() - 0.5) * 2; // ±1 steal variation
-    
+
     return Math.max(0, baseRate * minutesFactor * 3 + randomVariation);
   }
 
@@ -431,7 +438,7 @@ export class SimulationService {
     const baseRate = player.block / 100; // Convert to rate
     const minutesFactor = minutes / 48; // Normalize to 48 minutes
     const randomVariation = (Math.random() - 0.5) * 2; // ±1 block variation
-    
+
     return Math.max(0, baseRate * minutesFactor * 3 + randomVariation);
   }
 
@@ -445,7 +452,7 @@ export class SimulationService {
     const baseRate = (100 - player.ball_iq) / 100; // Lower ball IQ = more turnovers
     const minutesFactor = minutes / 48; // Normalize to 48 minutes
     const randomVariation = (Math.random() - 0.5) * 2; // ±1 turnover variation
-    
+
     return Math.max(0, baseRate * minutesFactor * 4 + randomVariation);
   }
 
@@ -456,7 +463,11 @@ export class SimulationService {
    * @param minutes Minutes played
    * @returns Shooting statistics
    */
-  private calculatePlayerShooting(player: Player, points: number, minutes: number): {
+  private calculatePlayerShooting(
+    player: Player,
+    points: number,
+    minutes: number
+  ): {
     fg_made: number;
     fg_attempted: number;
     fg_pct: number;
@@ -494,7 +505,7 @@ export class SimulationService {
       three_pct,
       ft_made,
       ft_attempted,
-      ft_pct
+      ft_pct,
     };
   }
 
@@ -505,11 +516,11 @@ export class SimulationService {
    */
   private getThreePointRate(position: string): number {
     const rates: Record<string, number> = {
-      'PG': 0.4, // Point guards shoot more threes
-      'SG': 0.5, // Shooting guards shoot the most threes
-      'SF': 0.3, // Small forwards shoot some threes
-      'PF': 0.2, // Power forwards shoot fewer threes
-      'C': 0.1  // Centers shoot the fewest threes
+      PG: 0.4, // Point guards shoot more threes
+      SG: 0.5, // Shooting guards shoot the most threes
+      SF: 0.3, // Small forwards shoot some threes
+      PF: 0.2, // Power forwards shoot fewer threes
+      C: 0.1, // Centers shoot the fewest threes
     };
     return rates[position] || 0.3;
   }
@@ -534,30 +545,42 @@ export class SimulationService {
    * @returns Team game statistics
    */
   private calculateTeamGameStats(playerBoxScores: PlayerBoxScore[]): any {
-    const totals = playerBoxScores.reduce((acc, player) => ({
-      points: acc.points + player.points,
-      rebounds: acc.rebounds + player.rebounds,
-      assists: acc.assists + player.assists,
-      steals: acc.steals + player.steals,
-      blocks: acc.blocks + player.blocks,
-      turnovers: acc.turnovers + player.turnovers,
-      fg_made: acc.fg_made + player.fg_made,
-      fg_attempted: acc.fg_attempted + player.fg_attempted,
-      three_made: acc.three_made + player.three_made,
-      three_attempted: acc.three_attempted + player.three_attempted,
-      ft_made: acc.ft_made + player.ft_made,
-      ft_attempted: acc.ft_attempted + player.ft_attempted
-    }), {
-      points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0,
-      fg_made: 0, fg_attempted: 0, three_made: 0, three_attempted: 0,
-      ft_made: 0, ft_attempted: 0
-    });
+    const totals = playerBoxScores.reduce(
+      (acc, player) => ({
+        points: acc.points + player.points,
+        rebounds: acc.rebounds + player.rebounds,
+        assists: acc.assists + player.assists,
+        steals: acc.steals + player.steals,
+        blocks: acc.blocks + player.blocks,
+        turnovers: acc.turnovers + player.turnovers,
+        fg_made: acc.fg_made + player.fg_made,
+        fg_attempted: acc.fg_attempted + player.fg_attempted,
+        three_made: acc.three_made + player.three_made,
+        three_attempted: acc.three_attempted + player.three_attempted,
+        ft_made: acc.ft_made + player.ft_made,
+        ft_attempted: acc.ft_attempted + player.ft_attempted,
+      }),
+      {
+        points: 0,
+        rebounds: 0,
+        assists: 0,
+        steals: 0,
+        blocks: 0,
+        turnovers: 0,
+        fg_made: 0,
+        fg_attempted: 0,
+        three_made: 0,
+        three_attempted: 0,
+        ft_made: 0,
+        ft_attempted: 0,
+      }
+    );
 
     return {
       ...totals,
       fg_pct: totals.fg_attempted > 0 ? totals.fg_made / totals.fg_attempted : 0,
       three_pct: totals.three_attempted > 0 ? totals.three_made / totals.three_attempted : 0,
-      ft_pct: totals.ft_attempted > 0 ? totals.ft_made / totals.ft_attempted : 0
+      ft_pct: totals.ft_attempted > 0 ? totals.ft_made / totals.ft_attempted : 0,
     };
   }
 
@@ -579,13 +602,25 @@ export class SimulationService {
       await teamService.updateTeamRecord(awayTeamId, homeWon ? 'loss' : 'win');
 
       // Update player statistics
-      await this.updatePlayerStats(gameResult.box_score.home_team.players, gameResult.home_score > gameResult.away_score);
-      await this.updatePlayerStats(gameResult.box_score.away_team.players, gameResult.away_score > gameResult.home_score);
+      await this.updatePlayerStats(
+        gameResult.box_score.home_team.players,
+        gameResult.home_score > gameResult.away_score
+      );
+      await this.updatePlayerStats(
+        gameResult.box_score.away_team.players,
+        gameResult.away_score > gameResult.home_score
+      );
 
       // Calculate team statistics from player stats
-      const homeTeamStats = this.calculateTeamGameStats(gameResult.box_score.home_team.players, gameResult.home_score > gameResult.away_score);
-      const awayTeamStats = this.calculateTeamGameStats(gameResult.box_score.away_team.players, gameResult.away_score > gameResult.home_score);
-      
+      const homeTeamStats = this.calculateTeamGameStats(
+        gameResult.box_score.home_team.players,
+        gameResult.home_score > gameResult.away_score
+      );
+      const awayTeamStats = this.calculateTeamGameStats(
+        gameResult.box_score.away_team.players,
+        gameResult.away_score > gameResult.home_score
+      );
+
       // Update team statistics
       await this.updateTeamStats(homeTeamId, homeTeamStats);
       await this.updateTeamStats(awayTeamId, awayTeamStats);
@@ -627,7 +662,7 @@ export class SimulationService {
           three_made: currentStats.three_made + boxScore.three_made,
           three_attempted: currentStats.three_attempted + boxScore.three_attempted,
           ft_made: currentStats.ft_made + boxScore.ft_made,
-          ft_attempted: currentStats.ft_attempted + boxScore.ft_attempted
+          ft_attempted: currentStats.ft_attempted + boxScore.ft_attempted,
         };
 
         // Recalculate averages
@@ -638,7 +673,8 @@ export class SimulationService {
         updatedStats.bpg = updatedStats.games > 0 ? updatedStats.blocks / updatedStats.games : 0;
         updatedStats.tpg = updatedStats.games > 0 ? updatedStats.turnovers / updatedStats.games : 0;
         updatedStats.fg_pct = updatedStats.fg_attempted > 0 ? updatedStats.fg_made / updatedStats.fg_attempted : 0;
-        updatedStats.three_pct = updatedStats.three_attempted > 0 ? updatedStats.three_made / updatedStats.three_attempted : 0;
+        updatedStats.three_pct =
+          updatedStats.three_attempted > 0 ? updatedStats.three_made / updatedStats.three_attempted : 0;
         updatedStats.ft_pct = updatedStats.ft_attempted > 0 ? updatedStats.ft_made / updatedStats.ft_attempted : 0;
 
         // Update player stats in database
@@ -656,31 +692,48 @@ export class SimulationService {
    * @returns Team game statistics
    */
   private calculateTeamGameStats(playerBoxScores: any[], won: boolean): any {
-    const totals = playerBoxScores.reduce((acc, player) => ({
-      points: acc.points + (player.points || 0),
-      rebounds: acc.rebounds + (player.rebounds || 0),
-      assists: acc.assists + (player.assists || 0),
-      steals: acc.steals + (player.steals || 0),
-      blocks: acc.blocks + (player.blocks || 0),
-      turnovers: acc.turnovers + (player.turnovers || 0),
-      fg_made: acc.fg_made + (player.fg_made || 0),
-      fg_attempted: acc.fg_attempted + (player.fg_attempted || 0),
-      three_made: acc.three_made + (player.three_made || 0),
-      three_attempted: acc.three_attempted + (player.three_attempted || 0),
-      ft_made: acc.ft_made + (player.ft_made || 0),
-      ft_attempted: acc.ft_attempted + (player.ft_attempted || 0),
-      oreb: acc.oreb + (player.oreb || 0),
-      dreb: acc.dreb + (player.dreb || 0),
-      pf: acc.pf + (player.pf || 0),
-      dd: acc.dd + (player.dd || 0),
-      td: acc.td + (player.td || 0),
-      plus_minus: acc.plus_minus + (player.plus_minus || 0)
-    }), {
-      points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0,
-      fg_made: 0, fg_attempted: 0, three_made: 0, three_attempted: 0,
-      ft_made: 0, ft_attempted: 0, oreb: 0, dreb: 0,
-      pf: 0, dd: 0, td: 0, plus_minus: 0
-    });
+    const totals = playerBoxScores.reduce(
+      (acc, player) => ({
+        points: acc.points + (player.points || 0),
+        rebounds: acc.rebounds + (player.rebounds || 0),
+        assists: acc.assists + (player.assists || 0),
+        steals: acc.steals + (player.steals || 0),
+        blocks: acc.blocks + (player.blocks || 0),
+        turnovers: acc.turnovers + (player.turnovers || 0),
+        fg_made: acc.fg_made + (player.fg_made || 0),
+        fg_attempted: acc.fg_attempted + (player.fg_attempted || 0),
+        three_made: acc.three_made + (player.three_made || 0),
+        three_attempted: acc.three_attempted + (player.three_attempted || 0),
+        ft_made: acc.ft_made + (player.ft_made || 0),
+        ft_attempted: acc.ft_attempted + (player.ft_attempted || 0),
+        oreb: acc.oreb + (player.oreb || 0),
+        dreb: acc.dreb + (player.dreb || 0),
+        pf: acc.pf + (player.pf || 0),
+        dd: acc.dd + (player.dd || 0),
+        td: acc.td + (player.td || 0),
+        plus_minus: acc.plus_minus + (player.plus_minus || 0),
+      }),
+      {
+        points: 0,
+        rebounds: 0,
+        assists: 0,
+        steals: 0,
+        blocks: 0,
+        turnovers: 0,
+        fg_made: 0,
+        fg_attempted: 0,
+        three_made: 0,
+        three_attempted: 0,
+        ft_made: 0,
+        ft_attempted: 0,
+        oreb: 0,
+        dreb: 0,
+        pf: 0,
+        dd: 0,
+        td: 0,
+        plus_minus: 0,
+      }
+    );
 
     return {
       won,
@@ -704,7 +757,7 @@ export class SimulationService {
       plus_minus: totals.plus_minus,
       fg_pct: totals.fg_attempted > 0 ? totals.fg_made / totals.fg_attempted : 0,
       three_pct: totals.three_attempted > 0 ? totals.three_made / totals.three_attempted : 0,
-      ft_pct: totals.ft_attempted > 0 ? totals.ft_made / totals.ft_attempted : 0
+      ft_pct: totals.ft_attempted > 0 ? totals.ft_made / totals.ft_attempted : 0,
     };
   }
 
@@ -724,13 +777,13 @@ export class SimulationService {
         games: newGames,
         wins: teamStats.won ? currentStats.wins + 1 : currentStats.wins,
         losses: teamStats.won ? currentStats.losses : currentStats.losses + 1,
-        ppg: ((currentStats.ppg * currentStats.games) + teamStats.points) / newGames,
-        opp_ppg: ((currentStats.opp_ppg * currentStats.games) + teamStats.opp_points) / newGames,
-        rpg: ((currentStats.rpg * currentStats.games) + teamStats.rebounds) / newGames,
-        apg: ((currentStats.apg * currentStats.games) + teamStats.assists) / newGames,
-        spg: ((currentStats.spg * currentStats.games) + teamStats.steals) / newGames,
-        bpg: ((currentStats.bpg * currentStats.games) + teamStats.blocks) / newGames,
-        tpg: ((currentStats.tpg * currentStats.games) + teamStats.turnovers) / newGames,
+        ppg: (currentStats.ppg * currentStats.games + teamStats.points) / newGames,
+        opp_ppg: (currentStats.opp_ppg * currentStats.games + teamStats.opp_points) / newGames,
+        rpg: (currentStats.rpg * currentStats.games + teamStats.rebounds) / newGames,
+        apg: (currentStats.apg * currentStats.games + teamStats.assists) / newGames,
+        spg: (currentStats.spg * currentStats.games + teamStats.steals) / newGames,
+        bpg: (currentStats.bpg * currentStats.games + teamStats.blocks) / newGames,
+        tpg: (currentStats.tpg * currentStats.games + teamStats.turnovers) / newGames,
         fg_pct: teamStats.fg_pct,
         three_pct: teamStats.three_pct,
         ft_pct: teamStats.ft_pct,
@@ -746,7 +799,7 @@ export class SimulationService {
         pf: (currentStats.pf || 0) + (teamStats.pf || 0),
         dd: (currentStats.dd || 0) + (teamStats.dd || 0),
         td: (currentStats.td || 0) + (teamStats.td || 0),
-        plus_minus: ((currentStats.plus_minus || 0) * currentStats.games + (teamStats.plus_minus || 0)) / newGames
+        plus_minus: ((currentStats.plus_minus || 0) * currentStats.games + (teamStats.plus_minus || 0)) / newGames,
       };
 
       await teamService.updateTeamStats(teamId, updatedStats);
@@ -792,15 +845,15 @@ export class SimulationService {
         currentDate,
         currentYear,
         homeTeamId,
-        awayTeamId
+        awayTeamId,
       ];
 
       const result = dbService.run(sql, params);
-      
-      console.log(`=== STORE GAME RESULT ===`)
-      console.log(`Updating game: ${homeTeamId} vs ${awayTeamId}`)
-      console.log(`UPDATE affected ${result.changes} rows`)
-      
+
+      console.log(`=== STORE GAME RESULT ===`);
+      console.log(`Updating game: ${homeTeamId} vs ${awayTeamId}`);
+      console.log(`UPDATE affected ${result.changes} rows`);
+
       // If no game was updated, insert a new one (fallback for games not in schedule)
       if (result.changes === 0) {
         console.warn(`No scheduled game found for ${homeTeamId} vs ${awayTeamId}, inserting new game`);
@@ -815,11 +868,11 @@ export class SimulationService {
           awayTeamId,
           gameResult.home_score,
           gameResult.away_score,
-          JSON.stringify(gameResult.box_score)
+          JSON.stringify(gameResult.box_score),
         ]);
-        console.log(`INSERTED new game for ${homeTeamId} vs ${awayTeamId}`)
+        console.log(`INSERTED new game for ${homeTeamId} vs ${awayTeamId}`);
       }
-      
+
       console.log(`Updated game result: ${homeTeamId} vs ${awayTeamId}`);
     } catch (error) {
       console.error('Failed to store game result:', error);
@@ -837,29 +890,29 @@ export class SimulationService {
   ): Promise<Array<{ homeTeamId: number; awayTeamId: number; homeScore: number; awayScore: number }>> {
     try {
       console.log(`Simulating ${games.length} games...`);
-      
-      const results = []
+
+      const results = [];
       for (const game of games) {
         // Check if game is already completed in database
-        const existingGameId = await gameService.getGameIdByMatchup(game.homeTeamId, game.awayTeamId)
+        const existingGameId = await gameService.getGameIdByMatchup(game.homeTeamId, game.awayTeamId);
         if (existingGameId) {
-          console.warn(`Skipping already completed game: ${game.homeTeamId} vs ${game.awayTeamId}`)
-          continue
+          console.warn(`Skipping already completed game: ${game.homeTeamId} vs ${game.awayTeamId}`);
+          continue;
         }
-        
+
         const result = await this.simulateGame(game.homeTeamId, game.awayTeamId);
         results.push({
           homeTeamId: game.homeTeamId,
           awayTeamId: game.awayTeamId,
           homeScore: result.home_score,
-          awayScore: result.away_score
-        })
+          awayScore: result.away_score,
+        });
         // Add small delay to prevent overwhelming the system
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
       console.log('All games simulated successfully');
-      return results
+      return results;
     } catch (error) {
       console.error('Failed to simulate multiple games:', error);
       throw new Error('Multiple game simulation failed');
@@ -874,7 +927,7 @@ export class SimulationService {
     return {
       totalGamesSimulated: 0, // This would be tracked in a real implementation
       averageScore: 110, // This would be calculated from actual games
-      simulationVersion: '1.0.0'
+      simulationVersion: '1.0.0',
     };
   }
 
@@ -911,12 +964,13 @@ export class SimulationService {
               fg_pct: player.fieldGoalsAttempted > 0 ? player.fieldGoalsMade / player.fieldGoalsAttempted : 0,
               three_made: player.threePointersMade,
               three_attempted: player.threePointersAttempted,
-              three_pct: player.threePointersAttempted > 0 ? player.threePointersMade / player.threePointersAttempted : 0,
+              three_pct:
+                player.threePointersAttempted > 0 ? player.threePointersMade / player.threePointersAttempted : 0,
               ft_made: 0,
               ft_attempted: 0,
               ft_pct: 0,
-              plus_minus: 0
-            }))
+              plus_minus: 0,
+            })),
           },
           away_team: {
             team_id: awayTeamId,
@@ -938,19 +992,20 @@ export class SimulationService {
               fg_pct: player.fieldGoalsAttempted > 0 ? player.fieldGoalsMade / player.fieldGoalsAttempted : 0,
               three_made: player.threePointersMade,
               three_attempted: player.threePointersAttempted,
-              three_pct: player.threePointersAttempted > 0 ? player.threePointersMade / player.threePointersAttempted : 0,
+              three_pct:
+                player.threePointersAttempted > 0 ? player.threePointersMade / player.threePointersAttempted : 0,
               ft_made: 0,
               ft_attempted: 0,
               ft_pct: 0,
-              plus_minus: 0
-            }))
-          }
-        }
+              plus_minus: 0,
+            })),
+          },
+        },
       };
 
       // Use the existing updateGameResults method
       await this.updateGameResults(homeTeamId, awayTeamId, simulationResult);
-      
+
       console.log(`Watch game logged: Team ${homeTeamId} vs Team ${awayTeamId}`);
     } catch (error) {
       console.error('Failed to log watch game:', error);

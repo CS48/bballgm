@@ -1,6 +1,6 @@
 /**
  * Database Schema Definitions
- * 
+ *
  * This file contains the SQL schema definitions for the basketball simulation database.
  * It provides a centralized location for all table creation statements and can be
  * used for database migrations and documentation.
@@ -121,19 +121,19 @@ export const INDEX_DEFINITIONS = {
   // Player indexes
   PLAYER_TEAM_INDEX: 'CREATE INDEX IF NOT EXISTS idx_player_team ON players(team_id);',
   PLAYER_ID_INDEX: 'CREATE INDEX IF NOT EXISTS idx_player_id ON players(player_id);',
-  
+
   // Team indexes
   TEAM_ID_INDEX: 'CREATE INDEX IF NOT EXISTS idx_team_id ON teams(team_id);',
   TEAM_CONFERENCE_INDEX: 'CREATE INDEX IF NOT EXISTS idx_team_conference ON teams(conference);',
-  
+
   // Game indexes
   GAME_SEASON_INDEX: 'CREATE INDEX IF NOT EXISTS idx_game_season ON games(season);',
   GAME_TEAMS_INDEX: 'CREATE INDEX IF NOT EXISTS idx_game_teams ON games(home_team_id, away_team_id);',
   GAME_DAY_INDEX: 'CREATE INDEX IF NOT EXISTS idx_game_day ON games(season, game_day);',
-  
+
   // Calendar indexes
   CALENDAR_SEASON_INDEX: 'CREATE INDEX IF NOT EXISTS idx_calendar_season ON season_calendar(season);',
-  CALENDAR_GAME_DAY_INDEX: 'CREATE INDEX IF NOT EXISTS idx_calendar_game_day ON season_calendar(season, game_day);'
+  CALENDAR_GAME_DAY_INDEX: 'CREATE INDEX IF NOT EXISTS idx_calendar_game_day ON season_calendar(season, game_day);',
 };
 
 /**
@@ -200,6 +200,6 @@ export const getIndexNames = (): string[] => {
     'idx_game_teams',
     'idx_game_day',
     'idx_calendar_season',
-    'idx_calendar_game_day'
+    'idx_calendar_game_day',
   ];
 };

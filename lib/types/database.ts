@@ -1,6 +1,6 @@
 /**
  * Database Type Definitions
- * 
+ *
  * This file contains TypeScript interfaces and types for all database models
  * used in the basketball simulation system. These types ensure type safety
  * and provide clear documentation of the data structures.

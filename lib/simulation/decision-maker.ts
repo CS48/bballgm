@@ -1,13 +1,13 @@
 /**
  * Ball Handler Decision Maker
- * 
+ *
  * AI logic for ball handler decisions during possession.
  * Evaluates Pass, Skill Move, and Shoot options based on player attributes,
  * openness scores, shot clock, and configurable thresholds.
  */
 
-import type { SimulationPlayer, BallHandlerDecision, PossessionState } from '../types/simulation-engine'
-import { getDecisionLogicConfig } from './config-loader'
+import type { SimulationPlayer, BallHandlerDecision, PossessionState } from '../types/simulation-engine';
+import { getDecisionLogicConfig } from './config-loader';
 
 /**
  * Make a decision for the ball handler
@@ -25,55 +25,55 @@ export function decideAction(
   opennessScores: Map<string, number>,
   state: PossessionState
 ): BallHandlerDecision {
-  const config = getDecisionLogicConfig()
-  
+  const config = getDecisionLogicConfig();
+
   // Force shoot if shot clock is low
   if (shotClock <= config.forced_shot_threshold) {
     return {
       action: 'shoot',
       reasoning: `Shot clock at ${shotClock}s - forced to shoot`,
-      opennessScore: opennessScores.get(ballHandler.id) || 0
-    }
+      opennessScore: opennessScores.get(ballHandler.id) || 0,
+    };
   }
-  
+
   // Calculate decision weights
-  const shootWeight = calculateShootWeight(ballHandler, opennessScores, state)
-  const skillMoveWeight = calculateSkillMoveWeight(ballHandler, opennessScores, state)
-  const passWeight = calculatePassWeight(ballHandler, teammates, opennessScores, state)
-  
+  const shootWeight = calculateShootWeight(ballHandler, opennessScores, state);
+  const skillMoveWeight = calculateSkillMoveWeight(ballHandler, opennessScores, state);
+  const passWeight = calculatePassWeight(ballHandler, teammates, opennessScores, state);
+
   // Normalize weights to probabilities
-  const totalWeight = shootWeight + skillMoveWeight + passWeight
+  const totalWeight = shootWeight + skillMoveWeight + passWeight;
   if (totalWeight === 0) {
     // Fallback to shoot if no clear decision
     return {
       action: 'shoot',
       reasoning: 'No clear decision - defaulting to shoot',
-      opennessScore: opennessScores.get(ballHandler.id) || 0
-    }
+      opennessScore: opennessScores.get(ballHandler.id) || 0,
+    };
   }
-  
-  const shootProb = shootWeight / totalWeight
-  const skillMoveProb = skillMoveWeight / totalWeight
-  const passProb = passWeight / totalWeight
-  
+
+  const shootProb = shootWeight / totalWeight;
+  const skillMoveProb = skillMoveWeight / totalWeight;
+  const passProb = passWeight / totalWeight;
+
   // Make decision based on probabilities
-  const decision = makeWeightedDecision(shootProb, skillMoveProb, passProb)
-  
+  const decision = makeWeightedDecision(shootProb, skillMoveProb, passProb);
+
   if (decision.action === 'pass') {
-    const target = selectPassTarget(teammates, opennessScores, ballHandler)
+    const target = selectPassTarget(teammates, opennessScores, ballHandler);
     return {
       action: 'pass',
       target,
       reasoning: `Pass to ${target.name} (openness: ${opennessScores.get(target.id) || 0})`,
-      opennessScore: opennessScores.get(ballHandler.id) || 0
-    }
+      opennessScore: opennessScores.get(ballHandler.id) || 0,
+    };
   }
-  
+
   return {
     action: decision.action,
     reasoning: decision.reasoning,
-    opennessScore: opennessScores.get(ballHandler.id) || 0
-  }
+    opennessScore: opennessScores.get(ballHandler.id) || 0,
+  };
 }
 
 /**
@@ -88,32 +88,32 @@ function calculateShootWeight(
   opennessScores: Map<string, number>,
   state: PossessionState
 ): number {
-  const ballHandlerOpenness = opennessScores.get(ballHandler.id) || 0
-  
+  const ballHandlerOpenness = opennessScores.get(ballHandler.id) || 0;
+
   // Base weight from ball handler's openness
-  let weight = ballHandlerOpenness * 0.4
-  
+  let weight = ballHandlerOpenness * 0.4;
+
   // Bonus for high shooting attributes
-  const shootingAbility = (ballHandler.inside_shot + ballHandler.three_point_shot) / 2
-  weight += shootingAbility * 0.3
-  
+  const shootingAbility = (ballHandler.inside_shot + ballHandler.three_point_shot) / 2;
+  weight += shootingAbility * 0.3;
+
   // Bonus for high ball IQ (better shot selection)
-  weight += ballHandler.ball_iq * 0.2
-  
+  weight += ballHandler.ball_iq * 0.2;
+
   // Penalty for low openness
   if (ballHandlerOpenness < 30) {
-    weight *= 0.5
+    weight *= 0.5;
   }
-  
+
   // Bonus for high pass count (team is struggling to find open shots)
   if (state.passCount > 3) {
-    weight += 20
+    weight += 20;
   }
-  
+
   // Apply position-based multiplier
-  weight *= getShootPositionMultiplier(ballHandler.position)
-  
-  return Math.max(0, weight)
+  weight *= getShootPositionMultiplier(ballHandler.position);
+
+  return Math.max(0, weight);
 }
 
 /**
@@ -123,12 +123,18 @@ function calculateShootWeight(
  */
 function getShootPositionMultiplier(position: string): number {
   switch (position) {
-    case 'PG': return 0.3   // Point guards are facilitators
-    case 'SG': return 1.2   // Shooting guards are primary scorers
-    case 'SF': return 1.1   // Small forwards are versatile scorers
-    case 'PF': return 0.9   // Power forwards focus on inside game
-    case 'C':  return 0.7   // Centers get fewer perimeter touches
-    default:   return 1.0
+    case 'PG':
+      return 0.3; // Point guards are facilitators
+    case 'SG':
+      return 1.2; // Shooting guards are primary scorers
+    case 'SF':
+      return 1.1; // Small forwards are versatile scorers
+    case 'PF':
+      return 0.9; // Power forwards focus on inside game
+    case 'C':
+      return 0.7; // Centers get fewer perimeter touches
+    default:
+      return 1.0;
   }
 }
 
@@ -144,39 +150,39 @@ function calculateSkillMoveWeight(
   opennessScores: Map<string, number>,
   state: PossessionState
 ): number {
-  const ballHandlerOpenness = opennessScores.get(ballHandler.id) || 0
-  
+  const ballHandlerOpenness = opennessScores.get(ballHandler.id) || 0;
+
   // Base weight from ball handler's openness - REDUCED from 0.3 to 0.2
-  let weight = ballHandlerOpenness * 0.2
-  
+  let weight = ballHandlerOpenness * 0.2;
+
   // Bonus for high skill move attribute - REDUCED from 0.4 to 0.3
-  weight += ballHandler.skill_move * 0.3
-  
+  weight += ballHandler.skill_move * 0.3;
+
   // Bonus for high speed - REDUCED from 0.2 to 0.15
-  weight += ballHandler.speed * 0.15
-  
+  weight += ballHandler.speed * 0.15;
+
   // Penalty for low openness
   if (ballHandlerOpenness < 20) {
-    weight *= 0.3
+    weight *= 0.3;
   }
-  
+
   // Bonus if teammates are not very open - REDUCED from +15 to +8
-  const teamAverageOpenness = getTeamAverageOpenness(opennessScores)
+  const teamAverageOpenness = getTeamAverageOpenness(opennessScores);
   if (teamAverageOpenness < 40) {
-    weight += 8  // Changed from 15
+    weight += 8; // Changed from 15
   }
-  
+
   // Penalty for high openness - should shoot/pass instead of skill move
   if (ballHandlerOpenness > 70) {
-    weight *= 0.5  // Reduce by 50% when very open
+    weight *= 0.5; // Reduce by 50% when very open
   } else if (ballHandlerOpenness > 50) {
-    weight *= 0.7  // Reduce by 30% when moderately open
+    weight *= 0.7; // Reduce by 30% when moderately open
   }
-  
+
   // Apply position-based multiplier
-  weight *= getSkillMovePositionMultiplier(ballHandler.position)
-  
-  return Math.max(0, weight)
+  weight *= getSkillMovePositionMultiplier(ballHandler.position);
+
+  return Math.max(0, weight);
 }
 
 /**
@@ -194,33 +200,33 @@ function calculatePassWeight(
   state: PossessionState
 ): number {
   // Base weight from ball handler's passing ability
-  let weight = ballHandler.pass * 0.3
-  
+  let weight = ballHandler.pass * 0.3;
+
   // Bonus for high ball IQ
-  weight += ballHandler.ball_iq * 0.2
-  
+  weight += ballHandler.ball_iq * 0.2;
+
   // Bonus if teammates are more open than ball handler
-  const ballHandlerOpenness = opennessScores.get(ballHandler.id) || 0
-  const teamAverageOpenness = getTeamAverageOpenness(opennessScores)
-  
+  const ballHandlerOpenness = opennessScores.get(ballHandler.id) || 0;
+  const teamAverageOpenness = getTeamAverageOpenness(opennessScores);
+
   if (teamAverageOpenness > ballHandlerOpenness + 10) {
-    weight += 25
+    weight += 25;
   }
-  
+
   // Penalty for low ball handler openness (harder to pass when guarded)
   if (ballHandlerOpenness < 20) {
-    weight *= 0.6
+    weight *= 0.6;
   }
-  
+
   // Bonus for high pass count (team is moving the ball well)
   if (state.passCount > 2) {
-    weight += 10
+    weight += 10;
   }
-  
+
   // Apply position-based multiplier
-  weight *= getPassPositionMultiplier(ballHandler.position)
-  
-  return Math.max(0, weight)
+  weight *= getPassPositionMultiplier(ballHandler.position);
+
+  return Math.max(0, weight);
 }
 
 /**
@@ -230,9 +236,12 @@ function calculatePassWeight(
  */
 function getPassPositionMultiplier(position: string): number {
   switch (position) {
-    case 'PG': return 1.8   // Point guards are primary distributors
-    case 'C':  return 0.7   // Centers have limited passing range
-    default:   return 1.0   // Other positions unchanged
+    case 'PG':
+      return 1.8; // Point guards are primary distributors
+    case 'C':
+      return 0.7; // Centers have limited passing range
+    default:
+      return 1.0; // Other positions unchanged
   }
 }
 
@@ -243,12 +252,18 @@ function getPassPositionMultiplier(position: string): number {
  */
 function getSkillMovePositionMultiplier(position: string): number {
   switch (position) {
-    case 'PG': return 0.7   // Ball handlers use skill moves moderately
-    case 'SG': return 1.0   // Wing players have balanced usage
-    case 'SF': return 0.9   // Balanced
-    case 'PF': return 0.5   // Big men rarely use skill moves
-    case 'C':  return 0.4   // Centers almost never use skill moves
-    default:   return 1.0
+    case 'PG':
+      return 0.7; // Ball handlers use skill moves moderately
+    case 'SG':
+      return 1.0; // Wing players have balanced usage
+    case 'SF':
+      return 0.9; // Balanced
+    case 'PF':
+      return 0.5; // Big men rarely use skill moves
+    case 'C':
+      return 0.4; // Centers almost never use skill moves
+    default:
+      return 1.0;
   }
 }
 
@@ -263,25 +278,25 @@ function makeWeightedDecision(
   shootProb: number,
   skillMoveProb: number,
   passProb: number
-): { action: 'shoot' | 'skill_move' | 'pass', reasoning: string } {
+): { action: 'shoot' | 'skill_move' | 'pass'; reasoning: string } {
   // Use a simple random selection based on probabilities
-  const random = Math.random()
-  
+  const random = Math.random();
+
   if (random < shootProb) {
     return {
       action: 'shoot',
-      reasoning: `Shoot decision (prob: ${(shootProb * 100).toFixed(1)}%)`
-    }
+      reasoning: `Shoot decision (prob: ${(shootProb * 100).toFixed(1)}%)`,
+    };
   } else if (random < shootProb + skillMoveProb) {
     return {
       action: 'skill_move',
-      reasoning: `Skill move decision (prob: ${(skillMoveProb * 100).toFixed(1)}%)`
-    }
+      reasoning: `Skill move decision (prob: ${(skillMoveProb * 100).toFixed(1)}%)`,
+    };
   } else {
     return {
       action: 'pass',
-      reasoning: `Pass decision (prob: ${(passProb * 100).toFixed(1)}%)`
-    }
+      reasoning: `Pass decision (prob: ${(passProb * 100).toFixed(1)}%)`,
+    };
   }
 }
 
@@ -298,49 +313,49 @@ function selectPassTarget(
   ballHandler: SimulationPlayer
 ): SimulationPlayer {
   // Calculate weighted scores for each teammate
-  const weightedScores = teammates.map(teammate => {
-    const openness = opennessScores.get(teammate.id) || 0
-    
+  const weightedScores = teammates.map((teammate) => {
+    const openness = opennessScores.get(teammate.id) || 0;
+
     // Calculate target's scoring ability (average of inside and three-point shooting)
-    const scoringAbility = (teammate.inside_shot + teammate.three_point_shot) / 2
-    
+    const scoringAbility = (teammate.inside_shot + teammate.three_point_shot) / 2;
+
     // Passer's Ball IQ determines how much they value scoring ability vs openness
     // High IQ passers (90+) will pass to good scorers even if less open
     // Low IQ passers (50-) will just pass to whoever is most open
-    const ballIQFactor = ballHandler.ball_iq / 100 // 0.5 to 1.0
-    
+    const ballIQFactor = ballHandler.ball_iq / 100; // 0.5 to 1.0
+
     // Formula:
     // - Openness weighted by (1.0 - ballIQFactor * 0.4)
     // - Scoring ability weighted by (ballIQFactor * 0.4)
     // This means:
     //   - Low IQ (50): openness 80%, scoring 20%
     //   - High IQ (100): openness 60%, scoring 40%
-    const opennessWeight = 1.0 - (ballIQFactor * 0.4)
-    const scoringWeight = ballIQFactor * 0.4
-    
-    const score = (openness * opennessWeight) + (scoringAbility * scoringWeight)
-    
-    return { player: teammate, score }
-  })
-  
+    const opennessWeight = 1.0 - ballIQFactor * 0.4;
+    const scoringWeight = ballIQFactor * 0.4;
+
+    const score = openness * opennessWeight + scoringAbility * scoringWeight;
+
+    return { player: teammate, score };
+  });
+
   // Sort by weighted score (highest first)
-  weightedScores.sort((a, b) => b.score - a.score)
-  
+  weightedScores.sort((a, b) => b.score - a.score);
+
   // Randomly select from all teammates, with probability weighted by score
   // This gives better targets higher chance but doesn't exclude anyone
-  const totalScore = weightedScores.reduce((sum, ws) => sum + ws.score, 0)
-  const rand = Math.random() * totalScore
-  
-  let cumulative = 0
+  const totalScore = weightedScores.reduce((sum, ws) => sum + ws.score, 0);
+  const rand = Math.random() * totalScore;
+
+  let cumulative = 0;
   for (const ws of weightedScores) {
-    cumulative += ws.score
+    cumulative += ws.score;
     if (rand <= cumulative) {
-      return ws.player
+      return ws.player;
     }
   }
-  
+
   // Fallback (should never reach here)
-  return weightedScores[0].player
+  return weightedScores[0].player;
 }
 
 /**
@@ -349,11 +364,11 @@ function selectPassTarget(
  * @returns Average openness
  */
 function getTeamAverageOpenness(opennessScores: Map<string, number>): number {
-  const scores = Array.from(opennessScores.values())
-  if (scores.length === 0) return 0
-  
-  const total = scores.reduce((sum, score) => sum + score, 0)
-  return total / scores.length
+  const scores = Array.from(opennessScores.values());
+  if (scores.length === 0) return 0;
+
+  const total = scores.reduce((sum, score) => sum + score, 0);
+  return total / scores.length;
 }
 
 /**
@@ -372,33 +387,33 @@ export function getDecisionDebug(
   opennessScores: Map<string, number>,
   state: PossessionState
 ): {
-  ballHandler: string
-  shotClock: number
-  passCount: number
-  defensiveBreakdown: number
-  ballHandlerOpenness: number
-  teamAverageOpenness: number
-  shootWeight: number
-  skillMoveWeight: number
-  passWeight: number
-  totalWeight: number
-  shootProb: number
-  skillMoveProb: number
-  passProb: number
-  decision: BallHandlerDecision
+  ballHandler: string;
+  shotClock: number;
+  passCount: number;
+  defensiveBreakdown: number;
+  ballHandlerOpenness: number;
+  teamAverageOpenness: number;
+  shootWeight: number;
+  skillMoveWeight: number;
+  passWeight: number;
+  totalWeight: number;
+  shootProb: number;
+  skillMoveProb: number;
+  passProb: number;
+  decision: BallHandlerDecision;
 } {
-  const shootWeight = calculateShootWeight(ballHandler, opennessScores, state)
-  const skillMoveWeight = calculateSkillMoveWeight(ballHandler, opennessScores, state)
-  const passWeight = calculatePassWeight(ballHandler, teammates, opennessScores, state)
-  
-  const totalWeight = shootWeight + skillMoveWeight + passWeight
-  const shootProb = totalWeight > 0 ? shootWeight / totalWeight : 0
-  const skillMoveProb = totalWeight > 0 ? skillMoveWeight / totalWeight : 0
-  const passProb = totalWeight > 0 ? passWeight / totalWeight : 0
-  
-  const decision = decideAction(ballHandler, teammates, shotClock, opennessScores, state)
-  const teamAverageOpenness = getTeamAverageOpenness(opennessScores)
-  
+  const shootWeight = calculateShootWeight(ballHandler, opennessScores, state);
+  const skillMoveWeight = calculateSkillMoveWeight(ballHandler, opennessScores, state);
+  const passWeight = calculatePassWeight(ballHandler, teammates, opennessScores, state);
+
+  const totalWeight = shootWeight + skillMoveWeight + passWeight;
+  const shootProb = totalWeight > 0 ? shootWeight / totalWeight : 0;
+  const skillMoveProb = totalWeight > 0 ? skillMoveWeight / totalWeight : 0;
+  const passProb = totalWeight > 0 ? passWeight / totalWeight : 0;
+
+  const decision = decideAction(ballHandler, teammates, shotClock, opennessScores, state);
+  const teamAverageOpenness = getTeamAverageOpenness(opennessScores);
+
   return {
     ballHandler: ballHandler.name,
     shotClock,
@@ -413,6 +428,6 @@ export function getDecisionDebug(
     shootProb,
     skillMoveProb,
     passProb,
-    decision
-  }
+    decision,
+  };
 }

@@ -1,8 +1,8 @@
-"use client"
+'use client';
 
 /**
  * League Service - League generation and management
- * 
+ *
  * This service orchestrates the creation and management of the entire league,
  * including teams, players, schedules, and league-wide operations.
  */
@@ -46,7 +46,6 @@ export class LeagueService {
    */
   public async generateLeague(options: LeagueInitOptions): Promise<void> {
     try {
-
       // Assign team quality tiers
       const teamQualities = teamGenerator.assignTeamQualities();
 
@@ -73,7 +72,6 @@ export class LeagueService {
         }
       }
 
-
       // Initialize calendar for the season
       const currentYear = new Date().getFullYear();
       await calendarService.initializeSeasonCalendar(currentYear);
@@ -82,8 +80,12 @@ export class LeagueService {
       const allTeams = await teamService.getAllTeams();
       // Enhanced seed generation to ensure uniqueness even for rapid refreshes
       const scheduleSeed = Date.now() + Math.floor(Math.random() * 10000) + Math.floor(Math.random() * 1000);
-      
-      const { teamSchedules, allGames, gameDaySchedule } = scheduleBuilderV2.generateScheduleWithCalendar(allTeams, currentYear, scheduleSeed);
+
+      const { teamSchedules, allGames, gameDaySchedule } = scheduleBuilderV2.generateScheduleWithCalendar(
+        allTeams,
+        currentYear,
+        scheduleSeed
+      );
 
       // Insert games into database with game day assignments
       for (let i = 0; i < allGames.length; i++) {
@@ -94,7 +96,7 @@ export class LeagueService {
         `;
         // Date is already in ISO format from DateGenerator
         console.log(`Using ISO date: ${game.date}`);
-        
+
         dbService.run(sql, [
           game.season,
           game.date,
@@ -104,7 +106,7 @@ export class LeagueService {
           game.home_score,
           game.away_score,
           game.completed,
-          game.box_score
+          game.box_score,
         ]);
       }
 
@@ -117,12 +119,11 @@ export class LeagueService {
 
       // Update team schedules in database
       for (const [teamId, schedule] of teamSchedules) {
-        
         // Validate game count per team
         if (schedule.length !== 82) {
           console.error(`❌ ERROR: Team ${teamId} has ${schedule.length} games, expected 82!`);
         }
-        
+
         await teamService.updateTeamSchedule(teamId, schedule);
       }
 
@@ -146,9 +147,9 @@ export class LeagueService {
         ORDER BY season DESC 
         LIMIT 1
       `;
-      
+
       const results = dbService.exec(sql);
-      
+
       if (results.length === 0) {
         // Fallback to current year if no season found
         const currentYear = new Date().getFullYear();
@@ -158,10 +159,10 @@ export class LeagueService {
           end_date: `${currentYear + 1}-04-15`,
           games_per_team: 82,
           playoffs_enabled: false,
-          playoff_teams_per_conference: 8
+          playoff_teams_per_conference: 8,
         };
       }
-      
+
       const season = results[0].season;
       return {
         year: season,
@@ -169,7 +170,7 @@ export class LeagueService {
         end_date: `${season + 1}-04-15`,
         games_per_team: 82,
         playoffs_enabled: false,
-        playoff_teams_per_conference: 8
+        playoff_teams_per_conference: 8,
       };
     } catch (error) {
       console.error('Failed to get current season:', error);
@@ -181,7 +182,7 @@ export class LeagueService {
         end_date: `${currentYear + 1}-04-15`,
         games_per_team: 82,
         playoffs_enabled: false,
-        playoff_teams_per_conference: 8
+        playoff_teams_per_conference: 8,
       };
     }
   }
@@ -215,8 +216,8 @@ export class LeagueService {
         current_date: currentDate,
         season_phase: this.determineSeasonPhase(currentDate),
         games_played: Math.floor(totalGames / 2), // Each game involves 2 teams
-        total_games: 82 * 30 / 2, // 82 games per team, 30 teams, each game counted once
-        is_active: true
+        total_games: (82 * 30) / 2, // 82 games per team, 30 teams, each game counted once
+        is_active: true,
       };
     } catch (error) {
       console.error('Failed to get league state:', error);
@@ -239,8 +240,15 @@ export class LeagueService {
       return 'preseason';
     }
     // Regular season: October 16 - April 15
-    else if ((month === 10 && day >= 16) || month === 11 || month === 12 || 
-             month === 1 || month === 2 || month === 3 || (month === 4 && day <= 15)) {
+    else if (
+      (month === 10 && day >= 16) ||
+      month === 11 ||
+      month === 12 ||
+      month === 1 ||
+      month === 2 ||
+      month === 3 ||
+      (month === 4 && day <= 15)
+    ) {
       return 'regular_season';
     }
     // Playoffs: April 16 - June 15
@@ -253,7 +261,6 @@ export class LeagueService {
     }
   }
 
-
   /**
    * Get league statistics summary
    * @returns Promise that resolves to league stats
@@ -262,7 +269,7 @@ export class LeagueService {
     try {
       const teams = await teamService.getAllTeams();
       const players = await playerService.getAllPlayers();
-      
+
       const totalGames = teams.reduce((sum, team) => sum + team.wins + team.losses, 0);
       const totalWins = teams.reduce((sum, team) => sum + team.wins, 0);
       const totalLosses = teams.reduce((sum, team) => sum + team.losses, 0);
@@ -275,9 +282,9 @@ export class LeagueService {
         totalLosses,
         averageWinPercentage: totalGames > 0 ? (totalWins / totalGames) * 100 : 0,
         teamsByConference: {
-          east: teams.filter(team => team.conference === 'East').length,
-          west: teams.filter(team => team.conference === 'West').length
-        }
+          east: teams.filter((team) => team.conference === 'East').length,
+          west: teams.filter((team) => team.conference === 'West').length,
+        },
       };
     } catch (error) {
       console.error('Failed to get league stats:', error);
@@ -367,15 +374,15 @@ export class LeagueService {
       }
 
       const players = await playerService.getPlayersByTeam(teamId);
-      
+
       return {
         team: {
           team_id: team.team_id,
           city: team.city,
           name: team.name,
-          conference: team.conference
+          conference: team.conference,
         },
-        players: players.map(player => ({
+        players: players.map((player) => ({
           player_id: player.player_id,
           name: `${player.first_name} ${player.last_name}`,
           position: player.position,
@@ -398,8 +405,8 @@ export class LeagueService {
           block: player.block,
           steal: player.steal,
           offensive_rebound: player.offensive_rebound,
-          defensive_rebound: player.defensive_rebound
-        }))
+          defensive_rebound: player.defensive_rebound,
+        })),
       };
     } catch (error) {
       console.error('Failed to get team roster:', error);
@@ -423,13 +430,13 @@ export class LeagueService {
       for (const team of teams) {
         const currentStats = team.current_season_stats ? JSON.parse(team.current_season_stats) : null;
         const historicalRecords = team.historical_records ? JSON.parse(team.historical_records) : [];
-        
+
         // Add current season to historical records
         historicalRecords.push({
           season: new Date().getFullYear(),
           wins: team.wins,
           losses: team.losses,
-          stats: currentStats
+          stats: currentStats,
         });
 
         // Reset team for new season
@@ -437,14 +444,34 @@ export class LeagueService {
           wins: 0,
           losses: 0,
           current_season_stats: JSON.stringify({
-            games: 0, wins: 0, losses: 0, ppg: 0, opp_ppg: 0,
-            fg_pct: 0, three_pct: 0, ft_pct: 0, rpg: 0, apg: 0,
-            spg: 0, bpg: 0, tpg: 0, fg_made: 0, fg_attempted: 0,
-            three_made: 0, three_attempted: 0, ft_made: 0, ft_attempted: 0,
-            oreb: 0, dreb: 0, pf: 0, dd: 0, td: 0, plus_minus: 0
+            games: 0,
+            wins: 0,
+            losses: 0,
+            ppg: 0,
+            opp_ppg: 0,
+            fg_pct: 0,
+            three_pct: 0,
+            ft_pct: 0,
+            rpg: 0,
+            apg: 0,
+            spg: 0,
+            bpg: 0,
+            tpg: 0,
+            fg_made: 0,
+            fg_attempted: 0,
+            three_made: 0,
+            three_attempted: 0,
+            ft_made: 0,
+            ft_attempted: 0,
+            oreb: 0,
+            dreb: 0,
+            pf: 0,
+            dd: 0,
+            td: 0,
+            plus_minus: 0,
           }),
           historical_records: JSON.stringify(historicalRecords),
-          schedule: JSON.stringify([])
+          schedule: JSON.stringify([]),
         });
       }
 
@@ -452,25 +479,44 @@ export class LeagueService {
       for (const player of players) {
         const currentStats = player.current_season_stats ? JSON.parse(player.current_season_stats) : null;
         const historicalStats = player.historical_stats ? JSON.parse(player.historical_stats) : [];
-        
+
         // Add current season to historical stats
         if (currentStats && currentStats.games > 0) {
           historicalStats.push({
             season: new Date().getFullYear(),
-            ...currentStats
+            ...currentStats,
           });
         }
 
         // Reset player for new season
         await playerService.updatePlayer(player.player_id, {
           current_season_stats: JSON.stringify({
-            games: 0, minutes: 0, points: 0, ppg: 0, rebounds: 0, rpg: 0,
-            assists: 0, apg: 0, steals: 0, spg: 0, blocks: 0, bpg: 0,
-            turnovers: 0, tpg: 0, fg_made: 0, fg_attempted: 0, fg_pct: 0,
-            three_made: 0, three_attempted: 0, three_pct: 0,
-            ft_made: 0, ft_attempted: 0, ft_pct: 0, plus_minus: 0
+            games: 0,
+            minutes: 0,
+            points: 0,
+            ppg: 0,
+            rebounds: 0,
+            rpg: 0,
+            assists: 0,
+            apg: 0,
+            steals: 0,
+            spg: 0,
+            blocks: 0,
+            bpg: 0,
+            turnovers: 0,
+            tpg: 0,
+            fg_made: 0,
+            fg_attempted: 0,
+            fg_pct: 0,
+            three_made: 0,
+            three_attempted: 0,
+            three_pct: 0,
+            ft_made: 0,
+            ft_attempted: 0,
+            ft_pct: 0,
+            plus_minus: 0,
           }),
-          historical_stats: JSON.stringify(historicalStats)
+          historical_stats: JSON.stringify(historicalStats),
         });
 
         // Recalculate career stats
@@ -480,12 +526,8 @@ export class LeagueService {
       // Generate new schedules using V2 scheduler
       const currentYear = new Date().getFullYear() + 1;
       const scheduleSeed = Date.now() + Math.floor(Math.random() * 10000);
-      
-      const { teamSchedules } = scheduleBuilderV2.generateScheduleWithCalendar(
-        teams,
-        currentYear,
-        scheduleSeed
-      );
+
+      const { teamSchedules } = scheduleBuilderV2.generateScheduleWithCalendar(teams, currentYear, scheduleSeed);
 
       // Update team schedules
       for (const [teamId, schedule] of teamSchedules) {
@@ -507,11 +549,11 @@ export class LeagueService {
     try {
       const teams = await teamService.getAllTeams();
       const players = await playerService.getAllPlayers();
-      
+
       // Check if we have the expected number of teams and players
       const expectedTeams = 30;
       const expectedPlayers = 30 * 15; // 15 players per team
-      
+
       return teams.length === expectedTeams && players.length === expectedPlayers;
     } catch (error) {
       console.error('Failed to check league readiness:', error);
@@ -526,13 +568,13 @@ export class LeagueService {
   public async deleteLeague(): Promise<void> {
     try {
       console.log('🗑️ Deleting league data...');
-      
+
       // Delete in reverse order of foreign key dependencies
       await dbService.run('DELETE FROM games');
       await dbService.run('DELETE FROM season_calendar');
       await dbService.run('DELETE FROM players');
       await dbService.run('DELETE FROM teams');
-      
+
       console.log('✅ League data deleted successfully');
     } catch (error) {
       console.error('❌ Failed to delete league:', error);
@@ -558,8 +600,8 @@ export class LeagueService {
           state,
           season,
           teams,
-          players
-        }
+          players,
+        },
       };
     } catch (error) {
       console.error('Failed to export league:', error);

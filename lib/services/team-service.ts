@@ -1,8 +1,8 @@
-"use client"
+'use client';
 
 /**
  * Team Service - CRUD operations for teams
- * 
+ *
  * This service handles all database operations related to teams,
  * including creating, reading, updating, and deleting team records.
  * It also provides utility functions for team statistics and standings.
@@ -56,7 +56,7 @@ export class TeamService {
         teamData.losses,
         teamData.current_season_stats,
         teamData.historical_records,
-        teamData.schedule
+        teamData.schedule,
       ];
 
       const result = dbService.run(sql, params);
@@ -76,11 +76,11 @@ export class TeamService {
     try {
       const sql = 'SELECT * FROM teams WHERE team_id = ?';
       const results = dbService.exec(sql, [teamId]);
-      
+
       if (results.length === 0) {
         return null;
       }
-      
+
       return results[0] as Team;
     } catch (error) {
       console.error('Failed to get team:', error);
@@ -127,13 +127,13 @@ export class TeamService {
    */
   public async updateTeam(teamId: number, updateData: Partial<Team>): Promise<void> {
     try {
-      const fields = Object.keys(updateData).filter(key => key !== 'team_id');
-      const values = fields.map(field => updateData[field as keyof Team]);
-      const setClause = fields.map(field => `${field} = ?`).join(', ');
-      
+      const fields = Object.keys(updateData).filter((key) => key !== 'team_id');
+      const values = fields.map((field) => updateData[field as keyof Team]);
+      const setClause = fields.map((field) => `${field} = ?`).join(', ');
+
       const sql = `UPDATE teams SET ${setClause} WHERE team_id = ?`;
       const params = [...values, teamId];
-      
+
       dbService.run(sql, params);
     } catch (error) {
       console.error('Failed to update team:', error);
@@ -402,10 +402,10 @@ export class TeamService {
     try {
       const schedule = await this.getTeamSchedule(teamId);
       const upcomingGames = schedule
-        .filter(game => !game.completed)
+        .filter((game) => !game.completed)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         .slice(0, limit);
-      
+
       return upcomingGames;
     } catch (error) {
       console.error('Failed to get upcoming games:', error);
@@ -423,10 +423,10 @@ export class TeamService {
     try {
       const schedule = await this.getTeamSchedule(teamId);
       const recentGames = schedule
-        .filter(game => game.completed)
+        .filter((game) => game.completed)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, limit);
-      
+
       return recentGames;
     } catch (error) {
       console.error('Failed to get recent games:', error);
@@ -471,12 +471,12 @@ export class TeamService {
         seasonStats,
         schedule: {
           total: schedule.length,
-          completed: schedule.filter(g => g.completed).length,
-          remaining: schedule.filter(g => !g.completed).length
+          completed: schedule.filter((g) => g.completed).length,
+          remaining: schedule.filter((g) => !g.completed).length,
         },
         upcomingGames,
         recentGames,
-        winPercentage: this.calculateWinPercentage(team.wins, team.losses)
+        winPercentage: this.calculateWinPercentage(team.wins, team.losses),
       };
     } catch (error) {
       console.error('Failed to get team summary:', error);

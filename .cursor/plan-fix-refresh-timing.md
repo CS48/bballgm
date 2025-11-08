@@ -5,6 +5,7 @@
 The state persistence issue is caused by a **timing/race condition**:
 
 ### Current Flow (Broken)
+
 ```
 1. HomeHub mounts
 2. refreshCurrentGameDay() is called (async)
@@ -18,42 +19,52 @@ The state persistence issue is caused by a **timing/race condition**:
 ```
 
 ### Root Cause
+
 The `refreshCurrentGameDay()` call on mount is **fire-and-forget** - the component doesn't wait for it to complete before rendering.
 
 ## Solutions
 
 ### Option 1: Don't Call Refresh on Mount (Recommended)
+
 **Insight**: The context already has `currentGameDay` loaded from initialization. We don't need to refresh it on every mount - only when returning from a game result view.
 
 **Implementation**:
+
 - Remove the refresh useEffect from HomeHub
 - Keep the refresh calls in MainMenu before navigating back
 - This ensures data is fresh when needed, but doesn't cause unnecessary refreshes
 
 **Pros**:
+
 - Simpler
 - No race conditions
 - Better performance (fewer DB queries)
 - Context maintains the data
 
 **Cons**:
+
 - None - this is the correct approach
 
 ### Option 2: Wait for Refresh Before Rendering
+
 Make HomeHub wait for the refresh to complete before rendering.
 
 **Pros**:
+
 - Ensures fresh data always
 
 **Cons**:
+
 - Adds loading state
 - Slower initial render
 - Unnecessary since context already has data
 
 ### Option 3: Add Dependency to Sync UseEffect
+
 Make the sync useEffect depend on `refreshCurrentGameDay` completing.
 
 **Cons**:
+
 - Complex
 - Still has race conditions
 - Doesn't solve the root issue
@@ -69,9 +80,11 @@ The context already loads `currentGameDay` during initialization. HomeHub doesn'
 3. **When context initializes** - Already handled in `loadLeagueData()`
 
 **Files to Modify**:
+
 1. `components/home-hub.tsx` - Remove the refresh useEffect
 
 **Expected Result**:
+
 - No race conditions
 - State persists correctly
 - Fewer unnecessary DB queries
@@ -89,5 +102,3 @@ The context already loads `currentGameDay` during initialization. HomeHub doesn'
 8. UI displays correct state ✅
 
 The key insight: **The refresh in MainMenu is sufficient** - we don't need to refresh again on HomeHub mount.
-
-

@@ -1,15 +1,15 @@
 /**
  * Pass Roll Resolution
- * 
+ *
  * Handles pass attempts with D20 dice rolls, calculating outcomes
  * for complete pass or interception based on passer attributes,
  * target openness, and defensive pressure.
  */
 
-import type { SimulationPlayer, PassRollResult } from '../types/simulation-engine'
-import { getPassRollConfig } from './config-loader'
-import { rollD20 } from './d20-rng'
-import { allocateFaces, createTwoOutcomeCaps, getOutcomeFromRoll } from './probability-allocator'
+import type { SimulationPlayer, PassRollResult } from '../types/simulation-engine';
+import { getPassRollConfig } from './config-loader';
+import { rollD20 } from './d20-rng';
+import { allocateFaces, createTwoOutcomeCaps, getOutcomeFromRoll } from './probability-allocator';
 
 /**
  * Roll for a pass attempt
@@ -24,22 +24,22 @@ export function rollPass(
   defender: SimulationPlayer,
   targetOpenness: number,
   context: {
-    passCount: number
-    defensiveBreakdown: number
-    staminaDecay: number
-    targetPlayer: SimulationPlayer
+    passCount: number;
+    defensiveBreakdown: number;
+    staminaDecay: number;
+    targetPlayer: SimulationPlayer;
   }
 ): PassRollResult {
   // Flat 19:1 ratio - 95% completion, 5% steal
-  const faces = [19, 1] // Complete: 19, Intercepted: 1
-  
+  const faces = [19, 1]; // Complete: 19, Intercepted: 1
+
   // Roll D20
-  const roll = rollD20()
-  
+  const roll = rollD20();
+
   // Determine outcome (rolls 1-19 = complete, roll 20 = intercepted)
-  const complete = roll <= 19
-  const intercepted = !complete
-  
+  const complete = roll <= 19;
+  const intercepted = !complete;
+
   return {
     outcome: complete ? 'complete' : 'intercepted',
     roll,
@@ -52,14 +52,14 @@ export function rollPass(
         ball_iq: 0,
         target_openness: 0,
         defender_on_ball: 0,
-        defender_steal: 0
+        defender_steal: 0,
       },
-      calculation: 'Flat 19:1 ratio (95% completion)'
+      calculation: 'Flat 19:1 ratio (95% completion)',
     },
     complete,
     intercepted,
-    newBallHandler: complete ? context.targetPlayer : undefined
-  }
+    newBallHandler: complete ? context.targetPlayer : undefined,
+  };
 }
 
 /**
@@ -70,7 +70,7 @@ export function rollPass(
  * @param context Pass context
  * @param config Pass configuration
  * @returns Raw value
- * 
+ *
  * NOTE: This function is no longer used with the flat 19:1 pass ratio.
  * Kept for reference but commented out.
  */
@@ -122,13 +122,16 @@ function calculatePassRawValue(
  * @param targetOpenness Target player openness
  * @returns Pass description
  */
-export function getPassDescription(
-  passer: SimulationPlayer,
-  target: SimulationPlayer,
-  targetOpenness: number
-): string {
-  const opennessDesc = targetOpenness > 70 ? 'wide open' : targetOpenness > 50 ? 'open' : targetOpenness > 30 ? 'contested' : 'heavily contested'
-  return `${passer.name} passes to ${target.name} who is ${opennessDesc}`
+export function getPassDescription(passer: SimulationPlayer, target: SimulationPlayer, targetOpenness: number): string {
+  const opennessDesc =
+    targetOpenness > 70
+      ? 'wide open'
+      : targetOpenness > 50
+        ? 'open'
+        : targetOpenness > 30
+          ? 'contested'
+          : 'heavily contested';
+  return `${passer.name} passes to ${target.name} who is ${opennessDesc}`;
 }
 
 /**
@@ -144,9 +147,9 @@ export function getPassResultDescription(
   result: PassRollResult
 ): string {
   if (result.complete) {
-    return `${passer.name} completes the pass to ${target.name}!`
+    return `${passer.name} completes the pass to ${target.name}!`;
   } else {
-    return `${passer.name}'s pass is intercepted!`
+    return `${passer.name}'s pass is intercepted!`;
   }
 }
 
@@ -165,48 +168,54 @@ export function getPassDebug(
   target: SimulationPlayer,
   targetOpenness: number,
   context: {
-    passCount: number
-    defensiveBreakdown: number
-    staminaDecay: number
+    passCount: number;
+    defensiveBreakdown: number;
+    staminaDecay: number;
   }
 ): {
-  passer: string
-  defender: string
-  target: string
-  targetOpenness: number
-  passCount: number
-  defensiveBreakdown: number
-  staminaDecay: number
+  passer: string;
+  defender: string;
+  target: string;
+  targetOpenness: number;
+  passCount: number;
+  defensiveBreakdown: number;
+  staminaDecay: number;
   effectiveAttributes: {
-    pass: number
-    ball_iq: number
-  }
+    pass: number;
+    ball_iq: number;
+  };
   defensiveAttributes: {
-    on_ball_defense: number
-    steal: number
-  }
+    on_ball_defense: number;
+    steal: number;
+  };
   targetAttributes: {
-    ball_iq: number
-  }
-  rawValue: number
-  normalizedProbability: number
-  successProbability: number
-  faces: number[]
-  roll: number
-  outcome: string
-  complete: boolean
-  intercepted: boolean
+    ball_iq: number;
+  };
+  rawValue: number;
+  normalizedProbability: number;
+  successProbability: number;
+  faces: number[];
+  roll: number;
+  outcome: string;
+  complete: boolean;
+  intercepted: boolean;
 } {
-  const config = getPassRollConfig()
-  const rawValue = calculatePassRawValue(passer, defender, targetOpenness, { ...context, targetPlayer: target }, config)
-  const normalizedProbability = 0.20 + (Math.max(0, Math.min(100, rawValue)) / 100) * 0.6
-  
-  const caps = createTwoOutcomeCaps(config.caps.min_faces, 20 - config.caps.steal_cap)
-  const faces = allocateFaces([normalizedProbability, 1 - normalizedProbability], caps)
-  const roll = rollD20()
-  const outcomeIndex = getOutcomeFromRoll(roll, faces)
-  const complete = outcomeIndex === 0
-  
+  const config = getPassRollConfig();
+  const rawValue = calculatePassRawValue(
+    passer,
+    defender,
+    targetOpenness,
+    { ...context, targetPlayer: target },
+    config
+  );
+  const normalizedProbability = 0.2 + (Math.max(0, Math.min(100, rawValue)) / 100) * 0.6;
+
+  const caps = createTwoOutcomeCaps(config.caps.min_faces, 20 - config.caps.steal_cap);
+  const faces = allocateFaces([normalizedProbability, 1 - normalizedProbability], caps);
+  const roll = rollD20();
+  const outcomeIndex = getOutcomeFromRoll(roll, faces);
+  const complete = outcomeIndex === 0;
+
   return {
     passer: passer.name,
     defender: defender.name,
@@ -217,14 +226,14 @@ export function getPassDebug(
     staminaDecay: context.staminaDecay,
     effectiveAttributes: {
       pass: Math.max(0, passer.pass - context.staminaDecay * 0.2),
-      ball_iq: Math.max(0, passer.ball_iq - context.staminaDecay * 0.3)
+      ball_iq: Math.max(0, passer.ball_iq - context.staminaDecay * 0.3),
     },
     defensiveAttributes: {
       on_ball_defense: defender.on_ball_defense,
-      steal: defender.steal
+      steal: defender.steal,
     },
     targetAttributes: {
-      ball_iq: target.ball_iq
+      ball_iq: target.ball_iq,
     },
     rawValue,
     normalizedProbability,
@@ -233,6 +242,6 @@ export function getPassDebug(
     roll,
     outcome: complete ? 'complete' : 'intercepted',
     complete,
-    intercepted
-  }
+    intercepted,
+  };
 }
