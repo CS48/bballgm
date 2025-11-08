@@ -1,112 +1,114 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import Link from "next/link"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Badge } from "@/components/ui/badge"
+import { useState } from 'react';
+import Link from 'next/link';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 
 interface Player {
-  player_id: number
-  name: string
-  position: string
-  age: number
-  height: number
-  weight: number
-  years_pro: number
-  overall_rating: number
-  is_starter?: number
+  player_id: number;
+  name: string;
+  position: string;
+  age: number;
+  height: number;
+  weight: number;
+  years_pro: number;
+  overall_rating: number;
+  is_starter?: number;
   current_stats?: {
-    games?: number
-    minutes?: number
-    points?: number
-    fg_made?: number
-    fg_attempted?: number
-    fg_pct?: number
-    three_made?: number
-    three_attempted?: number
-    three_pct?: number
-    ft_made?: number
-    ft_attempted?: number
-    ft_pct?: number
-    oreb?: number
-    dreb?: number
-    rebounds?: number
-    assists?: number
-    turnovers?: number
-    steals?: number
-    blocks?: number
-    pf?: number
-  }
-  draft_info?: string | null
+    games?: number;
+    minutes?: number;
+    points?: number;
+    fg_made?: number;
+    fg_attempted?: number;
+    fg_pct?: number;
+    three_made?: number;
+    three_attempted?: number;
+    three_pct?: number;
+    ft_made?: number;
+    ft_attempted?: number;
+    ft_pct?: number;
+    oreb?: number;
+    dreb?: number;
+    rebounds?: number;
+    assists?: number;
+    turnovers?: number;
+    steals?: number;
+    blocks?: number;
+    pf?: number;
+  };
+  draft_info?: string | null;
 }
 
 interface RosterTableProps {
-  players: Player[]
+  players: Player[];
 }
 
 export function RosterTable({ players }: RosterTableProps) {
-  const [view, setView] = useState<"info" | "stats">("info")
+  const [view, setView] = useState<'info' | 'stats'>('info');
 
   // Helper functions
   const formatHeight = (inches: number): string => {
-    const feet = Math.floor(inches / 12)
-    const remainingInches = inches % 12
-    return `${feet}'${remainingInches}"`
-  }
+    const feet = Math.floor(inches / 12);
+    const remainingInches = inches % 12;
+    return `${feet}'${remainingInches}"`;
+  };
 
   const formatStat = (value: number | undefined, decimals: number = 1): string => {
-    if (value === undefined || value === null) return "0.0"
-    return value.toFixed(decimals)
-  }
+    if (value === undefined || value === null) return '0.0';
+    return value.toFixed(decimals);
+  };
 
   const formatPercentage = (made: number | undefined, attempted: number | undefined): string => {
-    if (!made || !attempted || attempted === 0) return "0.0"
-    return (made / attempted).toFixed(1)
-  }
+    if (!made || !attempted || attempted === 0) return '0.0';
+    return (made / attempted).toFixed(1);
+  };
 
   const parseAcquired = (draftInfo: string | null): string => {
-    if (!draftInfo) return "N/A"
+    if (!draftInfo) return 'N/A';
     try {
-      const draft = JSON.parse(draftInfo)
-      return `#${draft.pick} Pick in ${draft.year}`
+      const draft = JSON.parse(draftInfo);
+      return `#${draft.pick} Pick in ${draft.year}`;
     } catch {
-      return "N/A"
+      return 'N/A';
     }
-  }
+  };
 
   // Sort players: starters first (by position order), then bench players (by overall rating)
   const starters = (() => {
     // Debug: Check if any players have is_starter set
-    const playersWithStarterFlag = players.filter(player => player.is_starter === 1)
-    console.log('RosterTable Debug - Players with is_starter=1:', playersWithStarterFlag.length)
-    console.log('RosterTable Debug - All players is_starter values:', players.map(p => ({ name: p.name, is_starter: p.is_starter })))
-    
+    const playersWithStarterFlag = players.filter((player) => player.is_starter === 1);
+    console.log('RosterTable Debug - Players with is_starter=1:', playersWithStarterFlag.length);
+    console.log(
+      'RosterTable Debug - All players is_starter values:',
+      players.map((p) => ({ name: p.name, is_starter: p.is_starter }))
+    );
+
     // If no players are marked as starters, fall back to top 5 by overall rating
     if (playersWithStarterFlag.length === 0) {
-      console.log('RosterTable Debug - No starters found, using top 5 by overall rating')
-      return players
-        .sort((a, b) => b.overall_rating - a.overall_rating)
-        .slice(0, 5)
+      console.log('RosterTable Debug - No starters found, using top 5 by overall rating');
+      return players.sort((a, b) => b.overall_rating - a.overall_rating).slice(0, 5);
     }
-    
+
     // Use actual starters
     return playersWithStarterFlag.sort((a, b) => {
-      const positionOrder = ['PG', 'SG', 'SF', 'PF', 'C']
-      return positionOrder.indexOf(a.position) - positionOrder.indexOf(b.position)
-    })
-  })()
-  
-  const benchPlayers = players.filter(player => player.is_starter !== 1)
-    .sort((a, b) => b.overall_rating - a.overall_rating)
-  
-  const sortedPlayers = [...starters, ...benchPlayers]
+      const positionOrder = ['PG', 'SG', 'SF', 'PF', 'C'];
+      return positionOrder.indexOf(a.position) - positionOrder.indexOf(b.position);
+    });
+  })();
+
+  const benchPlayers = players
+    .filter((player) => player.is_starter !== 1)
+    .sort((a, b) => b.overall_rating - a.overall_rating);
+
+  const sortedPlayers = [...starters, ...benchPlayers];
 
   return (
     <div className="roster-table-container">
       {/* Header with segmented control */}
       <div className="flex justify-start items-center mb-4">
-        <ToggleGroup type="single" value={view} onValueChange={(value) => setView(value as "info" | "stats")}>
+        <ToggleGroup type="single" value={view} onValueChange={(value) => setView(value as 'info' | 'stats')}>
           <ToggleGroupItem value="info">Info</ToggleGroupItem>
           <ToggleGroupItem value="stats">Stats</ToggleGroupItem>
         </ToggleGroup>
@@ -118,7 +120,7 @@ export function RosterTable({ players }: RosterTableProps) {
           <thead>
             <tr className="border-b">
               <th className="text-left p-2 w-8"></th>
-              {view === "info" ? (
+              {view === 'info' ? (
                 <>
                   <th className="text-left p-2">Player</th>
                   <th className="text-left p-2">#</th>
@@ -183,7 +185,7 @@ export function RosterTable({ players }: RosterTableProps) {
                     </p>
                   </div>
                 </td>
-                {view === "info" ? (
+                {view === 'info' ? (
                   <>
                     <td className="p-2">{player.player_id}</td>
                     <td className="p-2">{formatHeight(player.height)}</td>
@@ -227,5 +229,5 @@ export function RosterTable({ players }: RosterTableProps) {
         </table>
       </div>
     </div>
-  )
+  );
 }

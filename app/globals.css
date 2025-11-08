@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -132,23 +132,23 @@
   .hub-card {
     @apply flex flex-col;
   }
-  
+
   .hub-card--filled {
     @apply bg-card border rounded-lg shadow-sm;
   }
-  
+
   .hub-card--transparent {
     @apply bg-transparent;
   }
-  
+
   .tab-content {
     @apply flex flex-col flex-1 gap-4;
   }
-  
+
   .tab-content--filled {
     @apply bg-muted/30 rounded-md p-4;
   }
-  
+
   .tab-content--transparent {
     @apply bg-transparent;
   }

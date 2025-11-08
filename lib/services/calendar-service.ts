@@ -1,8 +1,8 @@
-"use client"
+'use client';
 
 /**
  * Calendar Service - Season calendar management
- * 
+ *
  * This service handles the in-game calendar system, including game day tracking,
  * season progression, and calendar navigation for the basketball simulation.
  */
@@ -42,15 +42,15 @@ export class CalendarService {
   public generateSeasonCalendar(season: number): GameDay[] {
     try {
       const calendarData = dateGenerator.generateSeasonCalendar();
-      
-      const mappedData = calendarData.map(day => ({
+
+      const mappedData = calendarData.map((day) => ({
         game_day: day.game_day,
         date_display: day.display, // Fix: use 'display' instead of 'date_display'
         month: day.month,
         day: day.day,
-        games: [] // Will be populated when games are scheduled
+        games: [], // Will be populated when games are scheduled
       }));
-      
+
       return mappedData;
     } catch (error) {
       console.error('Failed to generate season calendar:', error);
@@ -73,22 +73,22 @@ export class CalendarService {
         ORDER BY game_day ASC
         LIMIT 1
       `;
-      
+
       const results = dbService.exec(sql, [season]);
-      
+
       if (results.length === 0) {
         return null;
       }
-      
+
       const currentDay = results[0];
       const games = await this.getGamesByDay(season, currentDay.game_day);
-      
+
       return {
         game_day: currentDay.game_day,
         date_display: currentDay.date_display,
         month: dateGenerator.getMonthForGameDay(currentDay.game_day),
         day: parseInt(currentDay.date_display.split(' ')[1]),
-        games: games
+        games: games,
       };
     } catch (error) {
       console.error('Failed to get current game day:', error);
@@ -111,22 +111,22 @@ export class CalendarService {
         ORDER BY game_day ASC 
         LIMIT 1
       `;
-      
+
       const results = dbService.exec(sql, [season, currentDay]);
-      
+
       if (results.length === 0) {
         return null;
       }
-      
+
       const nextDay = results[0];
       const games = await this.getGamesByDay(season, nextDay.game_day);
-      
+
       return {
         game_day: nextDay.game_day,
         date_display: nextDay.date_display,
         month: dateGenerator.getMonthForGameDay(nextDay.game_day),
         day: parseInt(nextDay.date_display.split(' ')[1]),
-        games: games
+        games: games,
       };
     } catch (error) {
       console.error('Failed to get next game day:', error);
@@ -142,9 +142,9 @@ export class CalendarService {
    */
   public async getGamesByDay(season: number, gameDay: number): Promise<GameScheduleEntry[]> {
     try {
-      console.log(`=== GET GAMES BY DAY ===`)
-      console.log(`Querying season: ${season}, gameDay: ${gameDay}`)
-      
+      console.log(`=== GET GAMES BY DAY ===`);
+      console.log(`Querying season: ${season}, gameDay: ${gameDay}`);
+
       const sql = `
         SELECT g.game_id, g.home_team_id, g.away_team_id, g.home_score, g.away_score, g.completed,
                ht.city as home_city, ht.name as home_name,
@@ -155,11 +155,11 @@ export class CalendarService {
         WHERE g.season = ? AND g.game_day = ?
         ORDER BY g.game_id
       `;
-      
+
       const results = dbService.exec(sql, [season, gameDay]);
-      console.log(`Found ${results.length} games for gameDay ${gameDay}`)
-      
-      return results.map(game => ({
+      console.log(`Found ${results.length} games for gameDay ${gameDay}`);
+
+      return results.map((game) => ({
         game_id: game.game_id,
         home_team_id: game.home_team_id,
         away_team_id: game.away_team_id,
@@ -169,10 +169,12 @@ export class CalendarService {
         home: true, // This will be determined by team perspective
         completed: Boolean(game.completed),
         result: game.completed ? (game.home_score > game.away_score ? 'win' : 'loss') : null,
-        score: game.completed ? {
-          home: game.home_score,
-          away: game.away_score
-        } : undefined
+        score: game.completed
+          ? {
+              home: game.home_score,
+              away: game.away_score,
+            }
+          : undefined,
       }));
     } catch (error) {
       console.error('Failed to get games by day:', error);
@@ -199,7 +201,6 @@ export class CalendarService {
         WHERE season = ? AND game_day = ?
       `;
       dbService.run(updateSql, [season, currentDay.game_day]);
-
     } catch (error) {
       console.error('Failed to advance game day:', error);
       throw new Error('Failed to advance game day');
@@ -225,16 +226,16 @@ export class CalendarService {
         ORDER BY g.game_day ASC
         LIMIT 1
       `;
-      
+
       const results = dbService.exec(sql, [teamId, teamId]);
-      
+
       if (results.length === 0) {
         return null;
       }
-      
+
       const game = results[0];
       const isHome = game.home_team_id === teamId;
-      
+
       return {
         game_id: game.game_id,
         opponent_id: isHome ? game.away_team_id : game.home_team_id,
@@ -242,7 +243,7 @@ export class CalendarService {
         date_display: dateGenerator.generateGameDayDate(game.game_day, 2025).display,
         home: isHome,
         completed: Boolean(game.completed),
-        result: null
+        result: null,
       };
     } catch (error) {
       console.error('Failed to get team next game:', error);
@@ -265,32 +266,32 @@ export class CalendarService {
         FROM season_calendar 
         WHERE season = ?
       `;
-      
+
       const results = dbService.exec(sql, [season]);
-      
+
       if (results.length === 0) {
         return {
           current: 1,
           total: 150,
           percent: 0,
           days_remaining: 150,
-          estimated_completion: dateGenerator.getSeasonEndDate()
+          estimated_completion: dateGenerator.getSeasonEndDate(),
         };
       }
-      
+
       const progress = results[0];
       const current = progress.current_day || 1;
       const total = 150; // Fixed season length
       const percent = Math.round((current / total) * 100);
       const days_remaining = Math.max(0, total - current);
       const estimated_completion = dateGenerator.getEstimatedCompletionDate(current);
-      
+
       return {
         current,
         total,
         percent,
         days_remaining,
-        estimated_completion
+        estimated_completion,
       };
     } catch (error) {
       console.error('Failed to get season progress:', error);
@@ -312,24 +313,24 @@ export class CalendarService {
         WHERE (home_team_id = ? OR away_team_id = ?) 
         AND completed = 1
       `;
-      
+
       const gamesPlayedResult = dbService.exec(gamesPlayedSql, [teamId, teamId]);
       const gamesPlayed = gamesPlayedResult[0]?.games_played || 0;
-      
+
       // Get team's next game
       const nextGame = await this.getTeamNextGame(teamId);
       const nextGameDay = nextGame ? nextGame.game_day : null;
-      
+
       // Get current game day
       const currentDaySql = `
         SELECT MIN(game_day) as current_day
         FROM season_calendar 
         WHERE games_scheduled > 0
       `;
-      
+
       const currentDayResult = dbService.exec(currentDaySql);
       const currentDay = currentDayResult[0]?.current_day || 1;
-      
+
       // Calculate days since last game
       const lastGameSql = `
         SELECT MAX(game_day) as last_game_day
@@ -337,18 +338,18 @@ export class CalendarService {
         WHERE (home_team_id = ? OR away_team_id = ?) 
         AND completed = 1
       `;
-      
+
       const lastGameResult = dbService.exec(lastGameSql, [teamId, teamId]);
       const lastGameDay = lastGameResult[0]?.last_game_day || 0;
       const daysSinceLastGame = Math.max(0, currentDay - lastGameDay);
-      
+
       return {
         team_id: teamId,
         games_played: gamesPlayed,
         games_remaining: 82 - gamesPlayed,
         total_games: 82,
         next_game_day: nextGameDay,
-        days_since_last_game: daysSinceLastGame
+        days_since_last_game: daysSinceLastGame,
       };
     } catch (error) {
       console.error('Failed to get team season progress:', error);
@@ -364,7 +365,7 @@ export class CalendarService {
   public async initializeSeasonCalendar(season: number): Promise<void> {
     try {
       const calendar = this.generateSeasonCalendar(season);
-      
+
       // Insert calendar entries into database
       for (const day of calendar) {
         const sql = `
@@ -413,12 +414,12 @@ export class CalendarService {
     try {
       const currentDay = await this.getCurrentGameDay(season);
       const progress = await this.getSeasonProgress(season);
-      
+
       return {
         can_advance: currentDay !== null && progress.percent < 100,
         can_simulate_to: true,
         can_simulate_to_team_game: true,
-        can_simulate_rest_of_season: progress.percent < 100
+        can_simulate_rest_of_season: progress.percent < 100,
       };
     } catch (error) {
       console.error('Failed to get navigation options:', error);
@@ -426,7 +427,7 @@ export class CalendarService {
         can_advance: false,
         can_simulate_to: false,
         can_simulate_to_team_game: false,
-        can_simulate_rest_of_season: false
+        can_simulate_rest_of_season: false,
       };
     }
   }

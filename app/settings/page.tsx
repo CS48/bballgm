@@ -1,47 +1,46 @@
-"use client"
+'use client';
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { SettingsMenu } from "@/components/settings-menu"
-import { useLeague } from "@/lib/context/league-context"
-import { storage } from "@/lib/utils/storage"
-import type { Team } from "@/lib/types/database"
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { SettingsMenu } from '@/components/settings-menu';
+import { useLeague } from '@/lib/context/league-context';
+import { storage } from '@/lib/utils/storage';
+import type { Team } from '@/lib/types/database';
 
 export default function SettingsPage() {
-  const router = useRouter()
-  const { teams, isLoading, isInitialized } = useLeague()
-  const [userTeam, setUserTeam] = useState<Team | null>(null)
+  const router = useRouter();
+  const { teams, isLoading, isInitialized } = useLeague();
+  const [userTeam, setUserTeam] = useState<Team | null>(null);
 
   useEffect(() => {
     // Wait for league to initialize
-    if (isLoading || !isInitialized) return
+    if (isLoading || !isInitialized) return;
 
     // Get user team from session
-    const session = storage.loadSession()
-    
+    const session = storage.loadSession();
+
     if (!session || teams.length === 0) {
       // No session or no teams → redirect to home
-      router.push('/')
-      return
+      router.push('/');
+      return;
     }
 
-    const team = teams.find(t => t.team_id === session.teamId)
-    
+    const team = teams.find((t) => t.team_id === session.teamId);
+
     if (!team) {
       // Team not found → redirect to home
-      router.push('/')
-      return
+      router.push('/');
+      return;
     }
 
-    setUserTeam(team)
-  }, [isLoading, isInitialized, teams, router])
+    setUserTeam(team);
+  }, [isLoading, isInitialized, teams, router]);
 
   const handleResetGame = () => {
     // Clear session and redirect to onboarding
-    storage.clearSession()
-    router.push('/onboarding')
-  }
-
+    storage.clearSession();
+    router.push('/onboarding');
+  };
 
   // Show loading while team loads
   if (!userTeam) {
@@ -52,15 +51,12 @@ export default function SettingsPage() {
           <p className="mt-4 text-muted-foreground">Loading settings...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <SettingsMenu 
-        userTeam={userTeam}
-        onResetGame={handleResetGame}
-      />
+      <SettingsMenu userTeam={userTeam} onResetGame={handleResetGame} />
     </div>
-  )
+  );
 }

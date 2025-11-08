@@ -1,66 +1,71 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import type { Team } from "@/lib/types/database"
-import { useTeams } from "@/lib/context/league-context"
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import type { Team } from '@/lib/types/database';
+import { useTeams } from '@/lib/context/league-context';
 
 interface OpponentSelectionProps {
-  userTeam: Team
-  onOpponentSelected: (opponent: Team, gameMode: 'sim' | 'watch') => void
-  onBackToMenu: () => void
-  isSimulating?: boolean
+  userTeam: Team;
+  onOpponentSelected: (opponent: Team, gameMode: 'sim' | 'watch') => void;
+  onBackToMenu: () => void;
+  isSimulating?: boolean;
 }
 
-export function OpponentSelection({ userTeam, onOpponentSelected, onBackToMenu, isSimulating = false }: OpponentSelectionProps) {
-  const teams = useTeams()
-  const [selectedOpponent, setSelectedOpponent] = useState<Team | null>(null)
-  const [selectedGameMode, setSelectedGameMode] = useState<'sim' | 'watch'>('watch')
+export function OpponentSelection({
+  userTeam,
+  onOpponentSelected,
+  onBackToMenu,
+  isSimulating = false,
+}: OpponentSelectionProps) {
+  const teams = useTeams();
+  const [selectedOpponent, setSelectedOpponent] = useState<Team | null>(null);
+  const [selectedGameMode, setSelectedGameMode] = useState<'sim' | 'watch'>('watch');
 
-  const opponents = teams.filter((team) => team.team_id !== userTeam.team_id)
+  const opponents = teams.filter((team) => team.team_id !== userTeam.team_id);
 
   const getTeamOverallRating = (team: Team): number => {
     // For now, return a default rating since we don't have player data here
     // This should be calculated from the league context like in other components
-    return 75 // Default rating
-  }
+    return 75; // Default rating
+  };
 
   const getMatchupDifficulty = (opponent: Team): string => {
-    const userRating = getTeamOverallRating(userTeam)
-    const opponentRating = getTeamOverallRating(opponent)
-    const difference = opponentRating - userRating
+    const userRating = getTeamOverallRating(userTeam);
+    const opponentRating = getTeamOverallRating(opponent);
+    const difference = opponentRating - userRating;
 
-    if (difference >= 10) return "Very Hard"
-    if (difference >= 5) return "Hard"
-    if (difference >= -5) return "Even"
-    if (difference >= -10) return "Easy"
-    return "Very Easy"
-  }
+    if (difference >= 10) return 'Very Hard';
+    if (difference >= 5) return 'Hard';
+    if (difference >= -5) return 'Even';
+    if (difference >= -10) return 'Easy';
+    return 'Very Easy';
+  };
 
   const getDifficultyColor = (difficulty: string): string => {
     switch (difficulty) {
-      case "Very Hard":
-        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-      case "Hard":
-        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
-      case "Even":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-      case "Easy":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-      case "Very Easy":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+      case 'Very Hard':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      case 'Hard':
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+      case 'Even':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'Easy':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'Very Easy':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
     }
-  }
+  };
 
   const handleConfirmSelection = () => {
     if (selectedOpponent) {
-      onOpponentSelected(selectedOpponent, selectedGameMode)
+      onOpponentSelected(selectedOpponent, selectedGameMode);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -76,15 +81,15 @@ export function OpponentSelection({ userTeam, onOpponentSelected, onBackToMenu, 
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {opponents.map((opponent) => {
-          const overallRating = getTeamOverallRating(opponent)
-          const difficulty = getMatchupDifficulty(opponent)
-          const isSelected = selectedOpponent?.team_id === opponent.team_id
+          const overallRating = getTeamOverallRating(opponent);
+          const difficulty = getMatchupDifficulty(opponent);
+          const isSelected = selectedOpponent?.team_id === opponent.team_id;
 
           return (
             <Card
               key={opponent.team_id}
               className={`cursor-pointer transition-all hover:shadow-lg ${
-                isSelected ? "ring-2 ring-primary bg-accent" : ""
+                isSelected ? 'ring-2 ring-primary bg-accent' : ''
               }`}
               onClick={() => setSelectedOpponent(opponent)}
             >
@@ -107,13 +112,11 @@ export function OpponentSelection({ userTeam, onOpponentSelected, onBackToMenu, 
                     <span className="text-sm text-muted-foreground">Difficulty:</span>
                     <Badge className={getDifficultyColor(difficulty)}>{difficulty}</Badge>
                   </div>
-                  <div className="text-xs text-muted-foreground pt-1">
-                    Conference: {opponent.conference}
-                  </div>
+                  <div className="text-xs text-muted-foreground pt-1">Conference: {opponent.conference}</div>
                 </div>
               </CardContent>
             </Card>
-          )
+          );
         })}
       </div>
 
@@ -158,13 +161,9 @@ export function OpponentSelection({ userTeam, onOpponentSelected, onBackToMenu, 
                     Sim Game
                   </Button>
                 </div>
-                
+
                 {/* Start Button */}
-                <Button 
-                  onClick={handleConfirmSelection} 
-                  className="w-full text-lg py-6"
-                  disabled={isSimulating}
-                >
+                <Button onClick={handleConfirmSelection} className="w-full text-lg py-6" disabled={isSimulating}>
                   {isSimulating ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -180,5 +179,5 @@ export function OpponentSelection({ userTeam, onOpponentSelected, onBackToMenu, 
         </div>
       )}
     </div>
-  )
+  );
 }

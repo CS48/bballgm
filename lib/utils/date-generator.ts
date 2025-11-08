@@ -1,8 +1,8 @@
-"use client"
+'use client';
 
 /**
  * Date Generator Utility
- * 
+ *
  * This utility converts game day numbers (1-150) to month-based display dates
  * following NBA season calendar structure (October 15 - April 10).
  */
@@ -17,17 +17,17 @@ const SEASON_CALENDAR_CONFIG: CalendarConfig = {
   start_month: 'October',
   start_day: 15,
   months: [
-    { name: 'October', days: 31, start_day: 15 },    // 17 days (15-31)
-    { name: 'November', days: 30, start_day: 1 },     // 30 days
-    { name: 'December', days: 31, start_day: 1 },    // 31 days
-    { name: 'January', days: 31, start_day: 1 },      // 31 days
-    { name: 'February', days: 28, start_day: 1 },     // 28 days
-    { name: 'March', days: 31, start_day: 1 },        // 31 days
-    { name: 'April', days: 10, start_day: 1 }         // 10 days (1-10)
+    { name: 'October', days: 31, start_day: 15 }, // 17 days (15-31)
+    { name: 'November', days: 30, start_day: 1 }, // 30 days
+    { name: 'December', days: 31, start_day: 1 }, // 31 days
+    { name: 'January', days: 31, start_day: 1 }, // 31 days
+    { name: 'February', days: 28, start_day: 1 }, // 28 days
+    { name: 'March', days: 31, start_day: 1 }, // 31 days
+    { name: 'April', days: 10, start_day: 1 }, // 10 days (1-10)
   ],
   total_calendar_days: 178,
   total_game_days: 150,
-  rest_day_ratio: 0.84 // 84% of days have games
+  rest_day_ratio: 0.84, // 84% of days have games
 };
 
 /**
@@ -61,11 +61,14 @@ export class DateGenerator {
    * @param seasonYear Season year for ISO date generation
    * @returns Object with display and ISO date information
    */
-  public generateGameDayDate(gameDayNumber: number, seasonYear: number = 2025): {
-    display: string;    // "October 15"
-    iso: string;       // "2025-10-15"
-    month: string;      // "October"
-    day: number;        // 15
+  public generateGameDayDate(
+    gameDayNumber: number,
+    seasonYear: number = 2025
+  ): {
+    display: string; // "October 15"
+    iso: string; // "2025-10-15"
+    month: string; // "October"
+    day: number; // 15
     month_index: number; // 0-6
   } {
     if (gameDayNumber < 1 || gameDayNumber > this.config.total_game_days) {
@@ -80,7 +83,7 @@ export class DateGenerator {
     while (remainingDays > 0 && currentMonthIndex < this.config.months.length) {
       const month = this.config.months[currentMonthIndex];
       const daysInMonth = month.days - month.start_day + 1;
-      
+
       if (remainingDays <= daysInMonth) {
         // This game day falls within this month
         currentDay = month.start_day + remainingDays - 1;
@@ -96,25 +99,34 @@ export class DateGenerator {
     }
 
     const monthName = this.config.months[currentMonthIndex].name;
-    
+
     // Generate ISO date format
     const monthMap: { [key: string]: string } = {
-      'January': '01', 'February': '02', 'March': '03', 'April': '04',
-      'May': '05', 'June': '06', 'July': '07', 'August': '08',
-      'September': '09', 'October': '10', 'November': '11', 'December': '12'
+      January: '01',
+      February: '02',
+      March: '03',
+      April: '04',
+      May: '05',
+      June: '06',
+      July: '07',
+      August: '08',
+      September: '09',
+      October: '10',
+      November: '11',
+      December: '12',
     };
     const monthNum = monthMap[monthName];
     const dayNum = currentDay.toString().padStart(2, '0');
     const isoDate = `${seasonYear}-${monthNum}-${dayNum}`;
-    
+
     const result = {
       display: `${monthName} ${currentDay}`,
       iso: isoDate,
       month: monthName,
       day: currentDay,
-      month_index: currentMonthIndex
+      month_index: currentMonthIndex,
     };
-    
+
     return result;
   }
 
@@ -141,7 +153,7 @@ export class DateGenerator {
       const dateInfo = this.generateGameDayDate(gameDay);
       calendar.push({
         game_day: gameDay,
-        ...dateInfo
+        ...dateInfo,
       });
     }
 
@@ -202,13 +214,13 @@ export class DateGenerator {
    */
   public getGameDaysInMonth(monthName: string): number[] {
     const gameDays: number[] = [];
-    
+
     for (let gameDay = 1; gameDay <= this.config.total_game_days; gameDay++) {
       if (this.isGameDayInMonth(gameDay, monthName)) {
         gameDays.push(gameDay);
       }
     }
-    
+
     return gameDays;
   }
 
@@ -219,13 +231,13 @@ export class DateGenerator {
    */
   public getNextGameDayInMonth(currentGameDay: number): number | null {
     const currentMonth = this.getMonthForGameDay(currentGameDay);
-    
+
     for (let gameDay = currentGameDay + 1; gameDay <= this.config.total_game_days; gameDay++) {
       if (this.getMonthForGameDay(gameDay) === currentMonth) {
         return gameDay;
       }
     }
-    
+
     return null;
   }
 
@@ -277,7 +289,7 @@ export class DateGenerator {
     if (daysRemaining === 0) {
       return this.getSeasonEndDate();
     }
-    
+
     const estimatedGameDay = currentGameDay + daysRemaining;
     const dateInfo = this.generateGameDayDate(estimatedGameDay);
     return dateInfo.display;

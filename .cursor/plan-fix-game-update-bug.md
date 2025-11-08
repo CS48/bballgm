@@ -3,10 +3,12 @@
 ## Problem: INSERT Instead of UPDATE
 
 ### Root Cause
+
 **File**: `lib/services/simulation-service.ts` (line 769)
 **Method**: `storeGameResult()`
 
 **Current Code**:
+
 ```typescript
 const sql = `
   INSERT INTO games (season, date, home_team_id, away_team_id, home_score, away_score, completed, box_score)
@@ -19,16 +21,18 @@ const sql = `
 ### What Happens
 
 1. **League Generation**: Games are created with `completed = 0`
+
    ```sql
    INSERT INTO games (...) VALUES (..., 0, ...)  -- Game ID 123
    ```
 
 2. **User Sims Game**: `storeGameResult()` is called
+
    ```sql
    INSERT INTO games (...) VALUES (..., 1, ...)  -- NEW Game ID 456
    ```
 
-3. **Result**: 
+3. **Result**:
    - Original game (ID 123) still has `completed = 0`
    - New game (ID 456) has `completed = 1`
    - `getCurrentGameDay()` queries by `game_day` and finds the original game (ID 123)
@@ -49,6 +53,7 @@ const sql = `
 Update the existing game record instead of inserting a new one.
 
 **Implementation**:
+
 ```typescript
 private async storeGameResult(
   homeTeamId: number,
@@ -57,20 +62,20 @@ private async storeGameResult(
 ): Promise<void> {
   try {
     const currentYear = new Date().getFullYear();
-    
+
     // UPDATE existing game instead of INSERT
     const sql = `
-      UPDATE games 
-      SET home_score = ?, 
-          away_score = ?, 
-          completed = 1, 
+      UPDATE games
+      SET home_score = ?,
+          away_score = ?,
+          completed = 1,
           box_score = ?
-      WHERE season = ? 
-        AND home_team_id = ? 
+      WHERE season = ?
+        AND home_team_id = ?
         AND away_team_id = ?
         AND completed = 0
     `;
-    
+
     const params = [
       gameResult.home_score,
       gameResult.away_score,
@@ -79,9 +84,9 @@ private async storeGameResult(
       homeTeamId,
       awayTeamId
     ];
-    
+
     dbService.run(sql, params);
-    
+
     console.log(`Updated game result: ${homeTeamId} vs ${awayTeamId}`);
   } catch (error) {
     console.error('Failed to store game result:', error);
@@ -91,17 +96,20 @@ private async storeGameResult(
 ```
 
 **Pros**:
+
 - Updates the correct scheduled game
 - No duplicate records
 - `getCurrentGameDay()` returns the updated game
 - State persists correctly
 
 **Cons**:
+
 - None
 
 ### Approach 2: INSERT with REPLACE
 
 Use SQLite's `INSERT OR REPLACE`:
+
 ```sql
 INSERT OR REPLACE INTO games (game_id, season, date, game_day, home_team_id, away_team_id, home_score, away_score, completed, box_score)
 SELECT game_id, season, date, game_day, home_team_id, away_team_id, ?, ?, 1, ?
@@ -110,10 +118,12 @@ WHERE season = ? AND home_team_id = ? AND away_team_id = ? AND completed = 0
 ```
 
 **Pros**:
+
 - Handles both insert and update
 - Preserves game_id
 
 **Cons**:
+
 - More complex
 - Need to fetch game_id first
 
@@ -127,19 +137,34 @@ const existing = dbService.exec(checkSql, [currentYear, homeTeamId, awayTeamId])
 if (existing.length > 0) {
   // UPDATE existing game
   const updateSql = `UPDATE games SET home_score = ?, away_score = ?, completed = 1, box_score = ? WHERE game_id = ?`;
-  dbService.run(updateSql, [gameResult.home_score, gameResult.away_score, JSON.stringify(gameResult.box_score), existing[0].game_id]);
+  dbService.run(updateSql, [
+    gameResult.home_score,
+    gameResult.away_score,
+    JSON.stringify(gameResult.box_score),
+    existing[0].game_id,
+  ]);
 } else {
   // INSERT new game (fallback for games not in schedule)
   const insertSql = `INSERT INTO games (season, date, home_team_id, away_team_id, home_score, away_score, completed, box_score) VALUES (?, ?, ?, ?, ?, ?, 1, ?)`;
-  dbService.run(insertSql, [currentYear, currentDate, homeTeamId, awayTeamId, gameResult.home_score, gameResult.away_score, JSON.stringify(gameResult.box_score)]);
+  dbService.run(insertSql, [
+    currentYear,
+    currentDate,
+    homeTeamId,
+    awayTeamId,
+    gameResult.home_score,
+    gameResult.away_score,
+    JSON.stringify(gameResult.box_score),
+  ]);
 }
 ```
 
 **Pros**:
+
 - Handles both scheduled and ad-hoc games
 - Explicit logic
 
 **Cons**:
+
 - Two database calls
 - More complex
 
@@ -148,6 +173,7 @@ if (existing.length > 0) {
 **Use Approach 1: Simple UPDATE**
 
 This is the cleanest solution:
+
 1. Games are pre-created during league generation
 2. When simulated, we UPDATE the existing game
 3. No duplicate records
@@ -157,21 +183,23 @@ This is the cleanest solution:
 
 **What about game_day?**
 The UPDATE should also preserve the `game_day` field:
+
 ```sql
-UPDATE games 
-SET home_score = ?, 
-    away_score = ?, 
-    completed = 1, 
+UPDATE games
+SET home_score = ?,
+    away_score = ?,
+    completed = 1,
     box_score = ?,
     date = ?
-WHERE season = ? 
-  AND home_team_id = ? 
+WHERE season = ?
+  AND home_team_id = ?
   AND away_team_id = ?
   AND completed = 0
 ```
 
 **What if no game is found?**
 Add error handling:
+
 ```typescript
 const result = dbService.run(sql, params);
 if (result.changes === 0) {
@@ -189,6 +217,7 @@ if (result.changes === 0) {
 ## Expected Result
 
 After fix:
+
 1. ✅ User sims game → Existing game record is updated
 2. ✅ Navigate to game result → Works
 3. ✅ Click "Back to Menu" → `refreshCurrentGameDay()` queries games
@@ -220,13 +249,11 @@ DELETE FROM games
 WHERE game_id IN (
   SELECT g1.game_id
   FROM games g1
-  JOIN games g2 ON g1.home_team_id = g2.home_team_id 
-    AND g1.away_team_id = g2.away_team_id 
+  JOIN games g2 ON g1.home_team_id = g2.home_team_id
+    AND g1.away_team_id = g2.away_team_id
     AND g1.season = g2.season
   WHERE g1.completed = 0 AND g2.completed = 1
 );
 ```
 
 But this is optional - the UPDATE approach will prevent future duplicates.
-
-

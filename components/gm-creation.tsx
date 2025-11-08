@@ -1,27 +1,27 @@
-"use client"
+'use client';
 
-import type React from "react"
+import type React from 'react';
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 // GM type is now just a simple object
 
 interface GMCreationProps {
-  onGMCreated: (gm: { id: string; firstName: string; lastName: string; createdAt: Date }) => void
+  onGMCreated: (gm: { id: string; firstName: string; lastName: string; createdAt: Date }) => void;
 }
 
 export function GMCreation({ onGMCreated }: GMCreationProps) {
-  const [firstName, setFirstName] = useState("")
-  const [lastName, setLastName] = useState("")
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!firstName.trim() || !lastName.trim()) {
-      return
+      return;
     }
 
     const gm = {
@@ -29,13 +29,16 @@ export function GMCreation({ onGMCreated }: GMCreationProps) {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       createdAt: new Date(),
-    }
+    };
 
-    onGMCreated(gm)
-  }
+    onGMCreated(gm);
+  };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4" style={{ marginLeft: 'auto', marginRight: 'auto' }}>
+    <div
+      className="min-h-screen bg-background flex items-center justify-center p-4"
+      style={{ marginLeft: 'auto', marginRight: 'auto' }}
+    >
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-primary mb-2">Basketball GM</h1>
@@ -83,5 +86,5 @@ export function GMCreation({ onGMCreated }: GMCreationProps) {
         </Card>
       </div>
     </div>
-  )
+  );
 }

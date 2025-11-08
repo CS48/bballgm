@@ -1,10 +1,10 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,102 +15,101 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { useLeague } from "@/lib/context/league-context"
-import { leagueService } from "@/lib/services/league-service"
-import { storage } from "@/lib/utils/storage"
-import type { Team } from "@/lib/types/database"
+} from '@/components/ui/alert-dialog';
+import { useLeague } from '@/lib/context/league-context';
+import { leagueService } from '@/lib/services/league-service';
+import { storage } from '@/lib/utils/storage';
+import type { Team } from '@/lib/types/database';
 
 interface SettingsMenuProps {
-  userTeam: Team
-  onResetGame: () => void
+  userTeam: Team;
+  onResetGame: () => void;
 }
 
 export function SettingsMenu({ userTeam, onResetGame }: SettingsMenuProps) {
-  const { deleteLeague, teams, players } = useLeague()
-  const [showResetDialog, setShowResetDialog] = useState(false)
-  const [showResetGMDialog, setShowResetGMDialog] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [teamRatings, setTeamRatings] = useState<Map<string, number>>(new Map())
+  const { deleteLeague, teams, players } = useLeague();
+  const [showResetDialog, setShowResetDialog] = useState(false);
+  const [showResetGMDialog, setShowResetGMDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [teamRatings, setTeamRatings] = useState<Map<string, number>>(new Map());
 
   // Calculate team ratings from database data
   useEffect(() => {
     const calculateTeamRatings = async () => {
-      const ratings = new Map<string, number>()
-      
+      const ratings = new Map<string, number>();
+
       for (const team of teams) {
         try {
-          const roster = await leagueService.getTeamRoster(team.team_id)
+          const roster = await leagueService.getTeamRoster(team.team_id);
           if (roster.players && roster.players.length > 0) {
-            const overallRatings = roster.players.map(p => p.overall_rating)
-            const averageRating = Math.round(overallRatings.reduce((a, b) => a + b, 0) / overallRatings.length)
-            ratings.set(team.team_id.toString(), averageRating)
+            const overallRatings = roster.players.map((p) => p.overall_rating);
+            const averageRating = Math.round(overallRatings.reduce((a, b) => a + b, 0) / overallRatings.length);
+            ratings.set(team.team_id.toString(), averageRating);
           } else {
-            ratings.set(team.team_id.toString(), 50) // Default rating if no players
+            ratings.set(team.team_id.toString(), 50); // Default rating if no players
           }
         } catch (error) {
-          console.error(`Failed to get rating for team ${team.team_id}:`, error)
-          ratings.set(team.team_id.toString(), 50) // Default rating on error
+          console.error(`Failed to get rating for team ${team.team_id}:`, error);
+          ratings.set(team.team_id.toString(), 50); // Default rating on error
         }
       }
-      
-      setTeamRatings(ratings)
-    }
+
+      setTeamRatings(ratings);
+    };
 
     if (teams.length > 0) {
-      calculateTeamRatings()
+      calculateTeamRatings();
     }
-  }, [teams])
+  }, [teams]);
 
   const getTeamOverallRating = (team: Team): number => {
     // Get from database calculation
     if (teamRatings.has(team.team_id.toString())) {
-      return teamRatings.get(team.team_id.toString()) || 50
+      return teamRatings.get(team.team_id.toString()) || 50;
     }
-    
+
     // Default rating if not calculated yet
-    return 50
-  }
+    return 50;
+  };
 
   const getLeagueStats = () => {
-    const totalPlayers = players.length
-    const averageTeamRating = teams.length > 0 
-      ? teams.reduce((sum, team) => sum + getTeamOverallRating(team), 0) / teams.length 
-      : 0
-    const totalGames = teams.reduce((sum, team) => sum + team.wins + team.losses, 0)
+    const totalPlayers = players.length;
+    const averageTeamRating =
+      teams.length > 0 ? teams.reduce((sum, team) => sum + getTeamOverallRating(team), 0) / teams.length : 0;
+    const totalGames = teams.reduce((sum, team) => sum + team.wins + team.losses, 0);
 
     return {
       totalPlayers,
       averageTeamRating: Math.round(averageTeamRating),
       totalGames: Math.round(totalGames / 2), // Divide by 2 since each game involves 2 teams
-    }
-  }
+    };
+  };
 
-  const leagueStats = getLeagueStats()
+  const leagueStats = getLeagueStats();
 
   const handleResetConfirm = () => {
-    setShowResetDialog(false)
-    onResetGame()
-  }
+    setShowResetDialog(false);
+    onResetGame();
+  };
 
   const handleResetGM = () => {
     // Clear session only, keep league
-    storage.clearSession()
-    setShowResetGMDialog(false)
-    onResetGame()  // This will redirect to /onboarding
-  }
+    storage.clearSession();
+    setShowResetGMDialog(false);
+    onResetGame(); // This will redirect to /onboarding
+  };
 
   const handleDeleteLeague = async () => {
     try {
-      await deleteLeague()
-      storage.clearAll()  // Clear both session and league state
-      setShowDeleteDialog(false)
+      await deleteLeague();
+      storage.clearAll(); // Clear both session and league state
+      setShowDeleteDialog(false);
       // Call the parent's reset callback instead of router.push
-      onResetGame()  // This will redirect to /onboarding in the route component
+      onResetGame(); // This will redirect to /onboarding in the route component
     } catch (error) {
-      console.error('Failed to delete league:', error)
+      console.error('Failed to delete league:', error);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -129,9 +128,7 @@ export function SettingsMenu({ userTeam, onResetGame }: SettingsMenuProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Name</p>
-              <p className="font-medium">
-                General Manager
-              </p>
+              <p className="font-medium">General Manager</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Created</p>
@@ -214,7 +211,7 @@ export function SettingsMenu({ userTeam, onResetGame }: SettingsMenuProps) {
             </div>
             <div>
               <p className="text-2xl font-bold text-primary">
-                {userTeam && (userTeam.wins + userTeam.losses) > 0
+                {userTeam && userTeam.wins + userTeam.losses > 0
                   ? Math.round((userTeam.wins / (userTeam.wins + userTeam.losses)) * 100)
                   : 0}
                 %
@@ -254,9 +251,7 @@ export function SettingsMenu({ userTeam, onResetGame }: SettingsMenuProps) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleResetGM}>
-                    Reset
-                  </AlertDialogAction>
+                  <AlertDialogAction onClick={handleResetGM}>Reset</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -277,16 +272,13 @@ export function SettingsMenu({ userTeam, onResetGame }: SettingsMenuProps) {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete League Permanently?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete your entire league, including all teams, players, and game history. 
+                    This will permanently delete your entire league, including all teams, players, and game history.
                     This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction 
-                    onClick={handleDeleteLeague}
-                    className="bg-destructive hover:bg-destructive/90"
-                  >
+                  <AlertDialogAction onClick={handleDeleteLeague} className="bg-destructive hover:bg-destructive/90">
                     Delete League
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -295,8 +287,6 @@ export function SettingsMenu({ userTeam, onResetGame }: SettingsMenuProps) {
           </div>
         </CardContent>
       </Card>
-
-
 
       {/* About */}
       <Card>
@@ -325,5 +315,5 @@ export function SettingsMenu({ userTeam, onResetGame }: SettingsMenuProps) {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

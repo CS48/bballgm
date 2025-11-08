@@ -1,8 +1,8 @@
-"use client"
+'use client';
 
 /**
  * Database Service - SQL.js initialization and connection management
- * 
+ *
  * This service handles the initialization of the SQLite database using SQL.js,
  * provides connection management, and includes utility functions for database
  * operations like export/import.
@@ -50,12 +50,12 @@ export class DatabaseService {
       // Initialize SQL.js for client-side usage
       const SQL = await initSqlJs({
         // Use CDN for WASM file in production
-        locateFile: file => {
+        locateFile: (file) => {
           if (file.endsWith('.wasm')) {
             return `https://sql.js.org/dist/${file}`;
           }
           return file;
-        }
+        },
       });
 
       // Create new database instance
@@ -190,7 +190,6 @@ export class DatabaseService {
 
       // Create indexes for performance optimization
       this.createIndexes();
-
     } catch (error) {
       console.error('Failed to create database tables:', error);
       throw error;
@@ -210,20 +209,19 @@ export class DatabaseService {
       // Player indexes
       this.db.exec('CREATE INDEX IF NOT EXISTS idx_player_team ON players(team_id);');
       this.db.exec('CREATE INDEX IF NOT EXISTS idx_player_id ON players(player_id);');
-      
+
       // Team indexes
       this.db.exec('CREATE INDEX IF NOT EXISTS idx_team_id ON teams(team_id);');
       this.db.exec('CREATE INDEX IF NOT EXISTS idx_team_conference ON teams(conference);');
-      
+
       // Game indexes
       this.db.exec('CREATE INDEX IF NOT EXISTS idx_game_season ON games(season);');
       this.db.exec('CREATE INDEX IF NOT EXISTS idx_game_teams ON games(home_team_id, away_team_id);');
       this.db.exec('CREATE INDEX IF NOT EXISTS idx_game_day ON games(season, game_day);');
-      
+
       // Calendar indexes
       this.db.exec('CREATE INDEX IF NOT EXISTS idx_calendar_season ON season_calendar(season);');
       this.db.exec('CREATE INDEX IF NOT EXISTS idx_calendar_game_day ON season_calendar(season, game_day);');
-
     } catch (error) {
       console.error('Failed to create database indexes:', error);
       throw error;
@@ -238,21 +236,21 @@ export class DatabaseService {
    */
   public exec(sql: string, params: any[] = []): any[] {
     const db = this.getDatabase();
-    
+
     try {
       if (params.length > 0) {
         // Use prepared statement for parameterized queries
         const stmt = db.prepare(sql);
-        
+
         // Bind parameters to the prepared statement
         stmt.bind(params);
-        
+
         const results: any[] = [];
-        
+
         while (stmt.step()) {
           results.push(stmt.getAsObject());
         }
-        
+
         stmt.free();
         return results;
       } else {
@@ -286,19 +284,25 @@ export class DatabaseService {
    */
   public run(sql: string, params: any[] = []): { changes: number; lastInsertRowid: number } {
     const db = this.getDatabase();
-    
+
     try {
       if (params.length > 0) {
         // Use prepared statement for parameterized queries
         const stmt = db.prepare(sql);
         stmt.run(params);
-        const result = { changes: db.getRowsModified(), lastInsertRowid: db.exec('SELECT last_insert_rowid()')[0].values[0][0] };
+        const result = {
+          changes: db.getRowsModified(),
+          lastInsertRowid: db.exec('SELECT last_insert_rowid()')[0].values[0][0],
+        };
         stmt.free();
         return result;
       } else {
         // Execute direct SQL
         db.exec(sql);
-        return { changes: db.getRowsModified(), lastInsertRowid: db.exec('SELECT last_insert_rowid()')[0].values[0][0] };
+        return {
+          changes: db.getRowsModified(),
+          lastInsertRowid: db.exec('SELECT last_insert_rowid()')[0].values[0][0],
+        };
       }
     } catch (error) {
       console.error('Database statement failed:', error);
@@ -312,23 +316,23 @@ export class DatabaseService {
    */
   public exportToJSON(): string {
     const db = this.getDatabase();
-    
+
     try {
       // Get all data from each table
       const players = this.exec('SELECT * FROM players');
       const teams = this.exec('SELECT * FROM teams');
       const games = this.exec('SELECT * FROM games');
-      
+
       const exportData = {
         timestamp: new Date().toISOString(),
         version: '1.0.0',
         data: {
           players,
           teams,
-          games
-        }
+          games,
+        },
       };
-      
+
       return JSON.stringify(exportData, null, 2);
     } catch (error) {
       console.error('Failed to export database:', error);
@@ -343,45 +347,50 @@ export class DatabaseService {
    */
   public async importFromJSON(jsonData: string): Promise<void> {
     const db = this.getDatabase();
-    
+
     try {
       const importData = JSON.parse(jsonData);
-      
+
       // Clear existing data
       db.exec('DELETE FROM games');
       db.exec('DELETE FROM players');
       db.exec('DELETE FROM teams');
-      
+
       // Import teams first (due to foreign key constraints)
       if (importData.data.teams) {
         for (const team of importData.data.teams) {
           const { team_id, ...teamData } = team;
           const columns = Object.keys(teamData).join(', ');
-          const values = Object.values(teamData).map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v).join(', ');
+          const values = Object.values(teamData)
+            .map((v) => (typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v))
+            .join(', ');
           db.exec(`INSERT INTO teams (${columns}) VALUES (${values})`);
         }
       }
-      
+
       // Import players
       if (importData.data.players) {
         for (const player of importData.data.players) {
           const { player_id, ...playerData } = player;
           const columns = Object.keys(playerData).join(', ');
-          const values = Object.values(playerData).map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v).join(', ');
+          const values = Object.values(playerData)
+            .map((v) => (typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v))
+            .join(', ');
           db.exec(`INSERT INTO players (${columns}) VALUES (${values})`);
         }
       }
-      
+
       // Import games
       if (importData.data.games) {
         for (const game of importData.data.games) {
           const { game_id, ...gameData } = game;
           const columns = Object.keys(gameData).join(', ');
-          const values = Object.values(gameData).map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v).join(', ');
+          const values = Object.values(gameData)
+            .map((v) => (typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v))
+            .join(', ');
           db.exec(`INSERT INTO games (${columns}) VALUES (${values})`);
         }
       }
-      
     } catch (error) {
       console.error('Failed to import database:', error);
       throw error;
@@ -393,13 +402,13 @@ export class DatabaseService {
    * @returns Uint8Array representation of database or null if failed
    */
   public async exportDatabase(): Promise<Uint8Array | null> {
-    if (!this.db) return null
-    
+    if (!this.db) return null;
+
     try {
-      return this.db.export()
+      return this.db.export();
     } catch (error) {
-      console.error('Failed to export database:', error)
-      return null
+      console.error('Failed to export database:', error);
+      return null;
     }
   }
 
@@ -411,16 +420,16 @@ export class DatabaseService {
   public async importDatabase(data: Uint8Array): Promise<boolean> {
     try {
       const SQL = await initSqlJs({
-        locateFile: (file) => `https://sql.js.org/dist/${file}`
-      })
-      
-      this.db = new SQL.Database(data)
-      this.isInitialized = true
-      
-      return true
+        locateFile: (file) => `https://sql.js.org/dist/${file}`,
+      });
+
+      this.db = new SQL.Database(data);
+      this.isInitialized = true;
+
+      return true;
     } catch (error) {
-      console.error('Failed to import database:', error)
-      return false
+      console.error('Failed to import database:', error);
+      return false;
     }
   }
 
@@ -429,17 +438,17 @@ export class DatabaseService {
    * @returns Promise that resolves to true if league data exists
    */
   public async hasLeagueData(): Promise<boolean> {
-    if (!this.db) return false
-    
+    if (!this.db) return false;
+
     try {
-      const result = this.db.exec('SELECT COUNT(*) as count FROM teams')
+      const result = this.db.exec('SELECT COUNT(*) as count FROM teams');
       if (result.length > 0 && result[0].values.length > 0) {
-        const count = result[0].values[0][0] as number
-        return count > 0
+        const count = result[0].values[0][0] as number;
+        return count > 0;
       }
-      return false
+      return false;
     } catch (error) {
-      return false
+      return false;
     }
   }
 

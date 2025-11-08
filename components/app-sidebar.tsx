@@ -1,8 +1,8 @@
-"use client"
+'use client';
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Home, Users, Calendar, Settings } from "lucide-react"
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Home, Users, Calendar, Settings } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -12,43 +12,43 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
-} from "@/components/ui/sidebar"
-import type { Team } from "@/lib/types/database"
+} from '@/components/ui/sidebar';
+import type { Team } from '@/lib/types/database';
 
 interface AppSidebarProps {
-  userTeam: Team
+  userTeam: Team;
 }
 
 export function AppSidebar({ userTeam }: AppSidebarProps) {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   const navigationItems = [
     {
-      title: "Home",
-      url: "/home",
+      title: 'Home',
+      url: '/home',
       icon: Home,
-      isActive: pathname === "/home",
+      isActive: pathname === '/home',
     },
     {
-      title: "My Team",
+      title: 'My Team',
       url: `/team/${userTeam.team_id}`,
       icon: Users,
-      isActive: pathname.startsWith("/team/"),
+      isActive: pathname.startsWith('/team/'),
     },
     {
-      title: "Schedule",
-      url: "#",
+      title: 'Schedule',
+      url: '#',
       icon: Calendar,
       isActive: false,
       disabled: true,
     },
     {
-      title: "Settings",
-      url: "/settings",
+      title: 'Settings',
+      url: '/settings',
       icon: Settings,
-      isActive: pathname === "/settings",
+      isActive: pathname === '/settings',
     },
-  ]
+  ];
 
   return (
     <Sidebar collapsible="icon">
@@ -88,5 +88,5 @@ export function AppSidebar({ userTeam }: AppSidebarProps) {
         </SidebarGroup>
       </SidebarContent>
     </Sidebar>
-  )
+  );
 }

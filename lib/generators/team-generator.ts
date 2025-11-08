@@ -1,8 +1,8 @@
-"use client"
+'use client';
 
 /**
  * Team Generator - Generate teams with rosters
- * 
+ *
  * This service generates the 30 NBA teams with their complete rosters,
  * ensuring proper conference distribution and realistic team composition.
  */
@@ -37,7 +37,9 @@ export class TeamGenerator {
    * @param teamQualities Map of team ID to quality tier
    * @returns Array of generated teams with their rosters
    */
-  public generateAllTeams(teamQualities?: Map<number, string>): { team: Omit<Team, 'team_id'>; players: Omit<any, 'player_id'>[] }[] {
+  public generateAllTeams(
+    teamQualities?: Map<number, string>
+  ): { team: Omit<Team, 'team_id'>; players: Omit<any, 'player_id'>[] }[] {
     const teams = this.getNBATeams();
     const generatedTeams: { team: Omit<Team, 'team_id'>; players: Omit<any, 'player_id'>[] }[] = [];
 
@@ -46,7 +48,7 @@ export class TeamGenerator {
       const teamId = index + 1;
       const teamQuality = teamQualities?.get(teamId) || 'mid-tier';
       const players = playerGenerator.generateRoster(teamId, teamQuality);
-      
+
       generatedTeams.push({ team, players });
     });
 
@@ -74,7 +76,7 @@ export class TeamGenerator {
       losses: 0,
       current_season_stats: JSON.stringify(initialStats),
       historical_records: JSON.stringify([]),
-      schedule: JSON.stringify(initialSchedule)
+      schedule: JSON.stringify(initialSchedule),
     };
   }
 
@@ -100,7 +102,7 @@ export class TeamGenerator {
       { city: 'Philadelphia', name: '76ers', conference: 'East' },
       { city: 'Toronto', name: 'Raptors', conference: 'East' },
       { city: 'Washington', name: 'Wizards', conference: 'East' },
-      
+
       // Western Conference
       { city: 'Dallas', name: 'Mavericks', conference: 'West' },
       { city: 'Denver', name: 'Nuggets', conference: 'West' },
@@ -116,7 +118,7 @@ export class TeamGenerator {
       { city: 'Portland', name: 'Trail Blazers', conference: 'West' },
       { city: 'Sacramento', name: 'Kings', conference: 'West' },
       { city: 'San Antonio', name: 'Spurs', conference: 'West' },
-      { city: 'Utah', name: 'Jazz', conference: 'West' }
+      { city: 'Utah', name: 'Jazz', conference: 'West' },
     ];
   }
 
@@ -138,7 +140,7 @@ export class TeamGenerator {
       apg: 0,
       spg: 0,
       bpg: 0,
-      tpg: 0
+      tpg: 0,
     };
   }
 
@@ -156,7 +158,7 @@ export class TeamGenerator {
    * @returns Array of teams in that conference
    */
   public getTeamsByConference(conference: Conference): Array<{ city: string; name: string; conference: Conference }> {
-    return this.getNBATeams().filter(team => team.conference === conference);
+    return this.getNBATeams().filter((team) => team.conference === conference);
   }
 
   /**
@@ -196,7 +198,7 @@ export class TeamGenerator {
       'San Antonio Spurs': 'SAS',
       'Toronto Raptors': 'TOR',
       'Utah Jazz': 'UTA',
-      'Washington Wizards': 'WAS'
+      'Washington Wizards': 'WAS',
     };
 
     const fullName = `${city} ${name}`;
@@ -240,7 +242,7 @@ export class TeamGenerator {
       'San Antonio Spurs': { primary: '#C4CED4', secondary: '#000000' },
       'Toronto Raptors': { primary: '#CE1141', secondary: '#000000' },
       'Utah Jazz': { primary: '#002B5C', secondary: '#F9A01B' },
-      'Washington Wizards': { primary: '#002B5C', secondary: '#E31837' }
+      'Washington Wizards': { primary: '#002B5C', secondary: '#E31837' },
     };
 
     const fullName = `${city} ${name}`;
@@ -284,7 +286,7 @@ export class TeamGenerator {
       'San Antonio Spurs': { name: 'AT&T Center', capacity: 18418 },
       'Toronto Raptors': { name: 'Scotiabank Arena', capacity: 19800 },
       'Utah Jazz': { name: 'Vivint Arena', capacity: 18306 },
-      'Washington Wizards': { name: 'Capital One Arena', capacity: 20356 }
+      'Washington Wizards': { name: 'Capital One Arena', capacity: 20356 },
     };
 
     const fullName = `${city} ${name}`;
@@ -298,19 +300,22 @@ export class TeamGenerator {
    */
   public validateRoster(players: any[]): { isValid: boolean; issues: string[] } {
     const issues: string[] = [];
-    
+
     // Check roster size
     if (players.length !== 15) {
       issues.push(`Roster size is ${players.length}, expected 15`);
     }
 
     // Check position distribution
-    const positionCounts = players.reduce((acc, player) => {
-      acc[player.position] = (acc[player.position] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const positionCounts = players.reduce(
+      (acc, player) => {
+        acc[player.position] = (acc[player.position] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
-    const expectedPositions = { 'PG': 3, 'SG': 3, 'SF': 3, 'PF': 3, 'C': 3 };
+    const expectedPositions = { PG: 3, SG: 3, SF: 3, PF: 3, C: 3 };
     Object.entries(expectedPositions).forEach(([position, expected]) => {
       const actual = positionCounts[position] || 0;
       if (actual !== expected) {
@@ -320,7 +325,7 @@ export class TeamGenerator {
 
     return {
       isValid: issues.length === 0,
-      issues
+      issues,
     };
   }
 
@@ -331,28 +336,50 @@ export class TeamGenerator {
   public assignTeamQualities(): Map<number, string> {
     const qualities: string[] = [
       // 3 championship contenders
-      'championship', 'championship', 'championship',
+      'championship',
+      'championship',
+      'championship',
       // 8 playoff teams
-      'playoff', 'playoff', 'playoff', 'playoff', 
-      'playoff', 'playoff', 'playoff', 'playoff',
+      'playoff',
+      'playoff',
+      'playoff',
+      'playoff',
+      'playoff',
+      'playoff',
+      'playoff',
+      'playoff',
       // 10 mid-tier teams
-      'mid-tier', 'mid-tier', 'mid-tier', 'mid-tier', 'mid-tier',
-      'mid-tier', 'mid-tier', 'mid-tier', 'mid-tier', 'mid-tier',
+      'mid-tier',
+      'mid-tier',
+      'mid-tier',
+      'mid-tier',
+      'mid-tier',
+      'mid-tier',
+      'mid-tier',
+      'mid-tier',
+      'mid-tier',
+      'mid-tier',
       // 6 rebuilding teams
-      'rebuilding', 'rebuilding', 'rebuilding', 
-      'rebuilding', 'rebuilding', 'rebuilding',
+      'rebuilding',
+      'rebuilding',
+      'rebuilding',
+      'rebuilding',
+      'rebuilding',
+      'rebuilding',
       // 3 lottery teams
-      'lottery', 'lottery', 'lottery'
+      'lottery',
+      'lottery',
+      'lottery',
     ];
-    
+
     // Shuffle to randomize which teams get which tier
     const shuffled = qualities.sort(() => Math.random() - 0.5);
-    
+
     const teamQualities = new Map<number, string>();
     for (let i = 0; i < 30; i++) {
       teamQualities.set(i + 1, shuffled[i]);
     }
-    
+
     return teamQualities;
   }
 
@@ -364,7 +391,7 @@ export class TeamGenerator {
   public getTeamMarketSize(city: string): 'large' | 'medium' | 'small' {
     const largeMarkets = ['Los Angeles', 'New York', 'Chicago', 'Boston', 'Philadelphia', 'Dallas', 'Houston', 'Miami'];
     const mediumMarkets = ['Atlanta', 'Phoenix', 'Detroit', 'Seattle', 'Denver', 'Minneapolis', 'Cleveland', 'Orlando'];
-    
+
     if (largeMarkets.includes(city)) {
       return 'large';
     } else if (mediumMarkets.includes(city)) {

@@ -1,8 +1,8 @@
-"use client"
+'use client';
 
 /**
  * Player Service - CRUD operations for players
- * 
+ *
  * This service handles all database operations related to players,
  * including creating, reading, updating, and deleting player records.
  * It also provides utility functions for player statistics and roster management.
@@ -74,7 +74,7 @@ export class PlayerService {
         playerData.defensive_rebound,
         playerData.current_season_stats,
         playerData.historical_stats,
-        playerData.career_stats
+        playerData.career_stats,
       ];
 
       const result = dbService.run(sql, params);
@@ -94,11 +94,11 @@ export class PlayerService {
     try {
       const sql = 'SELECT * FROM players WHERE player_id = ?';
       const results = dbService.exec(sql, [playerId]);
-      
+
       if (results.length === 0) {
         return null;
       }
-      
+
       return results[0] as Player;
     } catch (error) {
       console.error('Failed to get player:', error);
@@ -161,13 +161,13 @@ export class PlayerService {
    */
   public async updatePlayer(playerId: number, updateData: Partial<Player>): Promise<void> {
     try {
-      const fields = Object.keys(updateData).filter(key => key !== 'player_id');
-      const values = fields.map(field => updateData[field as keyof Player]);
-      const setClause = fields.map(field => `${field} = ?`).join(', ');
-      
+      const fields = Object.keys(updateData).filter((key) => key !== 'player_id');
+      const values = fields.map((field) => updateData[field as keyof Player]);
+      const setClause = fields.map((field) => `${field} = ?`).join(', ');
+
       const sql = `UPDATE players SET ${setClause} WHERE player_id = ?`;
       const params = [...values, playerId];
-      
+
       dbService.run(sql, params);
     } catch (error) {
       console.error('Failed to update player:', error);
@@ -263,7 +263,7 @@ export class PlayerService {
         three_made: historicalStats.reduce((sum, season) => sum + season.three_made, 0),
         three_attempted: historicalStats.reduce((sum, season) => sum + season.three_attempted, 0),
         ft_made: historicalStats.reduce((sum, season) => sum + season.ft_made, 0),
-        ft_attempted: historicalStats.reduce((sum, season) => sum + season.ft_attempted, 0)
+        ft_attempted: historicalStats.reduce((sum, season) => sum + season.ft_attempted, 0),
       };
 
       // Calculate averages
@@ -274,7 +274,8 @@ export class PlayerService {
       careerStats.bpg = careerStats.games > 0 ? careerStats.blocks / careerStats.games : 0;
       careerStats.tpg = careerStats.games > 0 ? careerStats.turnovers / careerStats.games : 0;
       careerStats.fg_pct = careerStats.fg_attempted > 0 ? careerStats.fg_made / careerStats.fg_attempted : 0;
-      careerStats.three_pct = careerStats.three_attempted > 0 ? careerStats.three_made / careerStats.three_attempted : 0;
+      careerStats.three_pct =
+        careerStats.three_attempted > 0 ? careerStats.three_made / careerStats.three_attempted : 0;
       careerStats.ft_pct = careerStats.ft_attempted > 0 ? careerStats.ft_made / careerStats.ft_attempted : 0;
 
       // Update database
@@ -358,29 +359,28 @@ export class PlayerService {
       block: 0.8,
       steal: 0.8,
       offensive_rebound: 0.7,
-      defensive_rebound: 0.9
+      defensive_rebound: 0.9,
     };
-    
+
     let totalWeight = 0;
     let weightedSum = 0;
-    
-    Object.keys(weights).forEach(attr => {
+
+    Object.keys(weights).forEach((attr) => {
       const value = player[attr as keyof Player] as number;
       const weight = weights[attr as keyof typeof weights];
       weightedSum += value * weight;
       totalWeight += weight;
     });
-    
+
     const rawOverall = weightedSum / totalWeight;
-    
+
     // No random variation here - this is for display/calculation of existing players
     // Random variation only happens during generation
     const finalOverall = Math.round(rawOverall);
-    
+
     // Clamp to 50-99 range (100 is impossible)
     return Math.max(50, Math.min(99, finalOverall));
   }
-
 
   /**
    * Delete a player from the database

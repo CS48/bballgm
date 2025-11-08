@@ -4,7 +4,8 @@
 
 **Location**: `components/home-hub.tsx` lines 716-722
 
-**Problem**: 
+**Problem**:
+
 ```typescript
 const isCompleted = !!gameResult || selectedGame.completed  // Can be true even if gameResult is undefined
 if (isCompleted) {
@@ -30,6 +31,7 @@ const homeScore = gameResult?.homeScore ?? selectedGame.homeScore ?? 0
 ```
 
 Or more simply:
+
 ```typescript
 <span className={(gameResult?.awayScore ?? selectedGame.awayScore) > (gameResult?.homeScore ?? selectedGame.homeScore) ? 'text-green-600' : 'text-gray-600'}>
   {gameResult?.awayScore ?? selectedGame.awayScore}
@@ -45,5 +47,3 @@ Or more simply:
 - No more TypeError
 - Matchup detail card shows scores from either `gameResult` or `selectedGame`
 - State persists correctly after navigation
-
-

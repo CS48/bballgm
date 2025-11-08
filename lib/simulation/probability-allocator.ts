@@ -1,12 +1,12 @@
 /**
  * D20 Face Allocation Utility
- * 
+ *
  * Handles the complex task of allocating D20 faces across multiple outcomes
  * based on probability distributions, with proper remainder distribution
  * and capping constraints.
  */
 
-import type { FaceCaps } from '../types/simulation-engine'
+import type { FaceCaps } from '../types/simulation-engine';
 
 /**
  * Allocate D20 faces across outcomes based on probabilities
@@ -17,54 +17,52 @@ import type { FaceCaps } from '../types/simulation-engine'
 export function allocateFaces(probabilities: number[], caps: FaceCaps): number[] {
   // Validate inputs
   if (probabilities.length !== caps.min.length || probabilities.length !== caps.max.length) {
-    throw new Error('Probabilities and caps arrays must have the same length')
+    throw new Error('Probabilities and caps arrays must have the same length');
   }
-  
+
   if (probabilities.length === 0) {
-    throw new Error('Must have at least one outcome')
+    throw new Error('Must have at least one outcome');
   }
-  
+
   // Normalize probabilities to sum to 1
-  const totalProb = probabilities.reduce((sum, prob) => sum + prob, 0)
+  const totalProb = probabilities.reduce((sum, prob) => sum + prob, 0);
   if (totalProb === 0) {
-    throw new Error('Probabilities cannot all be zero')
+    throw new Error('Probabilities cannot all be zero');
   }
-  
-  const normalized = probabilities.map(prob => prob / totalProb)
-  
+
+  const normalized = probabilities.map((prob) => prob / totalProb);
+
   // Calculate raw face allocations
-  const rawFaces = normalized.map(prob => prob * 20)
-  const faces = rawFaces.map(Math.floor)
-  
+  const rawFaces = normalized.map((prob) => prob * 20);
+  const faces = rawFaces.map(Math.floor);
+
   // Calculate remainders for distribution
   const remainders = rawFaces.map((raw, index) => ({
     index,
-    remainder: raw - faces[index]
-  }))
-  
+    remainder: raw - faces[index],
+  }));
+
   // Sort by remainder (largest first)
-  remainders.sort((a, b) => b.remainder - a.remainder)
-  
+  remainders.sort((a, b) => b.remainder - a.remainder);
+
   // Distribute remaining faces
-  let remainingFaces = 20 - faces.reduce((sum, face) => sum + face, 0)
-  
+  let remainingFaces = 20 - faces.reduce((sum, face) => sum + face, 0);
+
   for (let i = 0; i < remainingFaces && i < remainders.length; i++) {
-    faces[remainders[i].index]++
+    faces[remainders[i].index]++;
   }
-  
+
   // Apply caps
-  const cappedFaces = faces.map((face, index) => 
-    Math.max(caps.min[index], Math.min(caps.max[index], face))
-  )
-  
+  const cappedFaces = faces.map((face, index) => Math.max(caps.min[index], Math.min(caps.max[index], face)));
+
   // Re-normalize if capping changed the total
-  const totalFaces = cappedFaces.reduce((sum, face) => sum + face, 0)
-  
+  const totalFaces = cappedFaces.reduce((sum, face) => sum + face, 0);
+
   if (totalFaces !== 20) {
-    return rebalanceFaces(cappedFaces, caps)
+    return rebalanceFaces(cappedFaces, caps);
   }
-  
-  return cappedFaces
+
+  return cappedFaces;
 }
 
 /**
@@ -74,38 +72,38 @@ export function allocateFaces(probabilities: number[], caps: FaceCaps): number[]
  * @returns Rebalanced face allocation
  */
 function rebalanceFaces(faces: number[], caps: FaceCaps): number[] {
-  const result = [...faces]
-  const totalFaces = result.reduce((sum, face) => sum + face, 0)
-  
+  const result = [...faces];
+  const totalFaces = result.reduce((sum, face) => sum + face, 0);
+
   if (totalFaces === 20) {
-    return result
+    return result;
   }
-  
-  const difference = 20 - totalFaces
-  
+
+  const difference = 20 - totalFaces;
+
   if (difference > 0) {
     // Need to add faces - find outcomes that can accept more
-    const canIncrease = result.map((face, index) => 
-      face < caps.max[index] ? index : -1
-    ).filter(index => index !== -1)
-    
+    const canIncrease = result
+      .map((face, index) => (face < caps.max[index] ? index : -1))
+      .filter((index) => index !== -1);
+
     // Distribute additional faces
     for (let i = 0; i < difference && i < canIncrease.length; i++) {
-      result[canIncrease[i]]++
+      result[canIncrease[i]]++;
     }
   } else {
     // Need to remove faces - find outcomes that can be reduced
-    const canDecrease = result.map((face, index) => 
-      face > caps.min[index] ? index : -1
-    ).filter(index => index !== -1)
-    
+    const canDecrease = result
+      .map((face, index) => (face > caps.min[index] ? index : -1))
+      .filter((index) => index !== -1);
+
     // Remove faces
     for (let i = 0; i < Math.abs(difference) && i < canDecrease.length; i++) {
-      result[canDecrease[i]]--
+      result[canDecrease[i]]--;
     }
   }
-  
-  return result
+
+  return result;
 }
 
 /**
@@ -117,8 +115,8 @@ function rebalanceFaces(faces: number[], caps: FaceCaps): number[] {
 export function createTwoOutcomeCaps(minFaces: number, maxFaces: number): FaceCaps {
   return {
     min: [minFaces, minFaces],
-    max: [maxFaces, maxFaces]
-  }
+    max: [maxFaces, maxFaces],
+  };
 }
 
 /**
@@ -141,8 +139,8 @@ export function createThreeOutcomeCaps(
 ): FaceCaps {
   return {
     min: [successMin, neutralMin, failureMin],
-    max: [successMax, neutralMax, failureMax]
-  }
+    max: [successMax, neutralMax, failureMax],
+  };
 }
 
 /**
@@ -154,8 +152,8 @@ export function createThreeOutcomeCaps(
 export function createTenOutcomeCaps(minFaces: number, maxFaces: number): FaceCaps {
   return {
     min: Array(10).fill(minFaces),
-    max: Array(10).fill(maxFaces)
-  }
+    max: Array(10).fill(maxFaces),
+  };
 }
 
 /**
@@ -164,10 +162,10 @@ export function createTenOutcomeCaps(minFaces: number, maxFaces: number): FaceCa
  * @returns True if valid (sums to 20, all non-negative)
  */
 export function validateFaceAllocation(faces: number[]): boolean {
-  const total = faces.reduce((sum, face) => sum + face, 0)
-  const allNonNegative = faces.every(face => face >= 0)
-  
-  return total === 20 && allNonNegative
+  const total = faces.reduce((sum, face) => sum + face, 0);
+  const allNonNegative = faces.every((face) => face >= 0);
+
+  return total === 20 && allNonNegative;
 }
 
 /**
@@ -178,19 +176,19 @@ export function validateFaceAllocation(faces: number[]): boolean {
  */
 export function getOutcomeFromRoll(roll: number, faces: number[]): number {
   if (roll < 1 || roll > 20) {
-    throw new Error('Roll must be between 1 and 20')
+    throw new Error('Roll must be between 1 and 20');
   }
-  
-  let cumulativeFaces = 0
+
+  let cumulativeFaces = 0;
   for (let i = 0; i < faces.length; i++) {
-    cumulativeFaces += faces[i]
+    cumulativeFaces += faces[i];
     if (roll <= cumulativeFaces) {
-      return i
+      return i;
     }
   }
-  
+
   // Fallback to last outcome
-  return faces.length - 1
+  return faces.length - 1;
 }
 
 /**
@@ -199,8 +197,8 @@ export function getOutcomeFromRoll(roll: number, faces: number[]): number {
  * @returns Probability array
  */
 export function calculateProbabilitiesFromFaces(faces: number[]): number[] {
-  const total = faces.reduce((sum, face) => sum + face, 0)
-  return faces.map(face => face / total)
+  const total = faces.reduce((sum, face) => sum + face, 0);
+  return faces.map((face) => face / total);
 }
 
 /**
@@ -215,12 +213,12 @@ export function getFaceAllocationDebug(
   faces: number[],
   caps: FaceCaps
 ): {
-  originalProbabilities: number[]
-  finalFaces: number[]
-  finalProbabilities: number[]
-  totalFaces: number
-  isValid: boolean
-  caps: FaceCaps
+  originalProbabilities: number[];
+  finalFaces: number[];
+  finalProbabilities: number[];
+  totalFaces: number;
+  isValid: boolean;
+  caps: FaceCaps;
 } {
   return {
     originalProbabilities: probabilities,
@@ -228,6 +226,6 @@ export function getFaceAllocationDebug(
     finalProbabilities: calculateProbabilitiesFromFaces(faces),
     totalFaces: faces.reduce((sum, face) => sum + face, 0),
     isValid: validateFaceAllocation(faces),
-    caps
-  }
+    caps,
+  };
 }

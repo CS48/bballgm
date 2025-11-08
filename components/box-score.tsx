@@ -1,24 +1,24 @@
-"use client"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Trophy } from "lucide-react"
-import type { GameSimulationResult, PlayerGameStats } from "@/lib/types/game-simulation"
+'use client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Trophy } from 'lucide-react';
+import type { GameSimulationResult, PlayerGameStats } from '@/lib/types/game-simulation';
 
 interface BoxScoreProps {
-  result: GameSimulationResult
-  onClose: () => void
+  result: GameSimulationResult;
+  onClose: () => void;
 }
 
 export function BoxScore({ result, onClose }: BoxScoreProps) {
   const calculateFieldGoalPercentage = (made: number, attempted: number) => {
-    if (attempted === 0) return "0.0%"
-    return `${((made / attempted) * 100).toFixed(1)}%`
-  }
+    if (attempted === 0) return '0.0%';
+    return `${((made / attempted) * 100).toFixed(1)}%`;
+  };
 
   const PlayerStatsRow = ({ player, isMVP = false }: { player: PlayerGameStats; isMVP?: boolean }) => (
-    <tr className={`border-b ${isMVP ? "bg-yellow-50 dark:bg-yellow-900/20" : ""}`}>
+    <tr className={`border-b ${isMVP ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}`}>
       <td className="py-2 px-3">
         <div className="flex items-center gap-2">
           {isMVP && <Trophy className="h-4 w-4 text-yellow-500" />}
@@ -43,26 +43,22 @@ export function BoxScore({ result, onClose }: BoxScoreProps) {
         {player.threePointersMade}/{player.threePointersAttempted}
       </td>
     </tr>
-  )
+  );
 
   const TeamStatsTable = ({
     players,
     teamName,
     isMVPTeam,
   }: {
-    players: PlayerGameStats[]
-    teamName: string
-    isMVPTeam: boolean
+    players: PlayerGameStats[];
+    teamName: string;
+    isMVPTeam: boolean;
   }) => {
     // Safety check for undefined players
     if (!players || !Array.isArray(players)) {
-      return (
-        <div className="text-center text-muted-foreground py-8">
-          No player stats available
-        </div>
-      )
+      return <div className="text-center text-muted-foreground py-8">No player stats available</div>;
     }
-    
+
     const totals = players.reduce(
       (acc, player) => ({
         points: acc.points + player.points,
@@ -85,8 +81,8 @@ export function BoxScore({ result, onClose }: BoxScoreProps) {
         fieldGoalsAttempted: 0,
         threePointersMade: 0,
         threePointersAttempted: 0,
-      },
-    )
+      }
+    );
 
     return (
       <div className="space-y-4">
@@ -95,7 +91,7 @@ export function BoxScore({ result, onClose }: BoxScoreProps) {
           {isMVPTeam && result.mvp && (
             <Badge variant="default" className="bg-yellow-500 text-yellow-900">
               <Trophy className="h-3 w-3 mr-1" />
-              MVP: {result.mvp.name.split(" ")[1]}
+              MVP: {result.mvp.name.split(' ')[1]}
             </Badge>
           )}
         </div>
@@ -140,11 +136,11 @@ export function BoxScore({ result, onClose }: BoxScoreProps) {
           </table>
         </div>
       </div>
-    )
-  }
+    );
+  };
 
-  const winningTeamStats = result.homeScore > result.awayScore ? result.homePlayerStats : result.awayPlayerStats
-  const isHomeWinner = result.homeScore > result.awayScore
+  const winningTeamStats = result.homeScore > result.awayScore ? result.homePlayerStats : result.awayPlayerStats;
+  const isHomeWinner = result.homeScore > result.awayScore;
 
   return (
     <div className="space-y-6">
@@ -219,5 +215,5 @@ export function BoxScore({ result, onClose }: BoxScoreProps) {
         </Button>
       </div>
     </div>
-  )
+  );
 }

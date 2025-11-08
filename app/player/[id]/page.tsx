@@ -1,31 +1,31 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useLeague } from "@/lib/context/league-context"
-import { playerService } from "@/lib/services/player-service"
-import { teamService } from "@/lib/services/team-service"
-import type { Player, Team, PlayerSeasonStats, PlayerCareerStats, DraftInfo } from "@/lib/types/database"
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useLeague } from '@/lib/context/league-context';
+import { playerService } from '@/lib/services/player-service';
+import { teamService } from '@/lib/services/team-service';
+import type { Player, Team, PlayerSeasonStats, PlayerCareerStats, DraftInfo } from '@/lib/types/database';
 
 interface PlayerPageProps {
   params: {
-    id: string
-  }
+    id: string;
+  };
 }
 
 export default function PlayerPage({ params }: PlayerPageProps) {
-  const { teams, isLoading: leagueLoading } = useLeague()
-  const [player, setPlayer] = useState<Player | null>(null)
-  const [team, setTeam] = useState<Team | null>(null)
-  const [currentSeasonStats, setCurrentSeasonStats] = useState<PlayerSeasonStats | null>(null)
-  const [careerStats, setCareerStats] = useState<PlayerCareerStats | null>(null)
-  const [historicalStats, setHistoricalStats] = useState<PlayerSeasonStats[]>([])
-  const [draftInfo, setDraftInfo] = useState<DraftInfo | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { teams, isLoading: leagueLoading } = useLeague();
+  const [player, setPlayer] = useState<Player | null>(null);
+  const [team, setTeam] = useState<Team | null>(null);
+  const [currentSeasonStats, setCurrentSeasonStats] = useState<PlayerSeasonStats | null>(null);
+  const [careerStats, setCareerStats] = useState<PlayerCareerStats | null>(null);
+  const [historicalStats, setHistoricalStats] = useState<PlayerSeasonStats[]>([]);
+  const [draftInfo, setDraftInfo] = useState<DraftInfo | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const playerId = parseInt(params.id)
+  const playerId = parseInt(params.id);
 
   // Show loading if league is still loading
   if (leagueLoading) {
@@ -36,67 +36,67 @@ export default function PlayerPage({ params }: PlayerPageProps) {
           <p className="mt-4 text-muted-foreground">Loading league data...</p>
         </div>
       </div>
-    )
+    );
   }
 
   useEffect(() => {
     const fetchPlayerData = async () => {
       try {
-        console.log('PlayerPage: Fetching player data for playerId:', playerId)
-        
+        console.log('PlayerPage: Fetching player data for playerId:', playerId);
+
         // Fetch player data
-        const foundPlayer = await playerService.getPlayer(playerId)
+        const foundPlayer = await playerService.getPlayer(playerId);
         if (!foundPlayer) {
-          console.error('Player not found for playerId:', playerId)
-          setLoading(false)
-          return
+          console.error('Player not found for playerId:', playerId);
+          setLoading(false);
+          return;
         }
-        console.log('PlayerPage: Found player:', foundPlayer.first_name, foundPlayer.last_name)
-        setPlayer(foundPlayer)
+        console.log('PlayerPage: Found player:', foundPlayer.first_name, foundPlayer.last_name);
+        setPlayer(foundPlayer);
 
         // Fetch team data
-        const foundTeam = await teamService.getTeam(foundPlayer.team_id)
+        const foundTeam = await teamService.getTeam(foundPlayer.team_id);
         if (foundTeam) {
-          setTeam(foundTeam)
+          setTeam(foundTeam);
         }
 
         // Parse current season stats
         if (foundPlayer.current_season_stats) {
-          const seasonStats = JSON.parse(foundPlayer.current_season_stats)
-          console.log('PlayerPage: Current season stats:', seasonStats)
-          setCurrentSeasonStats(seasonStats)
+          const seasonStats = JSON.parse(foundPlayer.current_season_stats);
+          console.log('PlayerPage: Current season stats:', seasonStats);
+          setCurrentSeasonStats(seasonStats);
         }
 
         // Parse career stats
         if (foundPlayer.career_stats) {
-          const career = JSON.parse(foundPlayer.career_stats)
-          console.log('PlayerPage: Career stats:', career)
-          setCareerStats(career)
+          const career = JSON.parse(foundPlayer.career_stats);
+          console.log('PlayerPage: Career stats:', career);
+          setCareerStats(career);
         }
 
         // Parse historical stats
         if (foundPlayer.historical_stats) {
-          const historical = JSON.parse(foundPlayer.historical_stats)
-          console.log('PlayerPage: Historical stats:', historical)
-          setHistoricalStats(historical)
+          const historical = JSON.parse(foundPlayer.historical_stats);
+          console.log('PlayerPage: Historical stats:', historical);
+          setHistoricalStats(historical);
         }
 
         // Parse draft info
         if (foundPlayer.draft_info) {
-          const draft = JSON.parse(foundPlayer.draft_info)
-          console.log('PlayerPage: Draft info:', draft)
-          setDraftInfo(draft)
+          const draft = JSON.parse(foundPlayer.draft_info);
+          console.log('PlayerPage: Draft info:', draft);
+          setDraftInfo(draft);
         }
       } catch (error) {
-        console.error('PlayerPage: Failed to fetch player data:', error)
+        console.error('PlayerPage: Failed to fetch player data:', error);
       } finally {
-        console.log('PlayerPage: Setting loading to false')
-        setLoading(false)
+        console.log('PlayerPage: Setting loading to false');
+        setLoading(false);
       }
-    }
+    };
 
-    fetchPlayerData()
-  }, [playerId])
+    fetchPlayerData();
+  }, [playerId]);
 
   if (loading) {
     return (
@@ -106,7 +106,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
           <p className="mt-4 text-muted-foreground">Loading player data...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!player || !team) {
@@ -119,30 +119,30 @@ export default function PlayerPage({ params }: PlayerPageProps) {
           </Link>
         </div>
       </div>
-    )
+    );
   }
 
   // Helper functions
   const formatHeight = (inches: number): string => {
-    const feet = Math.floor(inches / 12)
-    const remainingInches = inches % 12
-    return `${feet}'${remainingInches}"`
-  }
+    const feet = Math.floor(inches / 12);
+    const remainingInches = inches % 12;
+    return `${feet}'${remainingInches}"`;
+  };
 
   const formatStat = (value: number | undefined, decimals: number = 1): string => {
-    if (value === undefined || value === null) return "0.0"
-    return value.toFixed(decimals)
-  }
+    if (value === undefined || value === null) return '0.0';
+    return value.toFixed(decimals);
+  };
 
   const formatPercentage = (value: number | undefined): string => {
-    if (value === undefined || value === null) return "0.0%"
-    return (value * 100).toFixed(1) + '%'
-  }
+    if (value === undefined || value === null) return '0.0%';
+    return (value * 100).toFixed(1) + '%';
+  };
 
   const formatDraftInfo = (): string => {
-    if (!draftInfo) return "Undrafted"
-    return `#${draftInfo.pick} by ${draftInfo.team} in ${draftInfo.year}`
-  }
+    if (!draftInfo) return 'Undrafted';
+    return `#${draftInfo.pick} by ${draftInfo.team} in ${draftInfo.year}`;
+  };
 
   const calculateOverallRating = (): number => {
     // Simple overall rating calculation based on key attributes
@@ -158,16 +158,19 @@ export default function PlayerPage({ params }: PlayerPageProps) {
       player.block,
       player.steal,
       player.offensive_rebound,
-      player.defensive_rebound
-    ]
-    return Math.round(attributes.reduce((sum, attr) => sum + attr, 0) / attributes.length)
-  }
+      player.defensive_rebound,
+    ];
+    return Math.round(attributes.reduce((sum, attr) => sum + attr, 0) / attributes.length);
+  };
 
-  const playerName = `${player.first_name} ${player.last_name}`
-  const overallRating = calculateOverallRating()
+  const playerName = `${player.first_name} ${player.last_name}`;
+  const overallRating = calculateOverallRating();
 
   return (
-    <div className="min-h-screen bg-background" style={{ paddingLeft: '3vw', paddingRight: '3vw', paddingTop: '3vh', paddingBottom: '3vh' }}>
+    <div
+      className="min-h-screen bg-background"
+      style={{ paddingLeft: '3vw', paddingRight: '3vw', paddingTop: '3vh', paddingBottom: '3vh' }}
+    >
       <div className="max-w-7xl mx-auto">
         {/* Player Info Section */}
         <div className="mb-4">
@@ -176,8 +179,15 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             <div className="flex justify-between items-center">
               {/* Left side - Player name, position, team */}
               <div>
-                <p className="player-first-name" style={{ fontSize: '1.5rem', margin: '0', color: '#000000' }}>{player.first_name}</p>
-                <h2 className="player-last-name" style={{ fontSize: '2.25rem', margin: '0', lineHeight: '1', fontWeight: 'bold' }}>{player.last_name.toUpperCase()}</h2>
+                <p className="player-first-name" style={{ fontSize: '1.5rem', margin: '0', color: '#000000' }}>
+                  {player.first_name}
+                </p>
+                <h2
+                  className="player-last-name"
+                  style={{ fontSize: '2.25rem', margin: '0', lineHeight: '1', fontWeight: 'bold' }}
+                >
+                  {player.last_name.toUpperCase()}
+                </h2>
                 <div className="player-position-team" style={{ fontSize: '1rem', margin: '0' }}>
                   <span>{player.position} | </span>
                   <Link href={`/team/${team.team_id}`} className="text-primary hover:underline">
@@ -193,37 +203,37 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                   <div className="text-sm text-muted-foreground">OVR</div>
                   <div className="text-lg font-bold">{overallRating}</div>
                 </div>
-                
+
                 {/* No. */}
                 <div className="text-center">
                   <div className="text-sm text-muted-foreground">No.</div>
                   <div className="text-lg font-bold">{player.player_id}</div>
                 </div>
-                
+
                 {/* Age */}
                 <div className="text-center">
                   <div className="text-sm text-muted-foreground">Age</div>
                   <div className="text-lg font-bold">{player.age}</div>
                 </div>
-                
+
                 {/* Height */}
                 <div className="text-center">
                   <div className="text-sm text-muted-foreground">Height</div>
                   <div className="text-lg font-bold">{formatHeight(player.height)}</div>
                 </div>
-                
+
                 {/* Weight */}
                 <div className="text-center">
                   <div className="text-sm text-muted-foreground">Weight</div>
                   <div className="text-lg font-bold">{player.weight} lbs</div>
                 </div>
-                
+
                 {/* EXP */}
                 <div className="text-center">
                   <div className="text-sm text-muted-foreground">EXP</div>
                   <div className="text-lg font-bold">{player.years_pro} Yrs</div>
                 </div>
-                
+
                 {/* Drafted - spans across */}
                 <div className="text-center">
                   <div className="text-sm text-muted-foreground">Drafted</div>
@@ -245,7 +255,10 @@ export default function PlayerPage({ params }: PlayerPageProps) {
           <TabsContent value="overview" className="mt-6">
             <div className="flex flex-col gap-6">
               {/* Player Season Stats Card - Full Width Row */}
-              <Card className="hub-card" style={{ backgroundColor: 'transparent', border: 'none', boxShadow: 'none', padding: '0' }}>
+              <Card
+                className="hub-card"
+                style={{ backgroundColor: 'transparent', border: 'none', boxShadow: 'none', padding: '0' }}
+              >
                 <CardHeader style={{ padding: '0' }}>
                   <CardTitle>Current Season</CardTitle>
                 </CardHeader>
@@ -308,7 +321,10 @@ export default function PlayerPage({ params }: PlayerPageProps) {
               </Card>
 
               {/* Attributes Section */}
-              <Card className="hub-card" style={{ backgroundColor: 'transparent', border: 'none', boxShadow: 'none', padding: '0' }}>
+              <Card
+                className="hub-card"
+                style={{ backgroundColor: 'transparent', border: 'none', boxShadow: 'none', padding: '0' }}
+              >
                 <CardHeader style={{ padding: '0' }}>
                   <CardTitle>Attributes</CardTitle>
                 </CardHeader>
@@ -319,8 +335,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                       <div className="w-32 text-sm text-muted-foreground">Speed</div>
                       <div className="w-8 text-sm font-semibold">{player.speed}</div>
                       <div className="flex-1 bg-gray-200 rounded-full h-4">
-                        <div 
-                          className="bg-black h-4 rounded-full transition-all duration-300" 
+                        <div
+                          className="bg-black h-4 rounded-full transition-all duration-300"
                           style={{ width: `${player.speed}%` }}
                         ></div>
                       </div>
@@ -331,8 +347,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                       <div className="w-32 text-sm text-muted-foreground">Basketball IQ</div>
                       <div className="w-8 text-sm font-semibold">{player.ball_iq}</div>
                       <div className="flex-1 bg-gray-200 rounded-full h-4">
-                        <div 
-                          className="bg-black h-4 rounded-full transition-all duration-300" 
+                        <div
+                          className="bg-black h-4 rounded-full transition-all duration-300"
                           style={{ width: `${player.ball_iq}%` }}
                         ></div>
                       </div>
@@ -343,8 +359,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                       <div className="w-32 text-sm text-muted-foreground">Interior Scoring</div>
                       <div className="w-8 text-sm font-semibold">{player.inside_shot}</div>
                       <div className="flex-1 bg-gray-200 rounded-full h-4">
-                        <div 
-                          className="bg-black h-4 rounded-full transition-all duration-300" 
+                        <div
+                          className="bg-black h-4 rounded-full transition-all duration-300"
                           style={{ width: `${player.inside_shot}%` }}
                         ></div>
                       </div>
@@ -355,8 +371,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                       <div className="w-32 text-sm text-muted-foreground">3P Scoring</div>
                       <div className="w-8 text-sm font-semibold">{player.three_point_shot}</div>
                       <div className="flex-1 bg-gray-200 rounded-full h-4">
-                        <div 
-                          className="bg-black h-4 rounded-full transition-all duration-300" 
+                        <div
+                          className="bg-black h-4 rounded-full transition-all duration-300"
                           style={{ width: `${player.three_point_shot}%` }}
                         ></div>
                       </div>
@@ -367,8 +383,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                       <div className="w-32 text-sm text-muted-foreground">Passing</div>
                       <div className="w-8 text-sm font-semibold">{player.pass}</div>
                       <div className="flex-1 bg-gray-200 rounded-full h-4">
-                        <div 
-                          className="bg-black h-4 rounded-full transition-all duration-300" 
+                        <div
+                          className="bg-black h-4 rounded-full transition-all duration-300"
                           style={{ width: `${player.pass}%` }}
                         ></div>
                       </div>
@@ -379,8 +395,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                       <div className="w-32 text-sm text-muted-foreground">Skill Move</div>
                       <div className="w-8 text-sm font-semibold">{player.skill_move}</div>
                       <div className="flex-1 bg-gray-200 rounded-full h-4">
-                        <div 
-                          className="bg-black h-4 rounded-full transition-all duration-300" 
+                        <div
+                          className="bg-black h-4 rounded-full transition-all duration-300"
                           style={{ width: `${player.skill_move}%` }}
                         ></div>
                       </div>
@@ -391,8 +407,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                       <div className="w-32 text-sm text-muted-foreground">On-ball Defense</div>
                       <div className="w-8 text-sm font-semibold">{player.on_ball_defense}</div>
                       <div className="flex-1 bg-gray-200 rounded-full h-4">
-                        <div 
-                          className="bg-black h-4 rounded-full transition-all duration-300" 
+                        <div
+                          className="bg-black h-4 rounded-full transition-all duration-300"
                           style={{ width: `${player.on_ball_defense}%` }}
                         ></div>
                       </div>
@@ -403,8 +419,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                       <div className="w-32 text-sm text-muted-foreground">Stamina</div>
                       <div className="w-8 text-sm font-semibold">{player.stamina}</div>
                       <div className="flex-1 bg-gray-200 rounded-full h-4">
-                        <div 
-                          className="bg-black h-4 rounded-full transition-all duration-300" 
+                        <div
+                          className="bg-black h-4 rounded-full transition-all duration-300"
                           style={{ width: `${player.stamina}%` }}
                         ></div>
                       </div>
@@ -415,8 +431,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                       <div className="w-32 text-sm text-muted-foreground">Block</div>
                       <div className="w-8 text-sm font-semibold">{player.block}</div>
                       <div className="flex-1 bg-gray-200 rounded-full h-4">
-                        <div 
-                          className="bg-black h-4 rounded-full transition-all duration-300" 
+                        <div
+                          className="bg-black h-4 rounded-full transition-all duration-300"
                           style={{ width: `${player.block}%` }}
                         ></div>
                       </div>
@@ -427,8 +443,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                       <div className="w-32 text-sm text-muted-foreground">Steal</div>
                       <div className="w-8 text-sm font-semibold">{player.steal}</div>
                       <div className="flex-1 bg-gray-200 rounded-full h-4">
-                        <div 
-                          className="bg-black h-4 rounded-full transition-all duration-300" 
+                        <div
+                          className="bg-black h-4 rounded-full transition-all duration-300"
                           style={{ width: `${player.steal}%` }}
                         ></div>
                       </div>
@@ -439,8 +455,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                       <div className="w-32 text-sm text-muted-foreground">Offensive Rebound</div>
                       <div className="w-8 text-sm font-semibold">{player.offensive_rebound}</div>
                       <div className="flex-1 bg-gray-200 rounded-full h-4">
-                        <div 
-                          className="bg-black h-4 rounded-full transition-all duration-300" 
+                        <div
+                          className="bg-black h-4 rounded-full transition-all duration-300"
                           style={{ width: `${player.offensive_rebound}%` }}
                         ></div>
                       </div>
@@ -451,8 +467,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                       <div className="w-32 text-sm text-muted-foreground">Defensive Rebound</div>
                       <div className="w-8 text-sm font-semibold">{player.defensive_rebound}</div>
                       <div className="flex-1 bg-gray-200 rounded-full h-4">
-                        <div 
-                          className="bg-black h-4 rounded-full transition-all duration-300" 
+                        <div
+                          className="bg-black h-4 rounded-full transition-all duration-300"
                           style={{ width: `${player.defensive_rebound}%` }}
                         ></div>
                       </div>
@@ -465,7 +481,10 @@ export default function PlayerPage({ params }: PlayerPageProps) {
 
           {/* Stats Tab */}
           <TabsContent value="stats" className="mt-6">
-            <Card className="hub-card" style={{ backgroundColor: 'transparent', border: 'none', boxShadow: 'none', padding: '0' }}>
+            <Card
+              className="hub-card"
+              style={{ backgroundColor: 'transparent', border: 'none', boxShadow: 'none', padding: '0' }}
+            >
               <CardContent style={{ padding: '0' }}>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -564,5 +583,5 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         </Tabs>
       </div>
     </div>
-  )
+  );
 }

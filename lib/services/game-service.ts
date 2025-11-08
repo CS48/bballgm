@@ -1,24 +1,24 @@
 /**
  * Game Service
- * 
+ *
  * Handles retrieval and management of completed games from the database
  */
 
-import { dbService } from '../database/db-service'
-import { teamService } from './team-service'
-import { playerService } from './player-service'
-import { convertDatabaseTeamToGameTeam } from '../types/game-simulation'
-import type { GameSimulationResult, GameSimulationTeam, PlayerGameStats } from '../types/game-simulation'
-import type { Team, Player } from '../types/database'
+import { dbService } from '../database/db-service';
+import { teamService } from './team-service';
+import { playerService } from './player-service';
+import { convertDatabaseTeamToGameTeam } from '../types/game-simulation';
+import type { GameSimulationResult, GameSimulationTeam, PlayerGameStats } from '../types/game-simulation';
+import type { Team, Player } from '../types/database';
 
 export class GameService {
-  private static instance: GameService
+  private static instance: GameService;
 
   public static getInstance(): GameService {
     if (!GameService.instance) {
-      GameService.instance = new GameService()
+      GameService.instance = new GameService();
     }
-    return GameService.instance
+    return GameService.instance;
   }
 
   /**
@@ -37,47 +37,47 @@ export class GameService {
         JOIN teams ht ON g.home_team_id = ht.team_id
         JOIN teams at ON g.away_team_id = at.team_id
         WHERE g.game_id = ? AND g.completed = 1
-      `
-      
-      const results = dbService.exec(sql, [gameId])
-      
+      `;
+
+      const results = dbService.exec(sql, [gameId]);
+
       if (results.length === 0) {
-        return null
+        return null;
       }
-      
-      const game = results[0]
-      
+
+      const game = results[0];
+
       // Parse the box score JSON
-      let boxScore
+      let boxScore;
       try {
-        boxScore = JSON.parse(game.box_score)
+        boxScore = JSON.parse(game.box_score);
       } catch (error) {
-        console.error('Failed to parse box score JSON:', error)
-        return null
+        console.error('Failed to parse box score JSON:', error);
+        return null;
       }
-      
+
       // Get team data
-      const homeTeam = await teamService.getTeam(game.home_team_id)
-      const awayTeam = await teamService.getTeam(game.away_team_id)
-      
+      const homeTeam = await teamService.getTeam(game.home_team_id);
+      const awayTeam = await teamService.getTeam(game.away_team_id);
+
       if (!homeTeam || !awayTeam) {
-        console.error('Could not find team data for game')
-        return null
+        console.error('Could not find team data for game');
+        return null;
       }
-      
+
       // Get player data for both teams
-      const homePlayers = await playerService.getPlayersByTeam(game.home_team_id)
-      const awayPlayers = await playerService.getPlayersByTeam(game.away_team_id)
-      
+      const homePlayers = await playerService.getPlayersByTeam(game.home_team_id);
+      const awayPlayers = await playerService.getPlayersByTeam(game.away_team_id);
+
       // Convert to GameSimulationTeam format
-      const homeGameTeam = convertDatabaseTeamToGameTeam(homeTeam, homePlayers)
-      const awayGameTeam = convertDatabaseTeamToGameTeam(awayTeam, awayPlayers)
-      
+      const homeGameTeam = convertDatabaseTeamToGameTeam(homeTeam, homePlayers);
+      const awayGameTeam = convertDatabaseTeamToGameTeam(awayTeam, awayPlayers);
+
       // Convert box score player stats to PlayerGameStats format
       const homePlayerStats: PlayerGameStats[] = boxScore.home_team.players.map((player: any) => ({
         id: player.id.toString(),
         name: player.name,
-        position: player.position as "PG" | "SG" | "SF" | "PF" | "C",
+        position: player.position as 'PG' | 'SG' | 'SF' | 'PF' | 'C',
         teamId: homeTeam.team_id.toString(),
         is_starter: 0, // Not stored in box score
         attributes: {
@@ -85,7 +85,7 @@ export class GameService {
           defense: 0,
           rebounding: 0,
           passing: 0,
-          athleticism: 0
+          athleticism: 0,
         },
         overall: 0, // Not stored in box score
         descriptor: `${player.position} - 0 OVR`,
@@ -116,13 +116,13 @@ export class GameService {
         fouls: 0, // Not tracked in current system
         offensiveRebound: 0, // Not tracked separately
         defensiveRebound: 0, // Not tracked separately
-        minutes: player.minutes || 0
-      }))
-      
+        minutes: player.minutes || 0,
+      }));
+
       const awayPlayerStats: PlayerGameStats[] = boxScore.away_team.players.map((player: any) => ({
         id: player.id.toString(),
         name: player.name,
-        position: player.position as "PG" | "SG" | "SF" | "PF" | "C",
+        position: player.position as 'PG' | 'SG' | 'SF' | 'PF' | 'C',
         teamId: awayTeam.team_id.toString(),
         is_starter: 0, // Not stored in box score
         attributes: {
@@ -130,7 +130,7 @@ export class GameService {
           defense: 0,
           rebounding: 0,
           passing: 0,
-          athleticism: 0
+          athleticism: 0,
         },
         overall: 0, // Not stored in box score
         descriptor: `${player.position} - 0 OVR`,
@@ -161,17 +161,17 @@ export class GameService {
         fouls: 0, // Not tracked in current system
         offensiveRebound: 0, // Not tracked separately
         defensiveRebound: 0, // Not tracked separately
-        minutes: player.minutes || 0
-      }))
-      
+        minutes: player.minutes || 0,
+      }));
+
       // Calculate MVP (player with highest impact score from winning team)
-      const winningTeamStats = game.home_score > game.away_score ? homePlayerStats : awayPlayerStats
+      const winningTeamStats = game.home_score > game.away_score ? homePlayerStats : awayPlayerStats;
       const mvp = winningTeamStats.reduce((best, player) => {
-        const playerScore = player.points + player.rebounds * 0.5 + player.assists * 0.7
-        const bestScore = best.points + best.rebounds * 0.5 + best.assists * 0.7
-        return playerScore > bestScore ? player : best
-      })
-      
+        const playerScore = player.points + player.rebounds * 0.5 + player.assists * 0.7;
+        const bestScore = best.points + best.rebounds * 0.5 + best.assists * 0.7;
+        return playerScore > bestScore ? player : best;
+      });
+
       return {
         homeTeam: homeGameTeam,
         awayTeam: awayGameTeam,
@@ -181,12 +181,11 @@ export class GameService {
         winner: game.home_score > game.away_score ? homeTeam.name : awayTeam.name,
         homePlayerStats,
         awayPlayerStats,
-        mvp
-      }
-      
+        mvp,
+      };
     } catch (error) {
-      console.error('Failed to get game result:', error)
-      throw new Error('Failed to get game result')
+      console.error('Failed to get game result:', error);
+      throw new Error('Failed to get game result');
     }
   }
 
@@ -203,18 +202,18 @@ export class GameService {
         WHERE home_team_id = ? AND away_team_id = ? AND completed = 1
         ORDER BY game_id DESC
         LIMIT 1
-      `
-      
-      const results = dbService.exec(sql, [homeTeamId, awayTeamId])
-      
+      `;
+
+      const results = dbService.exec(sql, [homeTeamId, awayTeamId]);
+
       if (results.length === 0) {
-        return null
+        return null;
       }
-      
-      return results[0].game_id
+
+      return results[0].game_id;
     } catch (error) {
-      console.error('Failed to get game ID by matchup:', error)
-      throw new Error('Failed to get game ID by matchup')
+      console.error('Failed to get game ID by matchup:', error);
+      throw new Error('Failed to get game ID by matchup');
     }
   }
 
@@ -225,12 +224,12 @@ export class GameService {
    * @returns Promise that resolves to true if game is completed
    */
   public async isGameCompleted(homeTeamId: number, awayTeamId: number): Promise<boolean> {
-    const gameId = await this.getGameIdByMatchup(homeTeamId, awayTeamId)
-    return gameId !== null
+    const gameId = await this.getGameIdByMatchup(homeTeamId, awayTeamId);
+    return gameId !== null;
   }
 }
 
 /**
  * Export singleton instance for easy access
  */
-export const gameService = GameService.getInstance()
+export const gameService = GameService.getInstance();

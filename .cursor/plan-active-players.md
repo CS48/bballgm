@@ -1,15 +1,19 @@
 # Add Active Player Visual Separation in Watch Mode Stats Table
 
 ## Goal
+
 Visually separate active players (on court) from bench players in the stats table during watch mode.
 
 ## Visual Treatment (User Specified)
+
 - **Top 5 rows**: Active players currently on the court
 - **Dark separator line**: After the 5th row to distinguish active from bench
 - **No icons needed**: The visual separation is sufficient
 
 ## Current State
+
 The stats table currently sorts players as:
+
 1. Starters first (by position order: PG, SG, SF, PF, C)
 2. Bench players second (by overall rating)
 
@@ -27,21 +31,21 @@ The existing sorting logic needs to be verified and simplified:
 // Sort players: starters first (by position order), then bench players (by overall rating)
 const sortedPlayers = (() => {
   // Separate starters and bench
-  const starters = players.filter(p => p.is_starter === 1)
-  const bench = players.filter(p => p.is_starter !== 1)
-  
+  const starters = players.filter((p) => p.is_starter === 1);
+  const bench = players.filter((p) => p.is_starter !== 1);
+
   // Sort starters by position
-  const positionOrder = ['PG', 'SG', 'SF', 'PF', 'C']
+  const positionOrder = ['PG', 'SG', 'SF', 'PF', 'C'];
   const sortedStarters = starters.sort((a, b) => {
-    return positionOrder.indexOf(a.position) - positionOrder.indexOf(b.position)
-  })
-  
+    return positionOrder.indexOf(a.position) - positionOrder.indexOf(b.position);
+  });
+
   // Sort bench by overall rating (descending)
-  const sortedBench = bench.sort((a, b) => b.overall_rating - a.overall_rating)
-  
+  const sortedBench = bench.sort((a, b) => b.overall_rating - a.overall_rating);
+
   // Return starters first, then bench
-  return [...sortedStarters, ...sortedBench]
-})()
+  return [...sortedStarters, ...sortedBench];
+})();
 ```
 
 ### Step 2: Add Dark Separator Line
@@ -63,7 +67,7 @@ Add a visual separator after the 5th player:
       </td>
       {/* ...rest of stat columns... */}
     </tr>
-    
+
     {/* Add separator after 5th player (index 4) */}
     {index === 4 && (
       <tr>
@@ -144,12 +148,14 @@ This makes it immediately clear which 5 players are currently on the court!
 **File Modified:** `/Users/calvin/Documents/Bball Sim/bballgm/components/game-stats-table.tsx`
 
 **Changes Made:**
+
 1. ✅ Added index parameter to map function
 2. ✅ Added conditional border styling for 6th row (index === 5)
 3. ✅ Added check for `sortedPlayers.length > 5` to only show separator when there are bench players
 4. ✅ Used dark border (`border-gray-800`) with dark mode support (`dark:border-gray-200`)
 
 **Result:**
+
 - Top 5 players (starters) appear first
 - Dark separator line appears after the 5th player (6th row)
 - Only shows separator if there are more than 5 players total
