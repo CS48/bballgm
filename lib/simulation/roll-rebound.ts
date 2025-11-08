@@ -14,6 +14,7 @@ export interface ReboundRollResult extends RollResult {
   rebounder: SimulationPlayer;
   isOffensive: boolean;
   teamId: string;
+  description: string;
 }
 
 /**
@@ -94,12 +95,26 @@ export function rollRebound(
 
   const rebounder = allPlayers[rebounderIndex];
   const isOffensive = rebounder.teamId === context.offensiveTeamId;
+  const normalizedProbability = probabilities[rebounderIndex];
+
+  // Create debug information
+  const debug = {
+    coefficients: {
+      off_reb: config.coefficients.off_reb,
+      def_reb: config.coefficients.def_reb,
+      position_bonus: config.coefficients.position_bonus,
+      team_bias: config.coefficients.team_bias,
+    },
+    calculation: `Raw: ${totalRawValue.toFixed(2)}, Normalized: ${normalizedProbability.toFixed(3)}, Faces: [${faces.join(', ')}]`,
+  };
 
   return {
     roll,
     faces: faces,
     outcome: 'rebound',
     rawValue: totalRawValue,
+    normalizedProbability,
+    debug,
     description: `${rebounder.name} grabs the ${isOffensive ? 'offensive' : 'defensive'} rebound!`,
     rebounder,
     isOffensive,
