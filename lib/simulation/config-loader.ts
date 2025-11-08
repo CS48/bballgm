@@ -26,6 +26,13 @@ const SIMULATION_CONFIG: SimulationConfig = {
       max_faces: 19,
       min_faces: 1,
     },
+    three_pointer_modifiers: {
+      PG: 0.7,
+      SG: 1.3,
+      SF: 1.0,
+      PF: 0.8,
+      C: 0.5,
+    },
   },
   openness_calculator: {
     coefficients: {

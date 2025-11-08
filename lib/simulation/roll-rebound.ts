@@ -163,7 +163,6 @@ function calculatePlayerReboundValue(
  */
 function getPositionBonus(position: string): number {
   const bonuses = getReboundRollConfig().position_bonuses;
-
   return bonuses[position] || 0;
 }
 
@@ -175,7 +174,6 @@ function getPositionBonus(position: string): number {
  */
 function getDistanceModifier(shotDistance: string, position: string): number {
   const modifiers = getReboundRollConfig().distance_modifiers;
-
   return modifiers[shotDistance]?.[position] || 0;
 }
 
@@ -186,6 +184,5 @@ function getDistanceModifier(shotDistance: string, position: string): number {
  */
 function getThreePointerModifier(position: string): number {
   const modifiers = getReboundRollConfig().three_pointer_modifiers;
-
   return modifiers[position] || 0;
 }

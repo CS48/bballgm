@@ -169,6 +169,7 @@ export interface SimulationConfig {
       max_faces: number;
       min_faces: number;
     };
+    three_pointer_modifiers: Record<string, number>;
   };
   openness_calculator: {
     coefficients: {
