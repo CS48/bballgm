@@ -84,52 +84,48 @@ export function GameStatsTable({ players, activePlayerIds = [] }: GameStatsTable
   })()
 
   return (
-    <div className="game-stats-table-container">
+    <div className="game-stats-table-container h-full">
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="h-full overflow-auto">
         <table className="w-full text-sm">
-          <thead>
+          <thead className="sticky top-0 z-20 bg-background">
             <tr className="border-b">
-              <th className="text-left p-2" style={{ minWidth: '11.5rem' }}>Player</th>
-              <th className="text-left p-2">MIN</th>
-              <th className="text-left p-2">PTS</th>
-              <th className="text-left p-2">FGM</th>
-              <th className="text-left p-2">FGA</th>
-              <th className="text-left p-2">FG%</th>
-              <th className="text-left p-2">3PM</th>
-              <th className="text-left p-2">3PA</th>
-              <th className="text-left p-2">3P%</th>
-              <th className="text-left p-2">FTM</th>
-              <th className="text-left p-2">FTA</th>
-              <th className="text-left p-2">FT%</th>
-              <th className="text-left p-2">OREB</th>
-              <th className="text-left p-2">DREB</th>
-              <th className="text-left p-2">REB</th>
-              <th className="text-left p-2">AST</th>
-              <th className="text-left p-2">TOV</th>
-              <th className="text-left p-2">STL</th>
-              <th className="text-left p-2">BLK</th>
-              <th className="text-left p-2">PF</th>
-              <th className="text-left p-2">+/-</th>
+              <th className="text-left p-2 border-r border-gray-200 bg-background sticky left-0 z-30" style={{ minWidth: '11.5rem' }}>Player</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">MIN</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">PTS</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">FGM</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">FGA</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">FG%</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">3PM</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">3PA</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">3P%</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">FTM</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">FTA</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">FT%</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">OREB</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">DREB</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">REB</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">AST</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">TOV</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">STL</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">BLK</th>
+              <th className="text-right p-2 border-r border-gray-200 font-mono">PF</th>
+              <th className="text-right p-2 font-mono">+/-</th>
             </tr>
           </thead>
           <tbody>
             {sortedPlayers.map((player, index) => {
-              // Determine where to place the divider line
-              const isLastActivePlayer = activePlayerIds.length > 0 
-                ? index === activePlayerIds.length - 1
-                : index === 4 // fallback to 5th player (starters)
+              // Check if player is currently active
+              const isActive = activePlayerIds.length > 0 
+                ? activePlayerIds.includes(player.player_id)
+                : player.is_starter === 1 // fallback to starter status
               
               return (
                 <tr 
                   key={player.player_id} 
-                  className={
-                    isLastActivePlayer && sortedPlayers.length > 5 
-                      ? 'border-b-2 border-black' 
-                      : 'border-b border-gray-200'
-                  }
+                  className={`border-b ${isActive ? 'border-l-4 border-l-black border-gray-200 bg-background' : 'border-gray-200 bg-background'}`}
                 >
-                <td className="p-2" style={{ minWidth: '11.5rem' }}>
+                <td className={`p-2 border-r sticky left-0 z-10 ${isActive ? 'border-l-4 border-l-black border-gray-200 bg-background' : 'border-gray-200 bg-background'}`} style={{ minWidth: '11.5rem' }}>
                   <div>
                     <p className="font-medium">{player.name}</p>
                     <p className="text-sm text-muted-foreground">
@@ -137,26 +133,26 @@ export function GameStatsTable({ players, activePlayerIds = [] }: GameStatsTable
                     </p>
                   </div>
                 </td>
-                <td className="p-2">{formatStat(player.current_stats?.minutes, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.points, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.fg_made, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.fg_attempted, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.fg_pct)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.three_made, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.three_attempted, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.three_pct)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.ft_made, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.ft_attempted, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.ft_pct)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.oreb, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.dreb, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.rebounds, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.assists, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.turnovers, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.steals, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.blocks, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.pf, 0)}</td>
-                <td className="p-2">{formatStat(player.current_stats?.plus_minus)}                </td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.minutes, 0)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.points, 0)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.fg_made, 0)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.fg_attempted, 0)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.fg_pct)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.three_made, 0)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.three_attempted, 0)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.three_pct)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.ft_made, 0)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.ft_attempted, 0)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.ft_pct)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.oreb, 0)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.dreb, 0)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.rebounds, 0)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.assists, 0)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.turnovers, 0)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.steals, 0)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.blocks, 0)}</td>
+                <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>{formatStat(player.current_stats?.pf, 0)}</td>
+                <td className={`p-2 text-right font-mono bg-background`}>{formatStat(player.current_stats?.plus_minus)}</td>
               </tr>
               )
             })}

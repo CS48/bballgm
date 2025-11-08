@@ -15,8 +15,8 @@ import type { PossessionLogEntry } from '../types/simulation-engine'
 export function formatPossessionEvent(entry: PossessionLogEntry): string {
   const { ballHandler, decision, rollResult, description } = entry
   
-  // If we already have a good description, use it
-  if (description && description !== `${ballHandler} decides to ${decision.action}`) {
+  // If we already have a good description (and it doesn't contain "decides"), use it
+  if (description && !description.includes('decides') && description.trim().length > 0) {
     return description
   }
   
@@ -29,7 +29,12 @@ export function formatPossessionEvent(entry: PossessionLogEntry): string {
     case 'skill_move':
       return formatSkillMoveEvent(ballHandler, decision, rollResult)
     default:
-      return description || `${ballHandler} ${decision.action}`
+      // Fallback: create simple action description
+      const actionVerb = decision.action === 'shoot' ? 'shoots' : 
+                         decision.action === 'pass' ? 'passes' :
+                         decision.action === 'skill_move' ? 'attempts skill move' :
+                         decision.action
+      return `${ballHandler} ${actionVerb}`
   }
 }
 
@@ -75,9 +80,9 @@ function formatPassEvent(
   }
   
   if (rollResult.outcome === 'complete') {
-    return `${ballHandler} passes to ${target} (${openness}% open) - complete`
+    return `${ballHandler} passes to ${target}`
   } else if (rollResult.outcome === 'intercepted') {
-    return `${ballHandler} passes to ${target} - intercepted!`
+    return `${ballHandler}'s pass to ${target} intercepted!`
   }
   
   return `${ballHandler} passes to ${target}`
@@ -96,11 +101,11 @@ function formatSkillMoveEvent(
   }
   
   if (rollResult.outcome === 'success') {
-    return `${ballHandler} attempts crossover - succeeds!`
+    return `${ballHandler} completes crossover`
   } else if (rollResult.outcome === 'steal') {
-    return `${ballHandler} attempts skill move - ball stolen!`
+    return `${ballHandler} loses the ball on skill move - stolen!`
   } else {
-    return `${ballHandler} attempts skill move - fails`
+    return `${ballHandler}'s skill move fails`
   }
 }
 

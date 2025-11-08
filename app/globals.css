@@ -236,4 +236,28 @@
   .roster-table-container .player-position {
     @apply text-sm text-muted-foreground;
   }
+
+  /* Score Animation */
+  @keyframes score-pop {
+    0% {
+      opacity: 0;
+      transform: translate(-20px, -50%) scale(0.5);
+    }
+    20% {
+      opacity: 1;
+      transform: translate(-30px, -50%) scale(1.1);
+    }
+    80% {
+      opacity: 1;
+      transform: translate(-50px, -50%) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-70px, -50%) scale(0.8);
+    }
+  }
+
+  .animate-score-pop {
+    animation: score-pop 2s ease-out forwards;
+  }
 }

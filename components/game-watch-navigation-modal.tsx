@@ -21,7 +21,7 @@ export function GameWatchNavigationModal({
         <AlertDialogHeader>
           <AlertDialogTitle>Leave Game?</AlertDialogTitle>
           <AlertDialogDescription>
-            You are currently watching a live game. If you leave now, the rest of the game will be automatically simulated and you'll see the final result.
+            You are currently watching a live game. If you navigate away before the game ends, the game will not be saved and your progress will be lost.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -29,7 +29,7 @@ export function GameWatchNavigationModal({
             Continue Watching
           </AlertDialogCancel>
           <AlertDialogAction onClick={onLeaveAndSim}>
-            Leave & Sim
+            Exit
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -190,7 +190,7 @@ export function simulatePossession(
       ballHandler: state.ballHandler.name,
       decision,
       opennessScores: Object.fromEntries(state.opennessScores),
-      description: `${state.ballHandler.name} decides to ${decision.action}${decision.target ? ` to ${decision.target.name}` : ''}`
+      description: '' // Will be formatted by event formatter
     }
     
     // Check if there's enough quarter time for this action
@@ -220,7 +220,7 @@ export function simulatePossession(
     // Log event result
     if (eventResult) {
       decisionLog.rollResult = eventResult
-      decisionLog.description += ` - ${eventResult.outcome}`
+      // Description will be formatted by event formatter
       
       console.log('\n--- Roll Result ---')
       console.log(`Outcome: ${eventResult.outcome}`)
