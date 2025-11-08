@@ -8,6 +8,7 @@
 
 import type { GameSimulationPlayer, GameSimulationTeam } from './game-simulation';
 import type { Player as DatabasePlayer } from './database';
+import { playerService } from '../services/player-service';
 
 /**
  * Player attributes for simulation (0-100 scale)
@@ -328,7 +329,7 @@ export function convertToSimulationPlayer(player: DatabasePlayer, teamId: string
     steal: player.steal,
     offensive_rebound: player.offensive_rebound,
     defensive_rebound: player.defensive_rebound,
-    overall: player.overall_rating,
+    overall: playerService.calculateOverallRating(player),
   };
 }
 
