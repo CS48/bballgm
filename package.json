@@ -69,6 +69,7 @@
     "@types/react-dom": "^18",
     "@types/sql.js": "^1.4.9",
     "postcss": "^8.5",
+    "prettier": "^3.6.2",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",
     "typescript": "^5"
