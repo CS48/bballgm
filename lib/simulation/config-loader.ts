@@ -26,6 +26,13 @@ const SIMULATION_CONFIG: SimulationConfig = {
       max_faces: 19,
       min_faces: 1,
     },
+    three_pointer_modifiers: {
+      PG: 0.7,
+      SG: 1.3,
+      SF: 1.0,
+      PF: 0.8,
+      C: 0.5,
+    },
   },
   openness_calculator: {
     coefficients: {
@@ -89,6 +96,43 @@ const SIMULATION_CONFIG: SimulationConfig = {
     caps: {
       max_faces: 18,
       min_faces: 1,
+    },
+    position_bonuses: {
+      C: 5, // Centers get highest bonus
+      PF: 3, // Power forwards get good bonus
+      SF: 1, // Small forwards get small bonus
+      SG: -1, // Shooting guards get small penalty
+      PG: -2, // Point guards get penalty
+    },
+    distance_modifiers: {
+      close: {
+        C: 5, // Centers get bonus for close shots
+        PF: 3,
+        SF: 1,
+        SG: -1,
+        PG: -2,
+      },
+      mid: {
+        C: 2,
+        PF: 3, // Power forwards get bonus for mid-range
+        SF: 2,
+        SG: 1,
+        PG: 0,
+      },
+      long: {
+        C: -2, // Centers struggle with long rebounds
+        PF: -1,
+        SF: 1,
+        SG: 2, // Guards get bonus for long rebounds
+        PG: 3,
+      },
+    },
+    three_pointer_modifiers: {
+      C: -3, // Centers struggle with three-point rebounds
+      PF: -1,
+      SF: 0,
+      SG: 2, // Guards get bonus for three-point rebounds
+      PG: 3,
     },
   },
   decision_logic: {

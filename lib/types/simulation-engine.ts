@@ -8,6 +8,7 @@
 
 import type { GameSimulationPlayer, GameSimulationTeam } from './game-simulation';
 import type { Player as DatabasePlayer } from './database';
+import { playerService } from '../services/player-service';
 
 /**
  * Player attributes for simulation (0-100 scale)
@@ -169,6 +170,7 @@ export interface SimulationConfig {
       max_faces: number;
       min_faces: number;
     };
+    three_pointer_modifiers: Record<string, number>;
   };
   openness_calculator: {
     coefficients: {
@@ -233,6 +235,9 @@ export interface SimulationConfig {
       max_faces: number;
       min_faces: number;
     };
+    position_bonuses: Record<string, number>;
+    distance_modifiers: Record<string, Record<string, number>>;
+    three_pointer_modifiers: Record<string, number>;
   };
   decision_logic: {
     forced_shot_threshold: number;
@@ -324,7 +329,7 @@ export function convertToSimulationPlayer(player: DatabasePlayer, teamId: string
     steal: player.steal,
     offensive_rebound: player.offensive_rebound,
     defensive_rebound: player.defensive_rebound,
-    overall: player.overall_rating,
+    overall: playerService.calculateOverallRating(player),
   };
 }
 

@@ -60,11 +60,8 @@ export function rollShot(
   // Create debug information
   const debug = {
     coefficients: {
-      openness: config.openness_coef,
-      inside_shot: config.inside_shot_coef,
-      three_point_shot: config.three_point_shot_coef,
-      defender_on_ball: config.defender_on_ball_coef,
-      defender_block: config.defender_block_coef,
+      openness: config.coefficients.openness,
+      defender_on_ball: config.coefficients.def_onball,
     },
     calculation: `Raw: ${rawValue.toFixed(2)}, Normalized: ${normalizedProbability.toFixed(3)}, Faces: [${faces.join(', ')}]`,
   };
@@ -188,20 +185,8 @@ export function shouldAttemptThreePointer(
  * @returns Multiplier for three-point attempt rate
  */
 function getThreePointPositionMultiplier(position: string): number {
-  switch (position) {
-    case 'PG':
-      return 0.7; // Facilitators take fewer threes
-    case 'SG':
-      return 1.3; // Primary three-point shooters
-    case 'SF':
-      return 1.0; // Balanced
-    case 'PF':
-      return 0.8; // More inside-focused
-    case 'C':
-      return 0.5; // Rarely shoot threes
-    default:
-      return 1.0;
-  }
+  const modifiers = getShotRollConfig().three_pointer_modifiers;
+  return modifiers[position] || 1.0;
 }
 
 /**
