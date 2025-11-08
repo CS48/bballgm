@@ -179,7 +179,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       setLeagueState(stateData);
 
       // Load standings
-      const [eastern, western, overall] = await Promise.all([
+      const [eastern, western] = await Promise.all([
         leagueService.getStandings('East'),
         leagueService.getStandings('West'),
         leagueService.getStandings(null),
@@ -261,7 +261,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
       setPlayers([]);
       setEasternStandings([]);
       setWesternStandings([]);
-      setOverallStandings([]);
+      setStandingsTimestamp(Date.now()); // Update timestamp when standings are cleared
       setCurrentGameDay(null);
       setSeasonProgress(null);
       setTeamProgress(null);
@@ -720,9 +720,9 @@ export function usePlayers(): Player[] {
 export function useStandings(): {
   eastern: any[];
   western: any[];
-  overall: any[];
+  standingsTimestamp: number;
 } {
-  const { easternStandings, westernStandings, overallStandings } = useLeague();
+  const { easternStandings, westernStandings, standingsTimestamp } = useLeague();
   return {
     eastern: easternStandings,
     western: westernStandings,

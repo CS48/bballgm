@@ -434,7 +434,7 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
     }
   };
 
-  // Calculate updated team record based on game results
+  // Calculate updated team record based on database
   const getUpdatedTeamRecord = (teamId: number) => {
     let wins = userTeam.wins;
     let losses = userTeam.losses;
@@ -458,6 +458,22 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
 
     return { wins, losses };
   };
+
+  // Calculate standings position - memoized to recalculate when standings update
+  const standingsPosition = useMemo(() => {
+    const conferenceStandings = userTeam.conference === 'East' ? standings.eastern : standings.western;
+
+    // Handle empty or undefined standings
+    if (!conferenceStandings || conferenceStandings.length === 0) {
+      return 1; // Default if standings not loaded yet
+    }
+
+    // Find team position in standings
+    const index = conferenceStandings.findIndex((t) => t.team_id === userTeam.team_id);
+
+    // If team found, return position (index + 1), otherwise default to 1
+    return index >= 0 ? index + 1 : 1;
+  }, [standings.eastern, standings.western, standings.standingsTimestamp, userTeam.team_id, userTeam.conference]);
 
   return (
     <div
