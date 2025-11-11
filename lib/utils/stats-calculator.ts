@@ -129,6 +129,9 @@ export class StatsCalculator {
         three_attempted: acc.three_attempted + player.three_attempted,
         ft_made: acc.ft_made + player.ft_made,
         ft_attempted: acc.ft_attempted + player.ft_attempted,
+        oreb: acc.oreb + (player.oreb || 0),
+        dreb: acc.dreb + (player.dreb || 0),
+        pf: acc.pf + (player.pf || 0),
       }),
       {
         games: 0,
@@ -144,6 +147,9 @@ export class StatsCalculator {
         three_attempted: 0,
         ft_made: 0,
         ft_attempted: 0,
+        oreb: 0,
+        dreb: 0,
+        pf: 0,
       }
     );
 
@@ -162,6 +168,17 @@ export class StatsCalculator {
       spg: totals.games > 0 ? this.roundToDecimal(totals.steals / totals.games, 1) : 0,
       bpg: totals.games > 0 ? this.roundToDecimal(totals.blocks / totals.games, 1) : 0,
       tpg: totals.games > 0 ? this.roundToDecimal(totals.turnovers / totals.games, 1) : 0,
+      // Store totals for display (will be divided by games on team page)
+      fg_made: totals.fg_made,
+      fg_attempted: totals.fg_attempted,
+      three_made: totals.three_made,
+      three_attempted: totals.three_attempted,
+      ft_made: totals.ft_made,
+      ft_attempted: totals.ft_attempted,
+      // Calculate per-game averages for oreb, dreb, pf
+      oreb: totals.games > 0 ? this.roundToDecimal(totals.oreb / totals.games, 1) : 0,
+      dreb: totals.games > 0 ? this.roundToDecimal(totals.dreb / totals.games, 1) : 0,
+      pf: totals.games > 0 ? this.roundToDecimal(totals.pf / totals.games, 1) : 0,
     };
 
     return teamStats;
@@ -209,12 +226,15 @@ export class StatsCalculator {
     };
 
     // Recalculate averages
+    updatedStats.mpg = updatedStats.games > 0 ? this.roundToDecimal(updatedStats.minutes / updatedStats.games, 1) : 0;
     updatedStats.ppg = updatedStats.games > 0 ? this.roundToDecimal(updatedStats.points / updatedStats.games, 1) : 0;
     updatedStats.rpg = updatedStats.games > 0 ? this.roundToDecimal(updatedStats.rebounds / updatedStats.games, 1) : 0;
     updatedStats.apg = updatedStats.games > 0 ? this.roundToDecimal(updatedStats.assists / updatedStats.games, 1) : 0;
     updatedStats.spg = updatedStats.games > 0 ? this.roundToDecimal(updatedStats.steals / updatedStats.games, 1) : 0;
     updatedStats.bpg = updatedStats.games > 0 ? this.roundToDecimal(updatedStats.blocks / updatedStats.games, 1) : 0;
     updatedStats.tpg = updatedStats.games > 0 ? this.roundToDecimal(updatedStats.turnovers / updatedStats.games, 1) : 0;
+    updatedStats.oreb_pg = updatedStats.games > 0 ? this.roundToDecimal((updatedStats.oreb || 0) / updatedStats.games, 1) : 0;
+    updatedStats.dreb_pg = updatedStats.games > 0 ? this.roundToDecimal((updatedStats.dreb || 0) / updatedStats.games, 1) : 0;
     updatedStats.fg_pct =
       updatedStats.fg_attempted > 0 ? this.roundToDecimal(updatedStats.fg_made / updatedStats.fg_attempted, 3) : 0;
     updatedStats.three_pct =

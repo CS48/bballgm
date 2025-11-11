@@ -264,6 +264,9 @@ export class PlayerService {
         three_attempted: historicalStats.reduce((sum, season) => sum + season.three_attempted, 0),
         ft_made: historicalStats.reduce((sum, season) => sum + season.ft_made, 0),
         ft_attempted: historicalStats.reduce((sum, season) => sum + season.ft_attempted, 0),
+        oreb: historicalStats.reduce((sum, season) => sum + (season.oreb || 0), 0),
+        dreb: historicalStats.reduce((sum, season) => sum + (season.dreb || 0), 0),
+        pf: historicalStats.reduce((sum, season) => sum + (season.pf || 0), 0),
       };
 
       // Calculate averages

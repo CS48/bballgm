@@ -125,7 +125,7 @@ export class SimulationService {
           player_id: parseInt(player.id),
           name: player.name,
           position: player.position,
-          minutes: 0, // Will be calculated from game events
+          minutes: player.minutes || 0,
           points: player.points,
           rebounds: player.rebounds,
           assists: player.assists,
@@ -141,7 +141,10 @@ export class SimulationService {
           ft_made: 0, // Not tracked in current system
           ft_attempted: 0,
           ft_pct: 0,
-          plus_minus: 0, // Will be calculated
+          oreb: player.offensiveRebound || 0,
+          dreb: player.defensiveRebound || 0,
+          pf: player.fouls || 0,
+          plus_minus: 0, // Will be calculated from game result
         })),
       },
       away_team: {
@@ -152,7 +155,7 @@ export class SimulationService {
           player_id: parseInt(player.id),
           name: player.name,
           position: player.position,
-          minutes: 0, // Will be calculated from game events
+          minutes: player.minutes || 0,
           points: player.points,
           rebounds: player.rebounds,
           assists: player.assists,
@@ -168,7 +171,10 @@ export class SimulationService {
           ft_made: 0, // Not tracked in current system
           ft_attempted: 0,
           ft_pct: 0,
-          plus_minus: 0, // Will be calculated
+          oreb: player.offensiveRebound || 0,
+          dreb: player.defensiveRebound || 0,
+          pf: player.fouls || 0,
+          plus_minus: 0, // Will be calculated from game result
         })),
       },
     };
@@ -310,6 +316,13 @@ export class SimulationService {
       const blocks = this.calculatePlayerBlocks(player, minutes);
       const turnovers = this.calculatePlayerTurnovers(player, minutes);
 
+      // Calculate offensive and defensive rebounds separately
+      const oreb = this.calculatePlayerOffensiveRebounds(player, minutes);
+      const dreb = Math.max(0, Math.round(rebounds) - Math.round(oreb));
+
+      // Calculate personal fouls
+      const pf = this.calculatePlayerFouls(player, minutes);
+
       // Calculate shooting stats
       const shootingStats = this.calculatePlayerShooting(player, points, minutes);
 
@@ -336,6 +349,9 @@ export class SimulationService {
         ft_made: Math.round(shootingStats.ft_made),
         ft_attempted: Math.round(shootingStats.ft_attempted),
         ft_pct: shootingStats.ft_pct,
+        oreb: Math.round(oreb),
+        dreb: Math.round(dreb),
+        pf: Math.round(pf),
         plus_minus: Math.round(plusMinus),
       };
 
@@ -454,6 +470,46 @@ export class SimulationService {
     const randomVariation = (Math.random() - 0.5) * 2; // ±1 turnover variation
 
     return Math.max(0, baseRate * minutesFactor * 4 + randomVariation);
+  }
+
+  /**
+   * Calculate offensive rebounds for a player
+   * @param player Player data
+   * @param minutes Minutes played
+   * @returns Offensive rebounds
+   */
+  private calculatePlayerOffensiveRebounds(player: Player, minutes: number): number {
+    const baseRate = (player.offensive_rebound + player.defensive_rebound) / 200; // Convert to rate
+    const minutesFactor = minutes / 48; // Normalize to 48 minutes
+    const randomVariation = (Math.random() - 0.5) * 1.5; // ±0.75 oreb variation
+    
+    // Calculate base offensive rebounds based on offensive rebound rating
+    const orebBase = (player.offensive_rebound / 100) * minutesFactor * 4; // ~4 oreb per 48 min for high rating
+    
+    // Offensive rebounds are typically 25-35% of total rebounds
+    // Adjust based on the difference between offensive and defensive rebound ratings
+    const orebRatio = 0.3 + (player.offensive_rebound - player.defensive_rebound) / 500;
+    const oreb = Math.max(0, orebBase * orebRatio + randomVariation);
+    
+    return oreb;
+  }
+
+  /**
+   * Calculate personal fouls for a player
+   * @param player Player data
+   * @param minutes Minutes played
+   * @returns Personal fouls
+   */
+  private calculatePlayerFouls(player: Player, minutes: number): number {
+    // Fouls are inversely related to defensive IQ and ball IQ
+    // Players with lower defensive awareness foul more
+    const defensiveAwareness = (player.on_ball_defense + player.ball_iq) / 200;
+    const baseRate = (100 - defensiveAwareness * 100) / 100; // Lower awareness = more fouls
+    const minutesFactor = minutes / 48; // Normalize to 48 minutes
+    const randomVariation = (Math.random() - 0.5) * 1.5; // ±0.75 foul variation
+    
+    // Average player gets ~3-4 fouls per 48 minutes
+    return Math.max(0, baseRate * minutesFactor * 3.5 + randomVariation);
   }
 
   /**
@@ -663,19 +719,30 @@ export class SimulationService {
           three_attempted: currentStats.three_attempted + boxScore.three_attempted,
           ft_made: currentStats.ft_made + boxScore.ft_made,
           ft_attempted: currentStats.ft_attempted + boxScore.ft_attempted,
+          oreb: (currentStats.oreb || 0) + (boxScore.oreb || 0),
+          dreb: (currentStats.dreb || 0) + (boxScore.dreb || 0),
+          pf: (currentStats.pf || 0) + (boxScore.pf || 0),
         };
 
         // Recalculate averages
+        updatedStats.mpg = updatedStats.games > 0 ? updatedStats.minutes / updatedStats.games : 0;
         updatedStats.ppg = updatedStats.games > 0 ? updatedStats.points / updatedStats.games : 0;
         updatedStats.rpg = updatedStats.games > 0 ? updatedStats.rebounds / updatedStats.games : 0;
         updatedStats.apg = updatedStats.games > 0 ? updatedStats.assists / updatedStats.games : 0;
         updatedStats.spg = updatedStats.games > 0 ? updatedStats.steals / updatedStats.games : 0;
         updatedStats.bpg = updatedStats.games > 0 ? updatedStats.blocks / updatedStats.games : 0;
         updatedStats.tpg = updatedStats.games > 0 ? updatedStats.turnovers / updatedStats.games : 0;
+        updatedStats.oreb_pg = updatedStats.games > 0 ? (updatedStats.oreb || 0) / updatedStats.games : 0;
+        updatedStats.dreb_pg = updatedStats.games > 0 ? (updatedStats.dreb || 0) / updatedStats.games : 0;
         updatedStats.fg_pct = updatedStats.fg_attempted > 0 ? updatedStats.fg_made / updatedStats.fg_attempted : 0;
         updatedStats.three_pct =
           updatedStats.three_attempted > 0 ? updatedStats.three_made / updatedStats.three_attempted : 0;
         updatedStats.ft_pct = updatedStats.ft_attempted > 0 ? updatedStats.ft_made / updatedStats.ft_attempted : 0;
+        
+        // Calculate running average for plus/minus
+        const currentPlusMinus = currentStats.plus_minus || 0;
+        const gamePlusMinus = boxScore.plus_minus || 0;
+        updatedStats.plus_minus = (currentPlusMinus * currentStats.games + gamePlusMinus) / updatedStats.games;
 
         // Update player stats in database
         await playerService.updatePlayerStats(boxScore.player_id, updatedStats);
@@ -773,6 +840,17 @@ export class SimulationService {
 
       const newGames = currentStats.games + 1;
 
+      // Accumulate totals
+      const totalFgMade = (currentStats.fg_made || 0) + (teamStats.fg_made || 0);
+      const totalFgAttempted = (currentStats.fg_attempted || 0) + (teamStats.fg_attempted || 0);
+      const totalThreeMade = (currentStats.three_made || 0) + (teamStats.three_made || 0);
+      const totalThreeAttempted = (currentStats.three_attempted || 0) + (teamStats.three_attempted || 0);
+      const totalFtMade = (currentStats.ft_made || 0) + (teamStats.ft_made || 0);
+      const totalFtAttempted = (currentStats.ft_attempted || 0) + (teamStats.ft_attempted || 0);
+      const totalOreb = (currentStats.oreb || 0) + (teamStats.oreb || 0);
+      const totalDreb = (currentStats.dreb || 0) + (teamStats.dreb || 0);
+      const totalPf = (currentStats.pf || 0) + (teamStats.pf || 0);
+
       const updatedStats = {
         games: newGames,
         wins: teamStats.won ? currentStats.wins + 1 : currentStats.wins,
@@ -784,19 +862,21 @@ export class SimulationService {
         spg: (currentStats.spg * currentStats.games + teamStats.steals) / newGames,
         bpg: (currentStats.bpg * currentStats.games + teamStats.blocks) / newGames,
         tpg: (currentStats.tpg * currentStats.games + teamStats.turnovers) / newGames,
-        fg_pct: teamStats.fg_pct,
-        three_pct: teamStats.three_pct,
-        ft_pct: teamStats.ft_pct,
-        // Add missing stats that were causing the 0 values
-        fg_made: (currentStats.fg_made || 0) + (teamStats.fg_made || 0),
-        fg_attempted: (currentStats.fg_attempted || 0) + (teamStats.fg_attempted || 0),
-        three_made: (currentStats.three_made || 0) + (teamStats.three_made || 0),
-        three_attempted: (currentStats.three_attempted || 0) + (teamStats.three_attempted || 0),
-        ft_made: (currentStats.ft_made || 0) + (teamStats.ft_made || 0),
-        ft_attempted: (currentStats.ft_attempted || 0) + (teamStats.ft_attempted || 0),
-        oreb: (currentStats.oreb || 0) + (teamStats.oreb || 0),
-        dreb: (currentStats.dreb || 0) + (teamStats.dreb || 0),
-        pf: (currentStats.pf || 0) + (teamStats.pf || 0),
+        // Recalculate percentages from accumulated totals
+        fg_pct: totalFgAttempted > 0 ? totalFgMade / totalFgAttempted : 0,
+        three_pct: totalThreeAttempted > 0 ? totalThreeMade / totalThreeAttempted : 0,
+        ft_pct: totalFtAttempted > 0 ? totalFtMade / totalFtAttempted : 0,
+        // Store totals for display
+        fg_made: totalFgMade,
+        fg_attempted: totalFgAttempted,
+        three_made: totalThreeMade,
+        three_attempted: totalThreeAttempted,
+        ft_made: totalFtMade,
+        ft_attempted: totalFtAttempted,
+        // Calculate per-game averages for oreb, dreb, pf
+        oreb: newGames > 0 ? totalOreb / newGames : 0,
+        dreb: newGames > 0 ? totalDreb / newGames : 0,
+        pf: newGames > 0 ? totalPf / newGames : 0,
         dd: (currentStats.dd || 0) + (teamStats.dd || 0),
         td: (currentStats.td || 0) + (teamStats.td || 0),
         plus_minus: ((currentStats.plus_minus || 0) * currentStats.games + (teamStats.plus_minus || 0)) / newGames,
@@ -969,7 +1049,10 @@ export class SimulationService {
               ft_made: 0,
               ft_attempted: 0,
               ft_pct: 0,
-              plus_minus: 0,
+              oreb: player.offensiveRebound || 0,
+              dreb: player.defensiveRebound || 0,
+              pf: player.fouls || 0,
+              plus_minus: 0, // Will be calculated from game result
             })),
           },
           away_team: {
@@ -997,7 +1080,10 @@ export class SimulationService {
               ft_made: 0,
               ft_attempted: 0,
               ft_pct: 0,
-              plus_minus: 0,
+              oreb: player.offensiveRebound || 0,
+              dreb: player.defensiveRebound || 0,
+              pf: player.fouls || 0,
+              plus_minus: 0, // Will be calculated from game result
             })),
           },
         },

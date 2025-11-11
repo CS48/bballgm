@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,42 +34,71 @@ export function HomeHub({ userTeam, onNavigateToGameSelect, onNavigateToWatchGam
     onBallDefense: 0,
   });
 
-  // Debug: Log when currentGameDay changes
-  useEffect(() => {
-    // Removed console logs for cleaner output
-  }, [currentGameDay]);
+  // Track previously completed game IDs for user's team to avoid unnecessary refreshes
+  const completedUserTeamGamesRef = useRef<Set<number>>(new Set());
 
   // Fetch user team roster and calculate ratings
-  useEffect(() => {
-    const fetchUserTeamRoster = async () => {
-      try {
-        const roster = await leagueService.getTeamRoster(userTeam.team_id);
-        setUserTeamRoster(roster);
+  const fetchUserTeamRoster = async () => {
+    try {
+      const roster = await leagueService.getTeamRoster(userTeam.team_id);
+      setUserTeamRoster(roster);
 
-        // Calculate team ratings from player attributes
-        if (roster.players && roster.players.length > 0) {
-          const players = roster.players;
-          const overallRatings = players.map((p) => p.overall_rating);
-          const interiorShooting = players.map((p) => p.inside_shot);
-          const threePointShooting = players.map((p) => p.three_point_shot);
-          const passing = players.map((p) => p.pass);
-          const onBallDefense = players.map((p) => p.on_ball_defense);
+      // Calculate team ratings from player attributes
+      if (roster.players && roster.players.length > 0) {
+        const players = roster.players;
+        const overallRatings = players.map((p) => p.overall_rating);
+        const interiorShooting = players.map((p) => p.inside_shot);
+        const threePointShooting = players.map((p) => p.three_point_shot);
+        const passing = players.map((p) => p.pass);
+        const onBallDefense = players.map((p) => p.on_ball_defense);
 
-          setTeamRatings({
-            overall: Math.round(overallRatings.reduce((a, b) => a + b, 0) / overallRatings.length),
-            interiorShooting: Math.round(interiorShooting.reduce((a, b) => a + b, 0) / interiorShooting.length),
-            threePointShooting: Math.round(threePointShooting.reduce((a, b) => a + b, 0) / threePointShooting.length),
-            passing: Math.round(passing.reduce((a, b) => a + b, 0) / passing.length),
-            onBallDefense: Math.round(onBallDefense.reduce((a, b) => a + b, 0) / onBallDefense.length),
-          });
-        }
-      } catch (error) {
-        console.error('Failed to fetch user team roster:', error);
+        setTeamRatings({
+          overall: Math.round(overallRatings.reduce((a, b) => a + b, 0) / overallRatings.length),
+          interiorShooting: Math.round(interiorShooting.reduce((a, b) => a + b, 0) / interiorShooting.length),
+          threePointShooting: Math.round(threePointShooting.reduce((a, b) => a + b, 0) / threePointShooting.length),
+          passing: Math.round(passing.reduce((a, b) => a + b, 0) / passing.length),
+          onBallDefense: Math.round(onBallDefense.reduce((a, b) => a + b, 0) / onBallDefense.length),
+        });
       }
-    };
+    } catch (error) {
+      console.error('Failed to fetch user team roster:', error);
+    }
+  };
 
+  // Initial fetch on mount or when team changes
+  useEffect(() => {
     fetchUserTeamRoster();
   }, [userTeam.team_id]);
+
+  // Refresh roster when user's team game is completed
+  useEffect(() => {
+    if (!currentGameDay || !currentGameDay.games) {
+      return;
+    }
+
+    // Find completed games involving user's team
+    const userTeamGames = currentGameDay.games.filter(
+      (game) =>
+        game.completed &&
+        (game.home_team_id === userTeam.team_id || game.away_team_id === userTeam.team_id)
+    );
+
+    // Check if any new game was completed (not already tracked)
+    const newCompletedGames = userTeamGames.filter(
+      (game) => !completedUserTeamGamesRef.current.has(game.game_id)
+    );
+
+    // If a new game involving user's team was completed, refresh the roster
+    if (newCompletedGames.length > 0) {
+      // Update the ref to track these completed games
+      newCompletedGames.forEach((game) => {
+        completedUserTeamGamesRef.current.add(game.game_id);
+      });
+
+      // Refresh the roster to get updated player stats
+      fetchUserTeamRoster();
+    }
+  }, [currentGameDay, userTeam.team_id]);
 
   // Pagination settings
   const matchupsPerPage = 8; // Show 8 matchups per page (better for 15 games per day)

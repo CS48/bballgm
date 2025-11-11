@@ -144,40 +144,50 @@ export class GameEngine {
     // Copy starting stats or initialize new ones
     homeTeam.players.forEach((player) => {
       const existingStats = startingHomePlayerStats.get(player.id);
-      playerStats.set(
-        player.id,
-        existingStats || {
-          points: 0,
-          rebounds: 0,
-          assists: 0,
-          steals: 0,
-          blocks: 0,
-          fieldGoalsMade: 0,
-          fieldGoalsAttempted: 0,
-          threePointersMade: 0,
-          threePointersAttempted: 0,
-          turnovers: 0,
-          fouls: 0,
-        }
-      );
+      const stats = existingStats || {
+        points: 0,
+        rebounds: 0,
+        assists: 0,
+        steals: 0,
+        blocks: 0,
+        fieldGoalsMade: 0,
+        fieldGoalsAttempted: 0,
+        threePointersMade: 0,
+        threePointersAttempted: 0,
+        turnovers: 0,
+        fouls: 0,
+        offensiveRebound: 0,
+        defensiveRebound: 0,
+        minutes: 0,
+      };
+      // Ensure rebound fields exist even if copying existing stats
+      if (stats.offensiveRebound === undefined) stats.offensiveRebound = 0;
+      if (stats.defensiveRebound === undefined) stats.defensiveRebound = 0;
+      if (stats.minutes === undefined) stats.minutes = 0;
+      playerStats.set(player.id, stats);
     });
 
     awayTeam.players.forEach((player) => {
       const existingStats = startingAwayPlayerStats.get(player.id);
-      playerStats.set(
-        player.id,
-        existingStats || {
-          points: 0,
-          rebounds: 0,
-          assists: 0,
-          steals: 0,
-          blocks: 0,
-          fieldGoalsMade: 0,
-          fieldGoalsAttempted: 0,
-          turnovers: 0,
-          fouls: 0,
-        }
-      );
+      const stats = existingStats || {
+        points: 0,
+        rebounds: 0,
+        assists: 0,
+        steals: 0,
+        blocks: 0,
+        fieldGoalsMade: 0,
+        fieldGoalsAttempted: 0,
+        turnovers: 0,
+        fouls: 0,
+        offensiveRebound: 0,
+        defensiveRebound: 0,
+        minutes: 0,
+      };
+      // Ensure rebound fields exist even if copying existing stats
+      if (stats.offensiveRebound === undefined) stats.offensiveRebound = 0;
+      if (stats.defensiveRebound === undefined) stats.defensiveRebound = 0;
+      if (stats.minutes === undefined) stats.minutes = 0;
+      playerStats.set(player.id, stats);
     });
 
     // Start first possession
@@ -356,6 +366,16 @@ export class GameEngine {
     let timeElapsed = 0;
     const timePerEvent = possessionResult.possessionDuration / Math.max(1, possessionResult.events.length);
 
+    // Track assist state (previous ball handler and whether last action was a pass)
+    let previousBallHandler: string | undefined = undefined;
+    let lastActionWasPass = false;
+
+    // Track active player IDs for minutes calculation
+    const activePlayerIds = [
+      ...activeOffensivePlayers.map((p) => p.id),
+      ...activeDefensivePlayers.map((p) => p.id),
+    ];
+
     for (const possessionEvent of possessionResult.events) {
       // Advance clock before creating event
       gameClock.advanceTime(timePerEvent);
@@ -396,6 +416,15 @@ export class GameEngine {
       eventId++;
       timeElapsed += timePerEvent;
 
+      // Update minutes for all active players
+      activePlayerIds.forEach((playerId) => {
+        const playerStat = playerStats.get(playerId);
+        if (playerStat) {
+          if (playerStat.minutes === undefined) playerStat.minutes = 0;
+          playerStat.minutes += timePerEvent / 60; // Convert seconds to minutes
+        }
+      });
+
       // Update scores and stats based on possession result
       if (possessionEvent.rollResult?.outcome === 'success' && possessionEvent.rollResult.points) {
         const points = possessionEvent.rollResult.points;
@@ -416,6 +445,18 @@ export class GameEngine {
             shooterStats.threePointersMade++;
             shooterStats.threePointersAttempted++;
           }
+
+          // Check for assist - only if last action was a pass and we have a previous ball handler
+          if (lastActionWasPass && previousBallHandler && previousBallHandler !== shooterId) {
+            const passerStats = playerStats.get(previousBallHandler);
+            if (passerStats) {
+              passerStats.assists++;
+            }
+          }
+
+          // Reset assist tracking after successful shot
+          lastActionWasPass = false;
+          previousBallHandler = undefined;
         }
       } else if (possessionEvent.rollResult?.outcome === 'failure') {
         // Missed shot - update attempts
@@ -425,6 +466,68 @@ export class GameEngine {
           shooterStats.fieldGoalsAttempted++;
           if (possessionEvent.rollResult.isThreePointer) {
             shooterStats.threePointersAttempted++;
+          }
+        }
+      } else if (possessionEvent.rollResult?.outcome === 'intercepted' || possessionEvent.rollResult?.outcome === 'steal') {
+        // Handle turnovers and steals
+        const ballHandlerId = this.findPlayerIdByName(possessionEvent.ballHandler, offensiveTeam);
+        if (ballHandlerId) {
+          const ballHandlerStats = playerStats.get(ballHandlerId);
+          if (ballHandlerStats) {
+            ballHandlerStats.turnovers++;
+          }
+        }
+
+        // Steal for defensive player
+        // For simplicity, we'll credit the steal to a random defensive player
+        // In a more sophisticated system, we'd track which specific defender made the steal
+        if (activeDefensivePlayers.length > 0) {
+          const randomDefender = activeDefensivePlayers[Math.floor(Math.random() * activeDefensivePlayers.length)];
+          const defenderStats = playerStats.get(randomDefender.id);
+          if (defenderStats) {
+            defenderStats.steals++;
+          }
+        }
+
+        // Reset assist tracking on turnover
+        lastActionWasPass = false;
+        previousBallHandler = undefined;
+      } else if (possessionEvent.rollResult?.outcome === 'complete') {
+        // Handle passes - track previous ball handler for assist potential
+        const passerId = this.findPlayerIdByName(possessionEvent.ballHandler, offensiveTeam);
+        if (passerId) {
+          previousBallHandler = passerId;
+          lastActionWasPass = true;
+        }
+      } else if (possessionEvent.decision?.action === 'skill_move') {
+        // Handle skill moves - reset assist tracking
+        lastActionWasPass = false;
+      } else if (possessionEvent.rollResult?.outcome === 'offensive' || possessionEvent.rollResult?.outcome === 'defensive') {
+        // Handle rebound events
+        const rebounderName = possessionEvent.rollResult.rebounder;
+        if (rebounderName) {
+          // Find rebounder on either team (rebounds can be on either team)
+          const rebounderId =
+            this.findPlayerIdByName(rebounderName, offensiveTeam) ||
+            this.findPlayerIdByName(rebounderName, defensiveTeam);
+
+          if (rebounderId) {
+            const rebounderStats = playerStats.get(rebounderId);
+            if (rebounderStats) {
+              // Initialize rebound fields if they don't exist
+              if (rebounderStats.offensiveRebound === undefined) rebounderStats.offensiveRebound = 0;
+              if (rebounderStats.defensiveRebound === undefined) rebounderStats.defensiveRebound = 0;
+
+              // Update rebound stats
+              if (possessionEvent.rollResult.outcome === 'offensive') {
+                rebounderStats.offensiveRebound++;
+              } else {
+                rebounderStats.defensiveRebound++;
+              }
+
+              // Update total rebounds
+              rebounderStats.rebounds = (rebounderStats.rebounds || 0) + 1;
+            }
           }
         }
       }
@@ -506,15 +609,23 @@ export class GameEngine {
     homePlayerStats: Map<string, any>,
     awayPlayerStats: Map<string, any>
   ): GameSimulationResult {
-    const homePlayerStatsArray = homeTeam.players.map((player) => ({
-      ...player,
-      ...homePlayerStats.get(player.id)!,
-    }));
+    const homePlayerStatsArray = homeTeam.players.map((player) => {
+      const stats = homePlayerStats.get(player.id)!;
+      return {
+        ...player,
+        ...stats,
+        minutes: stats.minutes || 0, // Ensure minutes is set
+      };
+    });
 
-    const awayPlayerStatsArray = awayTeam.players.map((player) => ({
-      ...player,
-      ...awayPlayerStats.get(player.id)!,
-    }));
+    const awayPlayerStatsArray = awayTeam.players.map((player) => {
+      const stats = awayPlayerStats.get(player.id)!;
+      return {
+        ...player,
+        ...stats,
+        minutes: stats.minutes || 0, // Ensure minutes is set
+      };
+    });
 
     // Use the actual game scores passed in, not calculated from player stats
     const winningTeamStats = homeScore > awayScore ? homePlayerStatsArray : awayPlayerStatsArray;
