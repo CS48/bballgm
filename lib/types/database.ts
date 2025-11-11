@@ -71,6 +71,8 @@ export interface PlayerSeasonStats {
   games: number;
   /** Total minutes played */
   minutes: number;
+  /** Minutes per game (calculated) */
+  mpg?: number;
   /** Total points scored */
   points: number;
   /** Points per game (calculated) */
@@ -113,6 +115,16 @@ export interface PlayerSeasonStats {
   ft_attempted: number;
   /** Free throw percentage */
   ft_pct: number;
+  /** Offensive rebounds */
+  oreb?: number;
+  /** Offensive rebounds per game (calculated) */
+  oreb_pg?: number;
+  /** Defensive rebounds */
+  dreb?: number;
+  /** Defensive rebounds per game (calculated) */
+  dreb_pg?: number;
+  /** Personal fouls */
+  pf?: number;
   /** Plus/minus rating */
   plus_minus?: number;
 }
@@ -158,6 +170,14 @@ export interface PlayerCareerStats {
   three_pct: number;
   /** Career free throw percentage */
   ft_pct: number;
+  /** Total career offensive rebounds */
+  oreb?: number;
+  /** Total career defensive rebounds */
+  dreb?: number;
+  /** Total career personal fouls */
+  pf?: number;
+  /** Career plus/minus rating */
+  plus_minus?: number;
 }
 
 /**
@@ -239,6 +259,26 @@ export interface TeamSeasonStats {
   bpg: number;
   /** Turnovers per game */
   tpg: number;
+  /** Field goals made (total) */
+  fg_made?: number;
+  /** Field goals attempted (total) */
+  fg_attempted?: number;
+  /** Three-pointers made (total) */
+  three_made?: number;
+  /** Three-pointers attempted (total) */
+  three_attempted?: number;
+  /** Free throws made (total) */
+  ft_made?: number;
+  /** Free throws attempted (total) */
+  ft_attempted?: number;
+  /** Offensive rebounds per game */
+  oreb?: number;
+  /** Defensive rebounds per game */
+  dreb?: number;
+  /** Personal fouls per game */
+  pf?: number;
+  /** Plus/minus rating */
+  plus_minus?: number;
 }
 
 /**
@@ -354,6 +394,12 @@ export interface PlayerBoxScore {
   ft_attempted: number;
   /** Free throw percentage */
   ft_pct: number;
+  /** Offensive rebounds */
+  oreb?: number;
+  /** Defensive rebounds */
+  dreb?: number;
+  /** Personal fouls */
+  pf?: number;
   /** Plus/minus rating */
   plus_minus: number;
 }

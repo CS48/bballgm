@@ -10,6 +10,7 @@ import { playerService } from '@/lib/services/player-service';
 import { RosterTable } from '@/components/roster-table';
 import { RotationEditor } from '@/components/rotation-editor';
 import type { Team, TeamRotationConfig } from '@/lib/types/database';
+import { isStatNotImplemented } from '@/lib/utils';
 
 interface TeamPageProps {
   params: {
@@ -250,22 +251,48 @@ export default function TeamPage({ params }: TeamPageProps) {
                       </thead>
                       <tbody>
                         <tr>
-                          <td className="p-2">{(teamSeasonStats?.games || 0).toFixed(1)}</td>
+                          <td className="p-2">{(teamSeasonStats?.games || 0).toFixed(0)}</td>
                           <td className="p-2">{teamSeasonStats?.ppg?.toFixed(1) || '0.0'}</td>
-                          <td className="p-2">{(teamSeasonStats?.fg_made || 0).toFixed(1)}</td>
-                          <td className="p-2">{(teamSeasonStats?.fg_attempted || 0).toFixed(1)}</td>
+                          <td className="p-2">
+                            {teamSeasonStats?.games && teamSeasonStats?.fg_made
+                              ? (teamSeasonStats.fg_made / teamSeasonStats.games).toFixed(1)
+                              : '0.0'}
+                          </td>
+                          <td className="p-2">
+                            {teamSeasonStats?.games && teamSeasonStats?.fg_attempted
+                              ? (teamSeasonStats.fg_attempted / teamSeasonStats.games).toFixed(1)
+                              : '0.0'}
+                          </td>
                           <td className="p-2">
                             {teamSeasonStats?.fg_pct ? (teamSeasonStats.fg_pct * 100).toFixed(1) + '%' : '0.0%'}
                           </td>
-                          <td className="p-2">{(teamSeasonStats?.three_made || 0).toFixed(1)}</td>
-                          <td className="p-2">{(teamSeasonStats?.three_attempted || 0).toFixed(1)}</td>
+                          <td className="p-2">
+                            {teamSeasonStats?.games && teamSeasonStats?.three_made
+                              ? (teamSeasonStats.three_made / teamSeasonStats.games).toFixed(1)
+                              : '0.0'}
+                          </td>
+                          <td className="p-2">
+                            {teamSeasonStats?.games && teamSeasonStats?.three_attempted
+                              ? (teamSeasonStats.three_attempted / teamSeasonStats.games).toFixed(1)
+                              : '0.0'}
+                          </td>
                           <td className="p-2">
                             {teamSeasonStats?.three_pct ? (teamSeasonStats.three_pct * 100).toFixed(1) + '%' : '0.0%'}
                           </td>
-                          <td className="p-2">{(teamSeasonStats?.ft_made || 0).toFixed(1)}</td>
-                          <td className="p-2">{(teamSeasonStats?.ft_attempted || 0).toFixed(1)}</td>
                           <td className="p-2">
-                            {teamSeasonStats?.ft_pct ? (teamSeasonStats.ft_pct * 100).toFixed(1) + '%' : '0.0%'}
+                            {teamSeasonStats?.games && teamSeasonStats?.ft_made
+                              ? (teamSeasonStats.ft_made / teamSeasonStats.games).toFixed(1)
+                              : isStatNotImplemented('ft_made') ? '--' : '0.0'}
+                          </td>
+                          <td className="p-2">
+                            {teamSeasonStats?.games && teamSeasonStats?.ft_attempted
+                              ? (teamSeasonStats.ft_attempted / teamSeasonStats.games).toFixed(1)
+                              : isStatNotImplemented('ft_attempted') ? '--' : '0.0'}
+                          </td>
+                          <td className="p-2">
+                            {teamSeasonStats?.ft_pct
+                              ? (teamSeasonStats.ft_pct * 100).toFixed(1) + '%'
+                              : isStatNotImplemented('ft_pct') ? '--' : '0.0%'}
                           </td>
                           <td className="p-2">{(teamSeasonStats?.oreb || 0).toFixed(1)}</td>
                           <td className="p-2">{(teamSeasonStats?.dreb || 0).toFixed(1)}</td>
@@ -273,9 +300,21 @@ export default function TeamPage({ params }: TeamPageProps) {
                           <td className="p-2">{teamSeasonStats?.apg?.toFixed(1) || '0.0'}</td>
                           <td className="p-2">{teamSeasonStats?.tpg?.toFixed(1) || '0.0'}</td>
                           <td className="p-2">{teamSeasonStats?.spg?.toFixed(1) || '0.0'}</td>
-                          <td className="p-2">{teamSeasonStats?.bpg?.toFixed(1) || '0.0'}</td>
-                          <td className="p-2">{(teamSeasonStats?.pf || 0).toFixed(1)}</td>
-                          <td className="p-2">{teamSeasonStats?.plus_minus?.toFixed(1) || '0.0'}</td>
+                          <td className="p-2">
+                            {teamSeasonStats?.bpg !== undefined && teamSeasonStats?.bpg !== null && teamSeasonStats.bpg !== 0
+                              ? teamSeasonStats.bpg.toFixed(1)
+                              : isStatNotImplemented('bpg') ? '--' : '0.0'}
+                          </td>
+                          <td className="p-2">
+                            {teamSeasonStats?.pf !== undefined && teamSeasonStats?.pf !== null && teamSeasonStats.pf !== 0
+                              ? teamSeasonStats.pf.toFixed(1)
+                              : isStatNotImplemented('pf') ? '--' : '0.0'}
+                          </td>
+                          <td className="p-2">
+                            {teamSeasonStats?.plus_minus !== undefined && teamSeasonStats?.plus_minus !== null && teamSeasonStats.plus_minus !== 0
+                              ? teamSeasonStats.plus_minus.toFixed(1)
+                              : isStatNotImplemented('plus_minus') ? '--' : '0.0'}
+                          </td>
                         </tr>
                       </tbody>
                     </table>

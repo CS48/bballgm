@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trophy } from 'lucide-react';
 import type { GameSimulationResult, PlayerGameStats } from '@/lib/types/game-simulation';
+import { isStatNotImplemented } from '@/lib/utils';
 
 interface BoxScoreProps {
   result: GameSimulationResult;
@@ -32,7 +33,13 @@ export function BoxScore({ result, onClose }: BoxScoreProps) {
       <td className="py-2 px-3 text-center">{player.rebounds}</td>
       <td className="py-2 px-3 text-center">{player.assists}</td>
       <td className="py-2 px-3 text-center">{player.steals}</td>
-      <td className="py-2 px-3 text-center">{player.blocks}</td>
+      <td className="py-2 px-3 text-center">
+        {player.blocks !== undefined && player.blocks !== null && player.blocks !== 0
+          ? player.blocks
+          : isStatNotImplemented('blocks')
+            ? '--'
+            : 0}
+      </td>
       <td className="py-2 px-3 text-center">
         {player.fieldGoalsMade}/{player.fieldGoalsAttempted}
       </td>
@@ -121,7 +128,13 @@ export function BoxScore({ result, onClose }: BoxScoreProps) {
                 <td className="py-2 px-3 text-center">{totals.rebounds}</td>
                 <td className="py-2 px-3 text-center">{totals.assists}</td>
                 <td className="py-2 px-3 text-center">{totals.steals}</td>
-                <td className="py-2 px-3 text-center">{totals.blocks}</td>
+                <td className="py-2 px-3 text-center">
+                  {totals.blocks !== undefined && totals.blocks !== null && totals.blocks !== 0
+                    ? totals.blocks
+                    : isStatNotImplemented('blocks')
+                      ? '--'
+                      : 0}
+                </td>
                 <td className="py-2 px-3 text-center">
                   {totals.fieldGoalsMade}/{totals.fieldGoalsAttempted}
                 </td>

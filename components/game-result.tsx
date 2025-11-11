@@ -50,7 +50,13 @@ export function GameResultComponent({ result, userTeam, onBackToMenu }: GameResu
       <td className="py-2 px-2 text-center">{player.rebounds}</td>
       <td className="py-2 px-2 text-center">{player.assists}</td>
       <td className="py-2 px-2 text-center">{player.steals}</td>
-      <td className="py-2 px-2 text-center">{player.blocks}</td>
+      <td className="py-2 px-2 text-center">
+        {player.blocks !== undefined && player.blocks !== null && player.blocks !== 0
+          ? player.blocks
+          : isStatNotImplemented('blocks')
+            ? '--'
+            : 0}
+      </td>
     </tr>
   );
 
@@ -155,7 +161,13 @@ export function GameResultComponent({ result, userTeam, onBackToMenu }: GameResu
                 <td className="py-2 px-2 text-center font-bold">{totals.rebounds}</td>
                 <td className="py-2 px-2 text-center font-bold">{totals.assists}</td>
                 <td className="py-2 px-2 text-center font-bold">{totals.steals}</td>
-                <td className="py-2 px-2 text-center font-bold">{totals.blocks}</td>
+                <td className="py-2 px-2 text-center font-bold">
+                  {totals.blocks !== undefined && totals.blocks !== null && totals.blocks !== 0
+                    ? totals.blocks
+                    : isStatNotImplemented('blocks')
+                      ? '--'
+                      : 0}
+                </td>
               </tr>
             </tbody>
           </table>

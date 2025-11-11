@@ -16,7 +16,7 @@ interface PlayerPageProps {
 }
 
 export default function PlayerPage({ params }: PlayerPageProps) {
-  const { teams, isLoading: leagueLoading } = useLeague();
+  const { teams, isLoading: leagueLoading, currentSeason } = useLeague();
   const [player, setPlayer] = useState<Player | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
   const [currentSeasonStats, setCurrentSeasonStats] = useState<PlayerSeasonStats | null>(null);
@@ -129,13 +129,40 @@ export default function PlayerPage({ params }: PlayerPageProps) {
     return `${feet}'${remainingInches}"`;
   };
 
-  const formatStat = (value: number | undefined, decimals: number = 1): string => {
-    if (value === undefined || value === null) return '0.0';
+  /**
+   * Determines if a stat should show "--" (not implemented) vs "0.0" (implemented but zero)
+   * TODO: Remove this helper function after free throws, blocks, personal fouls, and plus/minus are fully implemented
+   */
+  const isStatNotImplemented = (statName: string): boolean => {
+    const notImplementedStats = ['ft_made', 'ft_attempted', 'ft_pct', 'bpg', 'pf', 'plus_minus'];
+    return notImplementedStats.includes(statName);
+  };
+
+  const formatStat = (value: number | undefined, decimals: number = 1, statName?: string): string => {
+    // For unimplemented stats, show "--" if value is undefined, null, or 0
+    if (statName && isStatNotImplemented(statName)) {
+      if (value === undefined || value === null || value === 0) {
+        return '--';
+      }
+    }
+    
+    if (value === undefined || value === null) {
+      return '0.0';
+    }
     return value.toFixed(decimals);
   };
 
-  const formatPercentage = (value: number | undefined): string => {
-    if (value === undefined || value === null) return '0.0%';
+  const formatPercentage = (value: number | undefined, statName?: string): string => {
+    // For unimplemented stats, show "--" if value is undefined, null, or 0
+    if (statName && isStatNotImplemented(statName)) {
+      if (value === undefined || value === null || value === 0) {
+        return '--';
+      }
+    }
+    
+    if (value === undefined || value === null) {
+      return '0.0%';
+    }
     return (value * 100).toFixed(1) + '%';
   };
 
@@ -293,7 +320,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                       <tbody>
                         <tr>
                           <td className="p-2">{formatStat(currentSeasonStats?.games, 0)}</td>
-                          <td className="p-2">{formatStat(currentSeasonStats?.minutes)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats?.mpg)}</td>
                           <td className="p-2">{formatStat(currentSeasonStats?.ppg)}</td>
                           <td className="p-2">{formatStat(currentSeasonStats?.fg_made, 0)}</td>
                           <td className="p-2">{formatStat(currentSeasonStats?.fg_attempted, 0)}</td>
@@ -301,18 +328,18 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                           <td className="p-2">{formatStat(currentSeasonStats?.three_made, 0)}</td>
                           <td className="p-2">{formatStat(currentSeasonStats?.three_attempted, 0)}</td>
                           <td className="p-2">{formatPercentage(currentSeasonStats?.three_pct)}</td>
-                          <td className="p-2">{formatStat(currentSeasonStats?.ft_made, 0)}</td>
-                          <td className="p-2">{formatStat(currentSeasonStats?.ft_attempted, 0)}</td>
-                          <td className="p-2">{formatPercentage(currentSeasonStats?.ft_pct)}</td>
-                          <td className="p-2">{formatStat(currentSeasonStats?.oreb, 0)}</td>
-                          <td className="p-2">{formatStat(currentSeasonStats?.dreb, 0)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats?.ft_made, 0, 'ft_made')}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats?.ft_attempted, 0, 'ft_attempted')}</td>
+                          <td className="p-2">{formatPercentage(currentSeasonStats?.ft_pct, 'ft_pct')}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats?.oreb_pg)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats?.dreb_pg)}</td>
                           <td className="p-2">{formatStat(currentSeasonStats?.rpg)}</td>
                           <td className="p-2">{formatStat(currentSeasonStats?.apg)}</td>
                           <td className="p-2">{formatStat(currentSeasonStats?.tpg)}</td>
                           <td className="p-2">{formatStat(currentSeasonStats?.spg)}</td>
-                          <td className="p-2">{formatStat(currentSeasonStats?.bpg)}</td>
-                          <td className="p-2">{formatStat(currentSeasonStats?.pf, 0)}</td>
-                          <td className="p-2">{formatStat(currentSeasonStats?.plus_minus)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats?.bpg, 1, 'bpg')}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats?.pf, 0, 'pf')}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats?.plus_minus, 1, 'plus_minus')}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -529,28 +556,58 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                         <td className="p-2">{formatStat(careerStats?.three_made, 0)}</td>
                         <td className="p-2">{formatStat(careerStats?.three_attempted, 0)}</td>
                         <td className="p-2">{formatPercentage(careerStats?.three_pct)}</td>
-                        <td className="p-2">{formatStat(careerStats?.ft_made, 0)}</td>
-                        <td className="p-2">{formatStat(careerStats?.ft_attempted, 0)}</td>
-                        <td className="p-2">{formatPercentage(careerStats?.ft_pct)}</td>
-                        <td className="p-2">{formatStat(careerStats?.oreb, 0)}</td>
-                        <td className="p-2">{formatStat(careerStats?.dreb, 0)}</td>
+                        <td className="p-2">{formatStat(careerStats?.ft_made, 0, 'ft_made')}</td>
+                        <td className="p-2">{formatStat(careerStats?.ft_attempted, 0, 'ft_attempted')}</td>
+                        <td className="p-2">{formatPercentage(careerStats?.ft_pct, 'ft_pct')}</td>
+                        <td className="p-2">{formatStat(careerStats?.oreb_pg || (careerStats?.oreb && careerStats?.games ? careerStats.oreb / careerStats.games : undefined))}</td>
+                        <td className="p-2">{formatStat(careerStats?.dreb_pg || (careerStats?.dreb && careerStats?.games ? careerStats.dreb / careerStats.games : undefined))}</td>
                         <td className="p-2">{formatStat(careerStats?.rpg)}</td>
                         <td className="p-2">{formatStat(careerStats?.apg)}</td>
                         <td className="p-2">{formatStat(careerStats?.tpg)}</td>
                         <td className="p-2">{formatStat(careerStats?.spg)}</td>
-                        <td className="p-2">{formatStat(careerStats?.bpg)}</td>
-                        <td className="p-2">{formatStat(careerStats?.pf, 0)}</td>
-                        <td className="p-2">N/A</td>
-                        <td className="p-2">N/A</td>
-                        <td className="p-2">{formatStat(careerStats?.plus_minus)}</td>
+                        <td className="p-2">{formatStat(careerStats?.bpg, 1, 'bpg')}</td>
+                        <td className="p-2">{formatStat(careerStats?.pf, 0, 'pf')}</td>
+                        <td className="p-2">--</td>
+                        <td className="p-2">--</td>
+                        <td className="p-2">{formatStat(careerStats?.plus_minus, 1, 'plus_minus')}</td>
                       </tr>
+
+                      {/* Current Season Row */}
+                      {currentSeasonStats && (
+                        <tr>
+                          <td className="p-2 font-semibold">{currentSeason?.year || 'Current'}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.games, 0)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.mpg)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.ppg)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.fg_made, 0)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.fg_attempted, 0)}</td>
+                          <td className="p-2">{formatPercentage(currentSeasonStats.fg_pct)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.three_made, 0)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.three_attempted, 0)}</td>
+                          <td className="p-2">{formatPercentage(currentSeasonStats.three_pct)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.ft_made, 0, 'ft_made')}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.ft_attempted, 0, 'ft_attempted')}</td>
+                          <td className="p-2">{formatPercentage(currentSeasonStats.ft_pct, 'ft_pct')}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.oreb_pg)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.dreb_pg)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.rpg)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.apg)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.tpg)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.spg)}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.bpg, 1, 'bpg')}</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.pf, 0, 'pf')}</td>
+                          <td className="p-2">--</td>
+                          <td className="p-2">--</td>
+                          <td className="p-2">{formatStat(currentSeasonStats.plus_minus, 1, 'plus_minus')}</td>
+                        </tr>
+                      )}
 
                       {/* Historical Season Rows */}
                       {historicalStats.map((season, index) => (
                         <tr key={index}>
                           <td className="p-2">{season.season || `Season ${index + 1}`}</td>
                           <td className="p-2">{formatStat(season.games, 0)}</td>
-                          <td className="p-2">{formatStat(season.minutes)}</td>
+                          <td className="p-2">{formatStat(season.mpg || (season.minutes && season.games ? season.minutes / season.games : undefined))}</td>
                           <td className="p-2">{formatStat(season.ppg)}</td>
                           <td className="p-2">{formatStat(season.fg_made, 0)}</td>
                           <td className="p-2">{formatStat(season.fg_attempted, 0)}</td>
@@ -558,20 +615,20 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                           <td className="p-2">{formatStat(season.three_made, 0)}</td>
                           <td className="p-2">{formatStat(season.three_attempted, 0)}</td>
                           <td className="p-2">{formatPercentage(season.three_pct)}</td>
-                          <td className="p-2">{formatStat(season.ft_made, 0)}</td>
-                          <td className="p-2">{formatStat(season.ft_attempted, 0)}</td>
-                          <td className="p-2">{formatPercentage(season.ft_pct)}</td>
-                          <td className="p-2">{formatStat(season.oreb, 0)}</td>
-                          <td className="p-2">{formatStat(season.dreb, 0)}</td>
+                          <td className="p-2">{formatStat(season.ft_made, 0, 'ft_made')}</td>
+                          <td className="p-2">{formatStat(season.ft_attempted, 0, 'ft_attempted')}</td>
+                          <td className="p-2">{formatPercentage(season.ft_pct, 'ft_pct')}</td>
+                          <td className="p-2">{formatStat(season.oreb_pg || (season.oreb && season.games ? season.oreb / season.games : undefined))}</td>
+                          <td className="p-2">{formatStat(season.dreb_pg || (season.dreb && season.games ? season.dreb / season.games : undefined))}</td>
                           <td className="p-2">{formatStat(season.rpg)}</td>
                           <td className="p-2">{formatStat(season.apg)}</td>
                           <td className="p-2">{formatStat(season.tpg)}</td>
                           <td className="p-2">{formatStat(season.spg)}</td>
-                          <td className="p-2">{formatStat(season.bpg)}</td>
-                          <td className="p-2">{formatStat(season.pf, 0)}</td>
-                          <td className="p-2">N/A</td>
-                          <td className="p-2">N/A</td>
-                          <td className="p-2">{formatStat(season.plus_minus)}</td>
+                          <td className="p-2">{formatStat(season.bpg, 1, 'bpg')}</td>
+                          <td className="p-2">{formatStat(season.pf, 0, 'pf')}</td>
+                          <td className="p-2">--</td>
+                          <td className="p-2">--</td>
+                          <td className="p-2">{formatStat(season.plus_minus, 1, 'plus_minus')}</td>
                         </tr>
                       ))}
                     </tbody>

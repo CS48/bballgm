@@ -1,5 +1,7 @@
 'use client';
 
+import { isStatNotImplemented } from '@/lib/utils';
+
 interface Player {
   player_id: number;
   name: string;
@@ -37,13 +39,39 @@ interface GameStatsTableProps {
 
 export function GameStatsTable({ players, activePlayerIds = [] }: GameStatsTableProps) {
   // Helper functions
-  const formatStat = (value: number | undefined, decimals: number = 1): string => {
-    if (value === undefined || value === null) return '0.0';
+  /**
+   * Format stat value, showing "--" for unimplemented stats
+   * TODO: Remove statName parameter and isStatNotImplemented check after all stats are fully implemented
+   */
+  const formatStat = (value: number | undefined, decimals: number = 1, statName?: string): string => {
+    // For unimplemented stats, show "--" if value is undefined, null, or 0
+    if (statName && isStatNotImplemented(statName)) {
+      if (value === undefined || value === null || value === 0) {
+        return '--';
+      }
+    }
+    
+    if (value === undefined || value === null) {
+      return '0.0';
+    }
     return value.toFixed(decimals);
   };
 
-  const formatPercentage = (made: number | undefined, attempted: number | undefined): string => {
-    if (!made || !attempted || attempted === 0) return '0.0';
+  /**
+   * Format percentage, showing "--" for unimplemented stats
+   * TODO: Remove statName parameter and isStatNotImplemented check after all stats are fully implemented
+   */
+  const formatPercentage = (made: number | undefined, attempted: number | undefined, statName?: string): string => {
+    // For unimplemented stats, show "--" if made/attempted are undefined, null, or 0
+    if (statName && isStatNotImplemented(statName)) {
+      if (made === undefined || made === null || made === 0 || attempted === undefined || attempted === null || attempted === 0) {
+        return '--';
+      }
+    }
+    
+    if (!made || !attempted || attempted === 0) {
+      return '0.0';
+    }
     return (made / attempted).toFixed(1);
   };
 
@@ -167,13 +195,13 @@ export function GameStatsTable({ players, activePlayerIds = [] }: GameStatsTable
                     {formatStat(player.current_stats?.three_pct)}
                   </td>
                   <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>
-                    {formatStat(player.current_stats?.ft_made, 0)}
+                    {formatStat(player.current_stats?.ft_made, 0, 'ft_made')}
                   </td>
                   <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>
-                    {formatStat(player.current_stats?.ft_attempted, 0)}
+                    {formatStat(player.current_stats?.ft_attempted, 0, 'ft_attempted')}
                   </td>
                   <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>
-                    {formatStat(player.current_stats?.ft_pct)}
+                    {formatStat(player.current_stats?.ft_pct, 1, 'ft_pct')}
                   </td>
                   <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>
                     {formatStat(player.current_stats?.oreb, 0)}
@@ -194,13 +222,13 @@ export function GameStatsTable({ players, activePlayerIds = [] }: GameStatsTable
                     {formatStat(player.current_stats?.steals, 0)}
                   </td>
                   <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>
-                    {formatStat(player.current_stats?.blocks, 0)}
+                    {formatStat(player.current_stats?.blocks, 0, 'blocks')}
                   </td>
                   <td className={`p-2 text-right border-r font-mono border-gray-200 bg-background`}>
-                    {formatStat(player.current_stats?.pf, 0)}
+                    {formatStat(player.current_stats?.pf, 0, 'pf')}
                   </td>
                   <td className={`p-2 text-right font-mono bg-background`}>
-                    {formatStat(player.current_stats?.plus_minus)}
+                    {formatStat(player.current_stats?.plus_minus, 1, 'plus_minus')}
                   </td>
                 </tr>
               );
